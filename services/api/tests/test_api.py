@@ -48,6 +48,7 @@ def test_api_end_to_end():
                                json={"event_id":event_id, "provider_id":"cityline",
                                      "booking_url":"http://unsafe.example"}).status_code == 422
             verify_admin_updates(client, headers)
+            verify_performance_workflows(client, headers, artist_id, source_id)
 
 def verify_admin_updates(client, headers):
     artist = client.post("/v1/admin/artists", headers=headers, json={"name": "Schedules Test"}).json()
@@ -92,3 +93,101 @@ def verify_admin_updates(client, headers):
     assert client.post("/v1/admin/sales", headers=headers, json={
         "event_id": eid, "provider_id": "cityline", "timezone": "Invalid/Zone",
         "sale_at_local": "2027-01-06T10:00", "booking_url": "https://www.cityline.com.hk/"}).status_code == 422
+
+
+def verify_performance_workflows(client, headers, artist_id, source_id):
+    event = client.post("/v1/admin/events", headers=headers, json={
+        "artist_id": artist_id, "title": "Multi-session tour", "city": "Tokyo",
+        "country": "JP", "venue": "Tokyo Dome", "timezone": "Asia/Tokyo",
+        "source_url": "https://official.example/tour/tokyo",
+        "starts_at_local": "2026-11-07T17:00",
+    })
+    assert event.status_code == 201, event.text
+    event_id = event.json()["id"]
+    default = event.json()["performances"][0]
+    assert default["startsAt"] == "2026-11-07T08:00:00Z"
+    assert default["sessionKey"] == "default"
+    assert default["eventId"] == event_id
+
+    second = client.post("/v1/admin/performances", headers=headers, json={
+        "event_id": event_id, "session_key": "2026-11-07-20:00", "label": "Late show",
+        "starts_at_local": "2026-11-07T20:00", "timezone": "Asia/Tokyo"
+    })
+    assert second.status_code == 201, second.text
+    second_id = second.json()["id"]
+    assert second.json()["startsAt"] == "2026-11-07T11:00:00Z"
+    assert len(client.get(f"/v1/events/{event_id}/performances").json()["items"]) == 2
+    assert len(client.get(f"/v1/events/{event_id}").json()["performances"]) == 2
+
+    duplicate = client.post("/v1/admin/performances", headers=headers, json={
+        "event_id": event_id, "session_key": "another-key",
+        "starts_at_local": "2026-11-07T20:00", "timezone": "Asia/Tokyo"
+    })
+    assert duplicate.status_code == 409
+    dst = client.post("/v1/admin/performances", headers=headers, json={
+        "event_id": event_id, "session_key": "dst-test",
+        "starts_at_local": "2027-11-07T01:30", "timezone": "America/New_York"
+    })
+    assert dst.status_code == 422
+
+    other_event = client.post("/v1/admin/events", headers=headers, json={
+        "artist_id": artist_id, "title": "Multi-session tour", "city": "Osaka",
+        "country": "JP", "venue": "Osaka Dome", "timezone": "Asia/Tokyo",
+        "source_url": "https://official.example/tour/tokyo",
+    })
+    assert other_event.status_code == 201, other_event.text
+    foreign_id = other_event.json()["performances"][0]["id"]
+
+    bad_scope = client.post("/v1/admin/sales", headers=headers, json={
+        "event_id": event_id, "provider_id": "cityline",
+        "booking_url": "https://www.cityline.com.hk/",
+        "applies_to_all": False, "performance_ids": [foreign_id]
+    })
+    assert bad_scope.status_code == 409
+    sale = client.post("/v1/admin/sales", headers=headers, json={
+        "event_id": event_id, "provider_id": "cityline",
+        "booking_url": "https://www.cityline.com.hk/",
+        "applies_to_all": False, "performance_ids": [second_id],
+        "sale_at_local": "2026-10-10T13:00", "timezone": "Asia/Hong_Kong",
+    })
+    assert sale.status_code == 201, sale.text
+    assert sale.json()["performanceIds"] == [second_id]
+    assert not sale.json()["appliesToAll"]
+    sid = sale.json()["id"]
+
+    changed = client.put(f"/v1/admin/performances/{second_id}", headers=headers, json={
+        "event_id": event_id, "session_key": "2026-11-07-20:00",
+        "label": "Updated second show", "status": "postponed",
+        "starts_at_local": "2026-11-07T21:00", "timezone": "Asia/Tokyo",
+    })
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["status"] == "postponed"
+    assert changed.json()["startsAt"] == "2026-11-07T12:00:00Z"
+    assert client.delete(f"/v1/admin/performances/{second_id}", headers=headers).status_code == 409
+
+    widened = client.put(f"/v1/admin/sales/{sid}", headers=headers, json={
+        "event_id": event_id, "provider_id": "cityline",
+        "booking_url": "https://www.cityline.com.hk/",
+        "applies_to_all": True, "performance_ids": []
+    })
+    assert widened.status_code == 200, widened.text
+    assert widened.json()["performanceIds"] == []
+    assert client.delete(f"/v1/admin/performances/{second_id}", headers=headers).status_code == 200
+    assert client.delete(f"/v1/admin/performances/{default['id']}", headers=headers).status_code == 409
+
+    # Same announcement, many distinct sessions; repeated ingest is idempotent.
+    feed = {"source_id": source_id, "events": [
+        {"artist": "DAY6", "title": "Shared announcement tour", "city": "Seoul",
+         "country": "KR", "venue": "KSPO", "source_url": "https://official.example/tour",
+         "starts_at": "2026-12-02T18:00:00+09:00"},
+        {"artist": "DAY6", "title": "Shared announcement tour", "city": "Seoul",
+         "country": "KR", "venue": "KSPO", "source_url": "https://official.example/tour",
+         "starts_at": "2026-12-03T18:00:00+09:00"},
+    ]}
+    first = client.post("/v1/admin/ingest", headers=headers, json=feed)
+    again = client.post("/v1/admin/ingest", headers=headers, json=feed)
+    assert first.status_code == 200, first.text
+    assert first.json()["performancesCreated"] == 2
+    assert again.json()["performancesCreated"] == 0
+    grouped = [e for e in client.get("/v1/events").json()["items"] if e["title"] == "Shared announcement tour"]
+    assert len(grouped) == 1 and len(grouped[0]["performances"]) == 2

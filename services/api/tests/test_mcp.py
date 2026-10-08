@@ -69,10 +69,10 @@ def test_catalog_idempotency_and_timezones(catalog):
     assert catalog.create_event(
         artist_id, "Hong Kong Concert", "https://official.example.com/day6/hk"
     )["created"] is False
-    with pytest.raises(ValueError, match="already assigned"):
-        catalog.create_event(
-            artist_id, "Another Concert", "https://official.example.com/day6/hk"
-        )
+    # A single official tour notice may describe multiple events and sessions.
+    other = catalog.create_event(
+        artist_id, "Another Concert", "https://official.example.com/day6/hk")
+    assert other["created"] is True
     with pytest.raises(ValueError):
         catalog.create_event(
             artist_id, "Invalid", "http://example.com/bad"
@@ -81,6 +81,11 @@ def test_catalog_idempotency_and_timezones(catalog):
         event_id, starts_at_local="2027-01-16T20:00", timezone="Asia/Hong_Kong"
     )
     assert changed["startsAt"] == "2027-01-16T12:00:00Z"
+    assert len(catalog.performances(event_id)["items"]) == 1
+    second = catalog.create_performance(event_id, "saturday-evening", "Evening",
+          starts_at_local="2027-01-16T22:00", timezone="Asia/Hong_Kong")
+    assert second["startsAt"] == "2027-01-16T14:00:00Z"
+    assert len(catalog.performances(event_id)["items"]) == 2
 
     sale = catalog.create_sale(
         event_id, "cityline", "https://www.cityline.com.hk/",
@@ -97,7 +102,13 @@ def test_catalog_idempotency_and_timezones(catalog):
         timezone="Asia/Hong_Kong"
     )
     assert modified["saleAt"] == "2027-01-06T02:00:00Z"
-    assert catalog.events(artist_id)["items"][0]["sales"][0]["id"] == sale["sale"]["id"]
+    scoped = catalog.update_sale(sale["sale"]["id"],
+                                 performance_ids=[second["id"]], applies_to_all=False)
+    assert scoped["performanceIds"] == [second["id"]]
+    assert scoped["appliesToAll"] is False
+    widened = catalog.update_sale(sale["sale"]["id"], applies_to_all=True)
+    assert widened["appliesToAll"] is True and widened["performanceIds"] == []
+    assert next(x for x in catalog.events(artist_id)["items"] if x["id"] == event_id)["sales"][0]["id"] == sale["sale"]["id"]
 
 
 def test_oauth_token_checks_signature_audience_owner_expiry_and_scope(monkeypatch):

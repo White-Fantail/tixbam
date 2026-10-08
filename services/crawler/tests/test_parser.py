@@ -21,3 +21,24 @@ def test_jsonld_event_parsing_and_deduplication():
 
 def test_non_jsonld_pages_do_not_create_fake_events():
     assert extract_events("<html><h1>Concert</h1></html>", "https://example.com") == []
+
+
+def test_one_official_link_can_describe_multiple_show_dates():
+    html = """
+    <script type="application/ld+json">
+    {"@graph":[
+      {"@type":"MusicEvent","name":"Tour","performer":{"name":"Artist"},
+       "startDate":"2026-12-02T18:00:00+09:00",
+       "location":{"name":"KSPO","address":{"addressLocality":"Seoul","addressCountry":"KR"}},
+       "url":"https://official.example/tour"},
+      {"@type":"MusicEvent","name":"Tour","performer":{"name":"Artist"},
+       "startDate":"2026-12-03T18:00:00+09:00",
+       "location":{"name":"KSPO","address":{"addressLocality":"Seoul","addressCountry":"KR"}},
+       "url":"https://official.example/tour"}
+    ]}
+    </script>
+    """
+    events = extract_events(html, "https://official.example/tour")
+    assert len(events) == 2
+    assert len({e["session_key"] for e in events}) == 2
+    assert {e["source_url"] for e in events} == {"https://official.example/tour"}
