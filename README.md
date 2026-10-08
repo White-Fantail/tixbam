@@ -40,7 +40,7 @@ uvicorn app.main:app --reload --port 8000
 
 Use the same API key in `apps/admin/.env.local`, and set `TIXBAM_API_URL=http://127.0.0.1:8000`. Set `TIXBAM_ADMIN_USER` and `TIXBAM_ADMIN_PASSWORD` in that file before starting Next.js. The admin is **fail-closed** until credentials are configured.
 
-The desktop automatically connects to the official API at `https://tixbam-production.up.railway.app`; users do **not** configure server URLs. **Settings → TIXBAM cloud** shows connection status and a manual retry option. For *local development only*, set `VITE_TIXBAM_API_URL=http://127.0.0.1:8000` in `apps/desktop/.env.local`. Production builds always use the official service and ignore any previously saved `tixbam.api.url` preference. The app stays usable offline; provider cookies and local watchlists are never uploaded by this integration.
+The desktop automatically connects to the official API at `https://tixbam-production.up.railway.app`; users do **not** configure server URLs. **Settings → TIXBAM cloud** shows connection status and a manual retry option. For *local development only*, set `VITE_TIXBAM_API_URL=http://127.0.0.1:8000` in `apps/desktop/.env.local`. Production builds always use the official service and ignore any previously saved `tixbam.api.url` preference. The app stays usable offline for guest ticket browsing and local items. Provider cookies and card vaults are never uploaded. When signed in, account watchlists and favorites are stored on the server; optional guest import requires the user's action.
 
 ## Railway deployment
 
