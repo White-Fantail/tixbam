@@ -53,6 +53,8 @@ def callback_url(provider, origin):
 
 def provider_config(provider):
     """Only accept a configured, server-owned origin, never request Host."""
+    if len(os.getenv("TIXBAM_SESSION_SECRET", "")) < 32:
+        return None
     origin = os.getenv("TIXBAM_PUBLIC_URL", "https://tixbam-production.up.railway.app").strip().rstrip("/")
     try:
         from urllib.parse import urlsplit
@@ -137,12 +139,12 @@ def exchange_code(provider, config, code, flow):
            else "https://appleid.apple.com/auth/token")
     data = dict(client_id=config["client_id"], grant_type="authorization_code",
                 code=code, redirect_uri=callback_url(provider, config["origin"]))
-    if provider == "google":
-        data["client_secret"] = config["client_secret"]
-        data["code_verifier"] = flow.provider_verifier
-    else:
-        data["client_secret"] = apple_client_secret(config)
     try:
+        if provider == "google":
+            data["client_secret"] = config["client_secret"]
+            data["code_verifier"] = flow.provider_verifier
+        else:
+            data["client_secret"] = apple_client_secret(config)
         with httpx.Client(timeout=8.0) as client:
             reply = client.post(url, data=data)
             reply.raise_for_status()
@@ -151,7 +153,7 @@ def exchange_code(provider, config, code, flow):
         if not isinstance(id_token, str):
             raise ValueError("Provider did not issue an ID token")
         return verified_social_claims(provider, id_token)
-    except (httpx.HTTPError, ValueError, TypeError, jwt.PyJWTError) as exc:
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError, jwt.PyJWTError) as exc:
         raise HTTPException(401, detail="Could not verify the provider sign-in") from exc
 
 
