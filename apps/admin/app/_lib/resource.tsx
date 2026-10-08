@@ -122,21 +122,31 @@ async function listPage(resource:string,query:Query) {
   </div>;
 }
 
-async function relations(resource:string,item:RecordItem) {
+async function relations(resource:string,item:RecordItem,parent?:RecordItem,query:Query={}) {
   if(resource==="artists") {
-    const data=await apiRead("/v1/events?artist_id="+encodeURIComponent(item.id)+"&limit=500");
-    const events:Event[]=data.items||[];
+    const pageNo=Math.max(1, Math.min(10000,Number.parseInt(safe(query.eventsPage),10)||1));
+    const limit=25, offset=(pageNo-1)*limit;
+    const data=await apiRead(directory("events")+"?"+new URLSearchParams({
+      artist_id:item.id, limit:String(limit), offset:String(offset),
+    }));
+    const events:Event[]=data.items||[], total:number=data.total||0;
+    const pageHref=(page:number)=>"/artists/"+encodeURIComponent(item.id)+"?"+new URLSearchParams({eventsPage:String(page)});
     return <section className="detail-section">
-      <div className="section-heading"><h2>Events ({events.length})</h2>
+      <div className="section-heading"><h2>Events ({total})</h2>
         <Link className="button-subtle" href={"/events/new?artistId="+encodeURIComponent(item.id)}>+ Add event</Link></div>
       <div className="related-list">
         {events.map(event=><Link className="related-item" key={event.id} href={"/events/"+encodeURIComponent(event.id)}>
-          <span><strong>{event.title}</strong><small>{event.city||"Location TBA"}</small></span>
+          <span><strong>{event.title}</strong><small>{[event.city,event.country].filter(Boolean).join(", ")||"Location TBA"}</small></span>
           {time(event.startsAt,event.timezone,event.city,event.country)}
           <span aria-hidden="true">→</span>
         </Link>)}
-        {!events.length && <p className="muted">No events registered.</p>}
+        {!events.length && <p className="muted">{total ? "No events on this page." : "No events registered."}</p>}
       </div>
+      {total>limit && <div className="pagination">
+        <span className="muted">{Math.min(offset+1,total)}–{Math.min(offset+events.length,total)} of {total}</span>
+        <div>{pageNo>1 && <Link className="button-subtle" href={pageHref(pageNo-1)}>← Previous</Link>}
+          {offset+events.length<total && <Link className="button-subtle" href={pageHref(pageNo+1)}>Next →</Link>}</div>
+      </div>}
     </section>;
   }
   if(resource==="events") return <>
@@ -156,15 +166,54 @@ async function relations(resource:string,item:RecordItem) {
         <Link className="button-subtle" href={"/sales/new?eventId="+encodeURIComponent(item.id)}>+ Add ticket sale</Link></div>
       <div className="related-list">{(item.sales||[]).map((s:Sale)=>
         <Link className="related-item" href={"/sales/"+encodeURIComponent(s.id)} key={s.id}>
-          <span><strong>{s.providerId} · {s.saleType}</strong><small>{s.appliesToAll?"All sessions":s.performanceIds.length+" selected sessions"}</small></span>
+          <span><strong>{s.providerId} · {s.saleType}</strong><small>{s.appliesToAll?"All performances":(s.performanceIds?.length||0)+" selected performances"}</small></span>
           {time(s.saleAt,s.timezone||item.timezone,s.city||item.city,s.country||item.country,"Sale region")}<span aria-hidden="true">→</span>
         </Link>)}
         {!item.sales?.length && <p className="muted">No ticket sales registered.</p>}
       </div>
     </section>
   </>;
+  if(resource==="performances") {
+    // A sale can target this performance explicitly, or apply to all performances of its event.
+    const sales:Sale[]=(parent?.sales||[]).filter((s:Sale)=>
+      s.appliesToAll || (s.performanceIds||[]).includes(item.id));
+    return <section className="detail-section">
+      <div className="section-heading"><h2>Ticket Sales ({parent ? sales.length : "—"})</h2>
+        <Link className="button-subtle" href={"/sales/new?eventId="+encodeURIComponent(item.eventId)}>+ Add ticket sale</Link></div>
+      <div className="related-list">
+        {sales.map(s=><Link className="related-item" key={s.id} href={"/sales/"+encodeURIComponent(s.id)}>
+          <span><strong>{s.providerId} · {s.saleType}</strong><small>{s.appliesToAll?"All event performances":"Selected performance"}</small></span>
+          {time(s.saleAt,s.timezone||parent?.timezone,s.city||parent?.city,s.country||parent?.country,"Sale region")}
+          <span aria-hidden="true">→</span>
+        </Link>)}
+        {!parent && <p className="muted">Related sales could not be loaded.</p>}
+        {parent && !sales.length && <p className="muted">No ticket sales linked to this performance.</p>}
+      </div>
+    </section>;
+  }
+  if(resource==="sales") {
+    const ids:string[]=item.performanceIds||[];
+    const performances:Performance[]=(parent?.performances||[]).filter((p:Performance)=>
+      item.appliesToAll || ids.includes(p.id));
+    return <section className="detail-section">
+      <div className="section-heading"><h2>Performances ({parent ? performances.length : "—"})</h2>
+        <span className="muted">{item.appliesToAll?"Applies to all event performances":"Selected performances only"}</span></div>
+      <div className="related-list">
+        {performances.map(p=><Link className="related-item" key={p.id} href={"/performances/"+encodeURIComponent(p.id)}>
+          <span><strong>{p.label||p.sessionKey}</strong><small>{p.status}</small></span>
+          {time(p.startsAt,p.timezone||parent?.timezone,parent?.city,parent?.country)}
+          <span aria-hidden="true">→</span>
+        </Link>)}
+        {!parent && <p className="muted">Related performances could not be loaded.</p>}
+        {parent && !performances.length && <p className="muted">
+          {item.appliesToAll?"No performances registered in this event yet.":"No performances selected for this sale."}
+        </p>}
+      </div>
+    </section>;
+  }
   return null;
 }
+
 async function detailPage(resource:string,id:string,query:Query) {
   const meta=metadata[resource];
   let item:RecordItem;
@@ -206,7 +255,7 @@ async function detailPage(resource:string,id:string,query:Query) {
           <Field name="Provider"><Link href={"/providers/"+encodeURIComponent(item.providerId)}>{item.providerName||item.providerId}</Link></Field>
           <Field name="Sale type">{item.saleType}</Field>
           <Field name="Sale time">{time(item.saleAt,item.timezone||parent?.timezone,item.city||parent?.city,item.country||parent?.country,"Sale region")}</Field>
-          <Field name="Applicable performances">{item.appliesToAll ? "All performances" : item.performanceIds?.map((pid:string)=>parent?.performances?.find((p:Performance)=>p.id===pid)?.label || pid).join(", ")}</Field>
+          <Field name="Performance scope">{item.appliesToAll ? "All event performances" : (item.performanceIds?.length||0)+" selected performances"}</Field>
           <Field name="Official booking link">{external(item.bookingUrl)}</Field>
         </>}
         {(resource==="providers"||resource==="addons") && <>
@@ -235,7 +284,7 @@ async function detailPage(resource:string,id:string,query:Query) {
         <Field name="Record ID"><code>{item.id}</code></Field>
       </dl>
     </section>
-    {await relations(resource,item)}
+    {await relations(resource,item,parent,query)}
     {resource==="performances" && <section className="detail-section">
       <h2>Danger zone</h2><DeletePerformance id={item.id}/>
     </section>}
