@@ -37,9 +37,41 @@ def register_tools(server, config: MCPConfig):
         return catalog.performances(event_id)
 
     @server.tool(annotations=read)
-    def list_providers() -> dict:
-        """List supported ticket providers and their provider IDs."""
-        return catalog.providers()
+    def list_providers(include_unpublished: bool = False) -> dict:
+        """List provider registry IDs. Include unpublished entries for owner reconciliation."""
+        return catalog.providers(include_unpublished)
+
+    @server.tool(annotations=write)
+    def create_provider(provider_id: str, name: str, url: str,
+                        region: str = "Global", country: str = "GL",
+                        allowed_hosts: list[str] | None = None,
+                        capabilities: list[str] | None = None,
+                        description: str = "", published: bool = False) -> dict:
+        """Register a ticketing provider from an official verified HTTPS website.
+
+        Provider ID is a stable lowercase slug and must not already exist.
+        This creates registry metadata only: no add-on code, checkout integration,
+        seat selection or automation is enabled by registration.
+        Unverified providers should remain unpublished.
+        """
+        require_write()
+        return catalog.create_provider(provider_id, name, url, region, country,
+                                       allowed_hosts, capabilities, description, published)
+
+    @server.tool(annotations=write)
+    def update_provider(provider_id: str, name: str | None = None,
+                        url: str | None = None, region: str | None = None,
+                        country: str | None = None, allowed_hosts: list[str] | None = None,
+                        capabilities: list[str] | None = None,
+                        description: str | None = None,
+                        published: bool | None = None) -> dict:
+        """Update verified provider metadata. Omitted fields remain unchanged.
+
+        Publishing only affects public catalog visibility and does not install an add-on.
+        """
+        require_write()
+        return catalog.update_provider(provider_id, name, url, region, country,
+                                       allowed_hosts, capabilities, description, published)
 
     @server.tool(annotations=write)
     def create_artist(name: str, country: str | None = None, image_url: str | None = None) -> dict:
