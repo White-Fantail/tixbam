@@ -6,7 +6,7 @@ test("all built-in add-ons have explicit, reviewed automation support levels", (
   const valid = new Set(["available", "restricted", "unverified"]);
   assert.equal(catalog.length, 6);
   for (const addon of catalog) {
-    assert.match(addon.automation.reviewedAt, /^\\d{4}-\\d{2}-\\d{2}$/);
+    assert.match(addon.automation.reviewedAt, /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
     for (const level of ["level1", "level2", "level3"]) {
       const item = addon.automation[level];
       assert.ok(valid.has(item.status), addon.id + " " + level + " must have a valid status");
