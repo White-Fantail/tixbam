@@ -5,8 +5,8 @@ import {
   Link2, LockKeyhole, Monitor, Plus, Radio, Search, Settings2, ShieldCheck,
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
-import providerData from "../providers.json";
-import type { Provider, Section, TicketWindow, WatchEvent } from "./types";
+import providerData from "../addons/catalog.json";
+import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent } from "./types";
 
 const providers: Provider[] = providerData;
 const STORAGE_KEY = "tixbam.watchlist.v1";
@@ -119,6 +119,8 @@ function App() {
   const [section, setSection] = useState<Section>("overview");
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
+  const [addons, setAddons] = useState<TicketAddon[]>(() => providerData.map(p => ({ ...p, installed: true })));
+  const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [eventModal, setEventModal] = useState(false);
@@ -135,6 +137,15 @@ function App() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!window.tixbam) return;
+    let mounted = true;
+    window.tixbam.listAddons().then(items => { if (mounted) setAddons(items); })
+      .catch(() => { if (mounted) inform("Could not load add-on settings.", true); });
+    const unsubscribe = window.tixbam.onAddonsChanged(items => { if (mounted) setAddons(items); });
+    return () => { mounted = false; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -173,7 +184,34 @@ function App() {
     setToast({ message, error });
   }
 
+  async function toggleAddon(addon: TicketAddon) {
+    if (!window.tixbam) {
+      inform("Install and remove add-ons in the desktop app.", true);
+      return;
+    }
+    if (busy) return;
+    if (addon.installed && windows.some(w => w.providerId === addon.id)) {
+      inform("Close all " + addon.name + " windows before removing the add-on.", true);
+      return;
+    }
+    setBusy(addon.id);
+    try {
+      const updated = await window.tixbam.setAddonInstalled(addon.id, !addon.installed);
+      setAddons(updated);
+      inform(addon.name + (addon.installed ? " add-on removed. Existing sign-in data was preserved." : " add-on installed."));
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not update the add-on.", true);
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function launch(providerId: string, url?: string) {
+    if (!installedIds.has(providerId)) {
+      inform("Install the " + providerFor(providerId)?.name + " add-on first.", true);
+      setSection("providers");
+      return;
+    }
     if (!window.tixbam) {
       inform("Launch the Electron desktop app to open ticketing browser windows.", true);
       return;
@@ -278,7 +316,7 @@ function App() {
 
         <div className="nav-label providers-label">QUICK LAUNCH</div>
         <div className="quick-providers">
-          {providers.slice(0, 4).map((provider) => (
+          {providers.filter(provider => installedIds.has(provider.id)).slice(0, 4).map((provider) => (
             <button className="quick-provider" key={provider.id} onClick={() => launch(provider.id)} disabled={busy === provider.id}>
               <ProviderMark provider={provider} small />
               <span>{provider.name}</span>
@@ -340,7 +378,7 @@ function App() {
             <div className="stats-grid">
               <div className="stat-card"><div className="stat-top"><span>YOUR WATCHLIST</span><Heart size={18} /></div><div className="stat-value">{watchlist.length.toString().padStart(2, "0")}<span>EVENTS</span></div><div className="stat-foot">Your upcoming ticket drops</div></div>
               <div className="stat-card"><div className="stat-top"><span>LIVE BROWSER WINDOWS</span><Layers3 size={18} /></div><div className="stat-value">{windows.length.toString().padStart(2, "0")}<span>OF {MAX_WINDOWS}</span></div><div className="stat-foot"><span className="tiny-green-dot" />{desktop ? "Desktop session manager" : "Requires desktop app"}</div></div>
-              <div className="stat-card"><div className="stat-top"><span>READY TO LAUNCH</span><Globe2 size={18} /></div><div className="stat-value">{providers.length.toString().padStart(2, "0")}<span>SITES</span></div><div className="stat-foot">Across multiple regions</div></div>
+              <div className="stat-card"><div className="stat-top"><span>READY TO LAUNCH</span><Globe2 size={18} /></div><div className="stat-value">{installedIds.size.toString().padStart(2, "0")}<span>ADD-ONS</span></div><div className="stat-foot">Across multiple regions</div></div>
             </div>
 
             <div className="featured-row">
@@ -363,7 +401,7 @@ function App() {
                       <div className="sample-kicker"><span><Radio size={12} /> SAMPLE EVENT</span><span>— DATE TBD</span></div>
                       <h3>{demo.artist}</h3><p>{demo.title}</p>
                       <div className="sample-place"><Globe2 size={14} />{demo.city}</div>
-                      <div className="sample-bottom"><div className="sample-provider"><ProviderMark provider={provider} small /><span>{provider.name}</span></div><button aria-label={"Open " + provider.name} onClick={() => launch(provider.id)}><ArrowUpRight size={18} /></button></div>
+                      <div className="sample-bottom"><div className="sample-provider"><ProviderMark provider={provider} small /><span>{provider.name}</span></div><button aria-label={"Open " + provider.name} onClick={() => launch(provider.id)} disabled={!installedIds.has(provider.id)} title={!installedIds.has(provider.id) ? "Install provider add-on first" : "Open provider"}><ArrowUpRight size={18} /></button></div>
                     </div>
                   </article>
                 );
@@ -404,7 +442,7 @@ function App() {
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{humanDate(item.saleAt)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <div className="countdown-chip"><Clock3 size={13} />{countdown(item.saleAt, now)}</div>
-                    <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button className="button button-primary" disabled={busy === provider.id} onClick={() => launch(provider.id, item.url)}><ExternalLink size={15} /> Open site</button></div>
+                    <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button className="button button-primary" disabled={busy === provider.id} onClick={() => installedIds.has(provider.id) ? launch(provider.id, item.url) : setSection("providers")}><ExternalLink size={15} /> {installedIds.has(provider.id) ? "Open site" : "Install add-on"}</button></div>
                   </article>
                 );
               })}
@@ -426,12 +464,12 @@ function App() {
           </>}
 
           {section === "providers" && <>
-            <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Ticket providers" description="Official booking websites, available in your desktop workspace." />
+            <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
             <div className="provider-intro"><div><Zap size={20} /><strong>ONE-CLICK LAUNCH</strong></div><p>Open the original site in a real browser window. You handle sign-in, waiting rooms, seat selection and checkout directly with the provider.</p></div>
             <div className="provider-grid">
-              {providers.map((provider) => {
+              {addons.map((provider) => {
                 const openCount = windows.filter((item) => item.providerId === provider.id).length;
-                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : "CONFIGURED"}</span><button disabled={busy === provider.id} onClick={() => launch(provider.id)}><ArrowUpRight size={20} /></button></div></article>;
+                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : provider.installed ? "INSTALLED" : "NOT INSTALLED"}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" aria-label={(provider.installed ? "Remove " : "Install ") + provider.name + " add-on"} title={provider.installed ? "Remove add-on" : "Install add-on"} disabled={Boolean(busy) || !desktop} onClick={() => toggleAddon(provider)} style={{width:"auto",padding:"0 12px",fontSize:12}}>{provider.installed ? "Remove" : "Install"}</button>{provider.installed && <button aria-label={"Open " + provider.name} disabled={Boolean(busy)} onClick={() => launch(provider.id)}><ArrowUpRight size={20} /></button>}</div></div></article>;
               })}
             </div>
             <div className="hint-box"><ShieldCheck size={21} /><p><strong>Know before you go.</strong> Some websites may restrict embedded/desktop browsers or simultaneous access. TIXBAM never promises login compatibility or availability; always respect each site's policies.</p></div>
@@ -442,7 +480,7 @@ function App() {
             <div className="settings-grid"><div className="settings-main">
               <div className="settings-panel"><div className="settings-panel-title"><LockKeyhole size={20} /><div><h3>Provider sign-in data</h3><p>Stored locally, separate for each ticketing provider.</p></div></div><div className="settings-provider-list">{providers.map((provider) => <div key={provider.id} className="settings-provider-row"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button onClick={() => clearProvider(provider)}>Clear cookies & storage <Trash2 size={14} /></button></div>)}</div><div className="settings-note">Close all windows for a provider before clearing their session. This will require a new manual sign-in.</div></div>
               <div className="settings-panel"><div className="settings-panel-title"><Heart size={20} /><div><h3>My saved events</h3><p>Your personal watchlist is saved on this device only.</p></div></div><div className="settings-inline"><span>{watchlist.length} event{watchlist.length === 1 ? "" : "s"} in local storage</span><button className="button button-outline" onClick={() => setSection("watchlist")}>Manage events <ArrowRight size={15} /></button></div></div>
-            </div><div className="settings-side"><div className="settings-story"><div className="story-icon"><ShieldCheck size={28} /></div><h3>YOUR ACCOUNT.<br />YOUR RULES.</h3><p>We don't connect to a ticketing site's API, store passwords in our app, solve CAPTCHA or bypass queue systems.</p><span>V0.1 • LOCAL DESKTOP PROTOTYPE</span></div><div className="settings-facts"><strong>About this build</strong><div><span>Version</span><b>0.1.0 prototype</b></div><div><span>Providers</span><b>{providers.length} configured</b></div><div><span>Environment</span><b>{desktop ? "Electron desktop" : "Browser preview"}</b></div><div><span>Sync</span><b>Local only</b></div></div></div></div>
+            </div><div className="settings-side"><div className="settings-story"><div className="story-icon"><ShieldCheck size={28} /></div><h3>YOUR ACCOUNT.<br />YOUR RULES.</h3><p>We don't connect to a ticketing site's API, store passwords in our app, solve CAPTCHA or bypass queue systems.</p><span>V0.1 • LOCAL DESKTOP PROTOTYPE</span></div><div className="settings-facts"><strong>About this build</strong><div><span>Version</span><b>0.1.0 prototype</b></div><div><span>Providers</span><b>{installedIds.size} installed / {addons.length} available</b></div><div><span>Environment</span><b>{desktop ? "Electron desktop" : "Browser preview"}</b></div><div><span>Sync</span><b>Local only</b></div></div></div></div>
           </>}
         </main>
 
