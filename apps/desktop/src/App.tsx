@@ -899,7 +899,7 @@ function App() {
                    </div>
                    {signingProvider && <div className="settings-inline" role="status"><span>Finish signing in with {signingProvider === "google" ? "Google" : "Apple"} in your browser…</span><button className="button button-outline" onClick={() => void cancelSocialLogin()}>Cancel</button></div>}
                    {!authMethods.google && !authMethods.apple && <div className="settings-note">Social login needs Google / Apple OAuth credentials configured on the TIXBAM API. No test accounts are available.</div>}
-                   {!desktop && <div className="settings-note">Social sign-in is available in the Electron desktop app.</div>
+                   {!desktop && <div className="settings-note">Social sign-in is available in the Electron desktop app.</div>}
                  </>}
                  {cloudError && <p className="account-error" role="alert">{cloudError}</p>}
                  <div className="settings-note">TIXBAM account data is stored on the server. Ticketing site logins and encrypted payment cards remain local to this device.</div>
