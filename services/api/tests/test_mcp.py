@@ -172,3 +172,44 @@ def test_mcp_mount_enforces_bearer_auth():
             },
         }, headers={"Accept": "application/json, text/event-stream"})
         assert response.status_code in (401, 403)
+
+
+def test_mcp_discovery_and_tool_scopes():
+    import asyncio
+    from contextlib import asynccontextmanager
+    from fastapi.testclient import TestClient
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from mcp.types import ListToolsResult
+
+    config = MCPConfig(
+        "https://testserver/mcp", "https://auth.example.com/",
+        "https://auth.example.com/jwks", "owner-subject",
+    )
+    server, subapp = build_mcp(config)
+    result = ListToolsResult(tools=asyncio.run(server.list_tools()))
+    wire_tools = {item["name"]: item for item in result.model_dump(by_alias=True)["tools"]}
+    assert wire_tools["search_artists"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": [READ_SCOPE]}
+    ]
+    assert wire_tools["create_event"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
+    ]
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        async with server.session_manager.run():
+            yield
+
+    app = Starlette(routes=[Mount("/", app=subapp)], lifespan=lifespan)
+    with TestClient(app) as client:
+        for suffix in (
+            "/.well-known/oauth-protected-resource",
+            "/.well-known/oauth-protected-resource/mcp",
+        ):
+            response = client.get(suffix)
+            assert response.status_code == 200, response.text
+            data = response.json()
+            assert data["resource"] == config.resource_url
+            assert data["authorization_servers"] == [config.issuer_url]
+            assert data["scopes_supported"] == [READ_SCOPE, WRITE_SCOPE]
