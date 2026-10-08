@@ -104,3 +104,5 @@ PYTHONPATH=services/api python -m pytest services/api/tests -q
 python -m pip install -r services/crawler/requirements-dev.txt
 PYTHONPATH=services/crawler python -m pytest services/crawler/tests -q
 ```
+
+Admin operators: [editing and time zones](docs/ADMIN_SCHEDULES.md). All date/time forms use local venue or ticket-sale region time; UTC is internal only.

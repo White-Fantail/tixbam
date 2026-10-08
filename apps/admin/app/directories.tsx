@@ -73,7 +73,8 @@ export function SalesManager({ events, providers }: { events: Event[]; providers
       <tbody>{sales.map(({sale,event}) => <tr key={sale.id} className={selected?.id === sale.id ? "selected-row" : ""}>
         <td>{event.title}<small className="table-secondary">{providers.find(p => p.id === sale.providerId)?.name || sale.providerId}</small></td>
         <td>{sale.saleType}</td>
-        <td><DualTime utc={sale.saleAt} timezone={sale.timezone || event.timezone}
+        <td><DualTime utc={sale.saleAt}
+          timezone={sale.timezone || ((sale.city || sale.country) ? guessZone(sale.city, sale.country) : event.timezone)}
           city={sale.city || event.city} country={sale.country || event.country} label="Sale region" /></td>
         <td><button className="table-edit" type="button" onClick={() => setSelected(sale)}>Edit</button></td>
       </tr>)}</tbody>

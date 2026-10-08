@@ -15,7 +15,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   let artists: any[] = [], events: any[] = [], providers: any[] = [], sources: any[] = [], runs: any[] = [];
   try {
     [artists, events, providers, sources, runs] = await Promise.all([
-      listing("/v1/artists"), listing("/v1/events"), listing("/v1/addons"),
+      listing("/v1/artists"), listing("/v1/events?limit=500"), listing("/v1/addons"),
       listing("/v1/admin/sources"), listing("/v1/admin/crawl-runs")
     ]);
   } catch { connected = false; }
