@@ -1,79 +1,100 @@
 # TIXBAM
 
-**Your ticketing command center.** A desktop prototype for fans who use several official concert and fan-meeting ticket providers.
+Desktop ticketing workspace + concert directory + provider add-on registry. Development happens on `dev`. The desktop application opens official ticketing websites for **manual** login, CAPTCHA, seat selection and payment; no queue bypass, guaranteed purchase or unsupported automated checkout.
 
-> Prototype only. TIXBAM does not sell tickets, guarantee successful purchases, scrape inventory, bypass queues, or solve CAPTCHA. All logins, verification steps, seat selection and payments are completed manually on the provider's site.
+## Repository
 
-## Get started
+```text
+apps/desktop/         Electron 37 + React 19 + Vite (local sessions and watchlist)
+apps/admin/           Next.js 16 protected operations dashboard (Vercel)
+services/api/         FastAPI + SQLAlchemy + PostgreSQL (Railway)
+services/crawler/     Opt-in structured-event ingestion worker (Railway cron)
+packages/addon-sdk/   Shared add-on manifest contract (metadata only)
+```
 
-Requires **Node.js 22+**, npm and a desktop computer (macOS, Windows or Linux).
+## Run locally
 
-```bash
+Requires Node.js 22+, Python 3.12+, npm.
+
+```sh
 npm install
-npm run dev
+npm run dev               # Electron dashboard; existing provider browser windows
+npm run dev:web           # Vite preview only (separate terminal)
+npm run dev:admin         # Next.js admin at http://localhost:3000
+npm test                  # Electron security and addon tests
+npm run build             # desktop renderer + admin
 ```
 
-The command starts the Vite UI and the Electron application. To preview the dashboard in a regular browser (ticketing windows unavailable), use `npm run dev:web`.
+Create a Python virtual environment and run the API from its own directory:
 
-```bash
-npm test       # domain / navigation safety tests
-npm run check  # TypeScript typecheck
-npm run build  # production Vite renderer
-npm run desktop # opens production renderer after npm run build
+```sh
+cd services/api
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env     # configure DB and admin API key; never commit this file
+export DATABASE_URL="sqlite:///./tixbam.db"  # local-only example
+export TIXBAM_ADMIN_API_KEY="your-long-random-development-secret"
+uvicorn app.main:app --reload --port 8000
 ```
 
-## What works in v0.1
+Use the same API key in `apps/admin/.env.local`, and set `TIXBAM_API_URL=http://127.0.0.1:8000`. Set `TIXBAM_ADMIN_USER` and `TIXBAM_ADMIN_PASSWORD` in that file before starting Next.js. The admin is **fail-closed** until credentials are configured.
 
-- **Six built-in installable add-ons:** Cityline, NOL World (formerly Interpark Global), YES24 Ticket, Ticketmaster, AXS, and KKTIX.
-- **Real provider browser windows:** opens official HTTPS sites inside sandboxed Electron BrowserWindows.
-- **Per-provider persistent sessions:** windows for the same provider share cookies and storage across app launches; different providers have separate storage partitions.
-- **Multiple windows:** up to six provider windows concurrently, with window focus, close and clear-storage controls.
-- **Manual ticketing workflow:** log in yourself, complete CAPTCHA yourself, and follow each provider's queue / transaction rules.
-- **Event watchlist:** add your own events with provider, city, on-sale date and deep link, saved locally in the dashboard.
-- **Responsive dashboard:** overview, events, sessions, provider directory and settings, plus demo events clearly marked as fictional.
+In the desktop app, visit **Settings → Platform API connection** and enter `http://127.0.0.1:8000`, or use `apps/desktop/.env.local` with `VITE_TIXBAM_API_URL`. The desktop remains usable without an API connection; provider cookies and local watchlists are never uploaded by this integration.
 
-## Security and limitations
+## Railway deployment
 
-- The **main dashboard** uses an isolated preload bridge and only exposes narrowly scoped IPC operations.
-- **Ticket pages** run with Node integration disabled, sandbox enabled and an isolated provider-specific persistent storage partition.
-- Opening a new provider window validates its first URL against an explicit HTTPS provider domain list. No general arbitrary-URL navigation is exposed through the dashboard.
-- Once a real provider page has opened, user-driven cross-domain HTTPS navigation can occur (necessary for identity and payment redirects). Provider pages do not receive the dashboard preload.
-- Authentication state is **not detected or promised** by TIXBAM; a window being open is not evidence of login.
-- Opening multiple windows **does not create independent queue positions** when they share a session. Some providers may invalidate sessions, block Electron browsers, disallow simultaneous windows, or prohibit certain uses. Always follow official rules.
-- Event details in demo cards are **fictional**, not current sale announcements or live availability.
-- No cloud accounts, checkout integration, payment card collection, bot automation, or CAPTCHA bypass are included.
-- The initial watchlist is kept in the renderer's local storage, so it is device-local, not synced.
+Use one GitHub repo with two **separate Railway services** using branch `dev` while testing:
 
-## Project layout
+| Service | Root directory | Dockerfile | Command |
+| --- | --- | --- | --- |
+| `tixbam-api` | `/services/api` | `Dockerfile` | Default CMD (uvicorn on `$PORT`) |
+| `tixbam-crawler` | `/services/crawler` | `Dockerfile` | Default CMD (single crawl pass, then exit) |
 
+Add a Railway PostgreSQL service, configure `DATABASE_URL` on the API (Railway variable reference to your Postgres connection string) and set `TIXBAM_ADMIN_API_KEY` to a long unique secret. Publish HTTPS domain for the API. Set `TIXBAM_API_URL` to the public or accessible internal API URL for the crawler and copy the same secret to its environment. Configure crawler as a **Cron service**, e.g. `0 * * * *` (UTC); the worker also respects each source's `interval_minutes` field. Never run the crawler as an always-on Web Service. Railway configuration details: https://docs.railway.com/deployments/monorepo
+
+For Vercel, import this repo and set **Root Directory** `apps/admin`. Use the Next.js framework, `TIXBAM_API_URL` pointing to the Railway API HTTPS domain, matching `TIXBAM_ADMIN_API_KEY`, and separate `TIXBAM_ADMIN_USER`/`TIXBAM_ADMIN_PASSWORD` for the admin website. Do **not** prefix admin keys with `NEXT_PUBLIC_` or `VITE_`.
+
+## API
+
+Public GET:
+- `/healthz`
+- `/v1/artists`
+- `/v1/events` and `/v1/events/{id}`
+- `/v1/providers`, `/v1/addons`
+
+Authenticated administration (requires `X-Admin-Key`):
+- `POST /v1/admin/artists`, `POST /v1/admin/events`, `POST /v1/admin/sales`
+- `PUT /v1/admin/addons/{id}` (version/publication/metadata)
+- `GET/POST /v1/admin/sources`, `PUT /v1/admin/sources/{id}`
+- `POST /v1/admin/ingest`, `GET/POST /v1/admin/crawl-runs`
+
+FastAPI Swagger documentation is served at `/docs`. The API initializes its MVP tables on startup and seeds the six built-in provider registry entries only when absent. Before a production schema migration, replace bootstrapping `create_all` with a versioned Alembic migration workflow.
+
+## Crawler
+
+Only register sites for which automated collection is permitted. This starter worker retrieves *approved* HTTPS pages, consults robots.txt, and extracts schema.org `Event` / `MusicEvent` JSON-LD. It does not bypass CAPTCHA, queues or access restrictions, parse ticket inventory, or automatically discover every concert on arbitrary sites. Errors and empty results are recorded for admin review. A first-party source connector, deduplication improvements and permissions review are planned for Cityline.
+
+```sh
+cd services/crawler
+pip install -r requirements-dev.txt
+export TIXBAM_API_URL=http://127.0.0.1:8000
+export TIXBAM_ADMIN_API_KEY="your-long-random-development-secret"
+python -m crawler.run
+pytest tests -q
 ```
-electron/            Electron main process, limited IPC, isolated browser sessions, safety tests
-src/                 React + TypeScript dashboard
-addons/catalog.json  Versioned built-in add-on catalog
- electron/addon-manager.cjs  Local installation state and launch authorization
-.github/workflows/   CI for tests, typecheck and renderer build
+
+## Add-ons
+
+The original six built-in add-ons still install and uninstall locally, manage separate persistent Electron sessions, and preserve existing watchlists. The server now publishes provider/add-on **metadata** (version, status, compatible capability registry). Electron can read this registry and flag different versions, but it **does not download or execute remote add-on code yet**. This deliberate security boundary requires signed package verification and permission-scoped loading before remotely downloaded code can run. API or crawler outages never block existing browser windows.
+
+## Tests
+
+CI runs Electron tests and builds both JavaScript apps, then runs FastAPI integration tests and crawler parser tests. Local Python tests:
+
+```sh
+python -m pip install -r services/api/requirements-dev.txt
+PYTHONPATH=services/api python -m pytest services/api/tests -q
+python -m pip install -r services/crawler/requirements-dev.txt
+PYTHONPATH=services/crawler python -m pytest services/crawler/tests -q
 ```
-
-## Next milestones
-
-Provider-specific launch / login compatibility testing, dedicated multi-pane WebContentsView workspace, event notifications, secure preference storage and macOS/Windows packaging. Provider support should be validated against site terms and security constraints before release.
-
-## Add-ons (v0.2)
-
-Open **Add-on Store** from the dashboard to install or remove Cityline, NOL World, YES24 Ticket, Ticketmaster, AXS, and KKTIX. The add-on manager saves the enabled IDs in Electron userData/addons.json, and the main process rejects launching disabled add-ons even if the UI is bypassed. On first upgrade, all six are enabled to preserve the previous setup. Removing an add-on requires closing its open windows and **does not remove sign-in cookies or saved events**; use Settings to erase provider storage separately. Quick Launch shows installed add-ons only.
-
-The bundled catalog is the first manifest format: each record declares id, version, official URL, allowedHosts, display metadata, and capabilities. This release installs/removes bundled provider adapters rather than downloading untrusted code. Future independently packaged add-ons must use signature verification, a capability-based API, and explicit per-host permission validation before introducing remote downloads or third-party scripts. No automation, queue circumvention, or unattended checkout is present.
-
-## Add-on automation levels (capability manifest)
-
-The built-in `addons/catalog.json` registry now records `automation.level1`, `level2` and `level3` for every provider, with `status`, a reason, optional official policy link and `reviewedAt`. Add-on Store displays this three-level matrix.
-
-- **L1 — Assistant (available prototype):** event watchlist, official provider windows and locally persisted per-provider sessions. Ticket-drop notifications are **not** implemented yet.
-- **L2 — Assisted selection:** seat/type and quantity assistance where explicitly authorized by the provider.
-- **L3 — Full auto checkout:** only when a documented, authorized provider integration allows checkout.
-- **restricted:** public terms impose relevant limits (for example Ticketmaster, AXS, NOL); this is not an assessment of separately approved partner integrations.
-- **unverified:** provider permission is not established; this is **not** a supported or enabled feature.
-
-**No L2 or L3 automation is currently implemented, enabled or tested for any add-on.** The capability matrix reports current limitations honestly and does not enable automated workflows. Site terms vary by jurisdiction, event and date; published conditions must be reviewed before any capability is upgraded. Review date for initial catalog: October 8, 2026. Any future promotion to an available status should require verified provider authorization, tested implementation, and an enforcement gate in the Electron main process (not only a UI badge).
-
-References used to classify restrictions: [Ticketmaster NZ terms](https://www.ticketmaster.co.nz/h/terms.html), [Ticketmaster NZ purchase rules](https://www.ticketmaster.co.nz/h/purchase.html), [AXS NZ terms](https://www.axs.com/nz/about-terms-of-use_NZ_v1.html?staticDetails=staticDetails), [AXS purchase agreement](https://www.axs.com/about-purchase-agreement_US_v6.html), [NOL World terms](https://world.nol.com/en/pages/tos.html). Other providers remain unverified.
