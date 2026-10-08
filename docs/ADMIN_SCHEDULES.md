@@ -20,3 +20,19 @@ Updates use `PUT /v1/admin/artists/{id}`, `PUT /v1/admin/events/{id}`, and `PUT 
 ## Limitations
 
 Location suggestions cover common ticketing markets, not every city. They are editable selections and must be checked before saving. For pre-existing UTC records, zone inference is only a display fallback; verify against the official event listing, especially where older entries had no venue time zone. The admin directory currently loads up to **500 events**, consistent with the API's public per-request limit.
+
+
+## Multi-performance events
+
+Each city/venue event has one or more Performance sessions. Use the new
+**Performances** directory for individual dates, same-day early/late shows,
+local IANA zones and cancellation/postponement status. The event editor can
+set an initial session, but a multi-session event is scheduled via sessions,
+not by changing its singular compatibility time.
+
+Under **Ticket sales**, select "Sale applies to all performances" or choose
+specific showings. Public API responses include `performances`,
+`sales[].appliesToAll` and `sales[].performanceIds`. The old event-level
+`startsAt` field is still returned as an earliest-session summary.
+
+See [Performances](PERFORMANCES.md).
