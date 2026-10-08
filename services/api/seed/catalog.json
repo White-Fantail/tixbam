@@ -1,0 +1,207 @@
+[
+  {
+    "id": "cityline",
+    "name": "Cityline",
+    "region": "Hong Kong",
+    "country": "HK",
+    "url": "https://www.cityline.com.hk/en_US/",
+    "allowedHosts": [
+      "cityline.com.hk",
+      "cityline.com"
+    ],
+    "color": "#bba9fc",
+    "initials": "CL",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official Cityline ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "unverified",
+        "summary": "Public assisted-automation permission has not been confirmed."
+      },
+      "level3": {
+        "status": "unverified",
+        "summary": "No approved automatic-checkout integration has been confirmed."
+      }
+    }
+  },
+  {
+    "id": "nol",
+    "name": "NOL World",
+    "region": "South Korea",
+    "country": "KR",
+    "url": "https://world.nol.com/en",
+    "allowedHosts": [
+      "world.nol.com"
+    ],
+    "color": "#8decd6",
+    "initials": "NW",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official NOL World ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "restricted",
+        "summary": "NOL World prohibits ticket purchasing by unauthorized macros and related methods.",
+        "sourceUrl": "https://world.nol.com/en/pages/tos.html"
+      },
+      "level3": {
+        "status": "restricted",
+        "summary": "Automated purchases require authorization; no integration permission is established.",
+        "sourceUrl": "https://world.nol.com/en/pages/tos.html"
+      }
+    }
+  },
+  {
+    "id": "yes24",
+    "name": "YES24 Ticket",
+    "region": "South Korea",
+    "country": "KR",
+    "url": "https://ticket.yes24.com/English",
+    "allowedHosts": [
+      "ticket.yes24.com"
+    ],
+    "color": "#76b3ff",
+    "initials": "Y4",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official YES24 Ticket ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "unverified",
+        "summary": "Permission for automated seat selection has not been verified."
+      },
+      "level3": {
+        "status": "unverified",
+        "summary": "No approved automatic-checkout integration has been confirmed."
+      }
+    }
+  },
+  {
+    "id": "ticketmaster",
+    "name": "Ticketmaster",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.ticketmaster.com/",
+    "allowedHosts": [
+      "ticketmaster.com"
+    ],
+    "color": "#77b8ff",
+    "initials": "TM",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official Ticketmaster ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "restricted",
+        "summary": "Ticketmaster NZ restricts automated site access and ticket orders.",
+        "sourceUrl": "https://www.ticketmaster.co.nz/h/terms.html"
+      },
+      "level3": {
+        "status": "restricted",
+        "summary": "Automated ticket purchases are expressly prohibited without permission.",
+        "sourceUrl": "https://www.ticketmaster.co.nz/h/purchase.html"
+      }
+    }
+  },
+  {
+    "id": "axs",
+    "name": "AXS",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.axs.com/",
+    "allowedHosts": [
+      "axs.com"
+    ],
+    "color": "#ff9ac5",
+    "initials": "AX",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official AXS ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "restricted",
+        "summary": "AXS NZ restricts automated site access and repeated ticket-page requests.",
+        "sourceUrl": "https://www.axs.com/nz/about-terms-of-use_NZ_v1.html?staticDetails=staticDetails"
+      },
+      "level3": {
+        "status": "restricted",
+        "summary": "AXS can reject suspected bot purchases; no authorized checkout integration is established.",
+        "sourceUrl": "https://www.axs.com/about-purchase-agreement_US_v6.html"
+      }
+    }
+  },
+  {
+    "id": "kktix",
+    "name": "KKTIX",
+    "region": "Taiwan",
+    "country": "TW",
+    "url": "https://kktix.com/",
+    "allowedHosts": [
+      "kktix.com"
+    ],
+    "color": "#f2c77a",
+    "initials": "KK",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session"
+    ],
+    "description": "Official KKTIX ticketing workspace",
+    "automation": {
+      "reviewedAt": "2026-10-08",
+      "level1": {
+        "status": "available",
+        "summary": "Watchlist, official-site launch and session management (prototype)."
+      },
+      "level2": {
+        "status": "unverified",
+        "summary": "Assisted automation permission has not been confirmed."
+      },
+      "level3": {
+        "status": "unverified",
+        "summary": "No approved automatic-checkout integration has been confirmed."
+      }
+    }
+  }
+]
