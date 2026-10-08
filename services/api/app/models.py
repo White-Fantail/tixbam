@@ -98,6 +98,47 @@ class TicketSale(Base):
     provider: Mapped["Provider"] = relationship()
 
 
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    display_name: Mapped[str] = mapped_column(String(160), default="")
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    identities: Mapped[list["UserIdentity"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    favorite_artists: Mapped[list["FavoriteArtist"]] = relationship(cascade="all, delete-orphan")
+    favorite_events: Mapped[list["FavoriteEvent"]] = relationship(cascade="all, delete-orphan")
+    watch_items: Mapped[list["UserWatchItem"]] = relationship(cascade="all, delete-orphan")
+
+
+class UserIdentity(Base):
+    __tablename__ = "user_identities"
+    __table_args__ = (UniqueConstraint("provider", "subject", name="uq_user_identity_provider_subject"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    provider: Mapped[str] = mapped_column(String(32))
+    subject: Mapped[str] = mapped_column(String(255))
+    user: Mapped["User"] = relationship(back_populates="identities")
+
+
+class FavoriteArtist(Base):
+    __tablename__ = "user_favorite_artists"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    artist_id: Mapped[str] = mapped_column(ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True)
+
+
+class FavoriteEvent(Base):
+    __tablename__ = "user_favorite_events"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    event_id: Mapped[str] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), primary_key=True)
+
+
+class UserWatchItem(Base):
+    __tablename__ = "user_watch_items"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
 class Source(Base):
     __tablename__ = "crawl_sources"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)

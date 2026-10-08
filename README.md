@@ -1,6 +1,6 @@
 # TIXBAM
 
-Desktop ticketing workspace + concert directory + provider add-on registry. Development happens on `dev`. The desktop application opens official ticketing websites for manual login and verification. Cityline now has event-specific booking preferences, verified performance/price selection, a checkout rehearsal and a local encrypted card vault. Live Cityline seat and payment mappings remain pending; no queue bypass or guaranteed purchase. See [Booking workflow](docs/BOOKING.md).
+Desktop ticketing workspace + concert directory + provider add-on registry + cloud user accounts. Development happens on `dev`. The desktop application opens official ticketing websites for manual login and verification. Cityline now has event-specific booking preferences, verified performance/price selection, a checkout rehearsal and a local encrypted card vault. Live Cityline seat and payment mappings remain pending; no queue bypass or guaranteed purchase. See [Booking workflow](docs/BOOKING.md).
 
 ## Repository
 
@@ -144,3 +144,7 @@ targets either every performance or selected performance IDs. Existing events
 automatically acquire one default session on the API schema migration.
 All consumer surfaces (FastAPI, Admin, MCP, crawler, Desktop) use the same
 session-aware API contract. See [Performance architecture](docs/PERFORMANCES.md).
+
+## User accounts & favorites
+
+The desktop has account-aware favorite artists, favorite events and cloud-backed ticket-sale watchlists. Anonymous guest events remain in local storage. Backend verifies Google and Apple ID tokens, while desktop native OAuth is pending; development-only simulated sign-in is available without provider-console credentials. See [Account architecture and setup](docs/ACCOUNTS.md). The API requires a separate \`TIXBAM_SESSION_SECRET\` to issue user sessions. Provider sessions and card vaults remain local.

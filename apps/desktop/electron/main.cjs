@@ -5,6 +5,7 @@ const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl }
 const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 
 const { registerBooking } = require("./booking/controller.cjs");
+const { registerAccount } = require("./account.cjs");
 let booking;
 let dashboard = null;
 const ticketWindows = new Map();
@@ -122,6 +123,7 @@ function openTicketWindow({ providerId, url: candidate } = {}) {
 }
 
 app.whenReady().then(() => {
+  registerAccount({ ipcMain, dashboardOnly, safeStorage, app });
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
     return openTicketWindow(options);

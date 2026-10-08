@@ -10,6 +10,7 @@ from .routes import router
 from .admin import router as admin_router
 from .admin_directory import router as directory_router
 from .ingest import router as ingest_router
+from .accounts import router as account_router
 
 # Local monorepo execution (cd services/api && uvicorn app.main:app) still works.
 # Docker installs this module into /app/tixbam_mcp instead.
@@ -47,6 +48,7 @@ app.include_router(router)
 app.include_router(admin_router)
 app.include_router(directory_router)
 app.include_router(ingest_router)
+app.include_router(account_router)
 
 
 @app.get("/healthz")

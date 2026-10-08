@@ -23,7 +23,7 @@ export interface TicketAddon extends Provider {
   installed: boolean;
 }
 
-export type Section = "overview" | "discover" | "watchlist" | "sessions" | "providers" | "settings";
+export type Section = "overview" | "discover" | "artists" | "watchlist" | "sessions" | "providers" | "settings";
 
 export interface Provider {
   id: string;
@@ -47,6 +47,7 @@ export interface WatchEvent {
   saleAt: string;
   url: string;
   addedAt: string;
+  eventId?: string;
   performanceId?: string;
   performanceAt?: string;
 }
@@ -60,7 +61,14 @@ export interface TicketWindow {
   openedAt: number;
 }
 
+export interface CloudAccount { id: string; displayName: string; email: string | null; providers: string[]; }
+export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; watchlist: WatchEvent[]; }
 export interface DesktopBridge {
+  accountStatus: () => Promise<CloudSnapshot | null>;
+  accountDemoLogin: (url: string, account: "fan-one" | "fan-two") => Promise<CloudSnapshot>;
+  accountSocialToken: (url: string, provider: "google" | "apple", idToken: string) => Promise<CloudSnapshot>;
+  accountSignOut: () => Promise<boolean>;
+  accountRequest: (method: "GET" | "PUT" | "DELETE", endpoint: string, body?: unknown) => Promise<unknown>;
   vaultStatus: () => Promise<{ available: boolean; cards: CardSummary[] }>;
   saveCard: (input: CardInput) => Promise<CardSummary[]>;
   removeCard: (id: string) => Promise<CardSummary[]>;

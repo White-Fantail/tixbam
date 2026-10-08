@@ -3,14 +3,14 @@ import {
   ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronRight,
   Clock3, ExternalLink, Globe2, Heart, LayoutDashboard, Layers3,
   Link2, LockKeyhole, Monitor, Plus, Radio, Search, Settings2, ShieldCheck,
-  Sparkles, Ticket, Trash2, X, Zap
+  Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import providerData from "../addons/catalog.json";
-import { getPublicData, initialApiUrl, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
-import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
+import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
+import type { CloudAccount, CloudSnapshot, Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
 const providers: Provider[] = catalog;
@@ -26,6 +26,7 @@ const demos = [
 const navItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "discover", label: "Discover events", icon: CalendarDays },
+  { id: "artists", label: "My artists", icon: Star },
   { id: "watchlist", label: "My events", icon: Heart },
   { id: "sessions", label: "Live windows", icon: Layers3 },
   { id: "providers", label: "Ticket providers", icon: Globe2 },
@@ -171,6 +172,15 @@ function App() {
   const apiUrl = initialApiUrl();
   const [apiRefresh, setApiRefresh] = useState(0);
   const [remoteEvents, setRemoteEvents] = useState<RemoteEvent[]>([]);
+  const [remoteArtists, setRemoteArtists] = useState<RemoteArtist[]>([]);
+  const [favoriteArtistIds, setFavoriteArtistIds] = useState<string[]>([]);
+  const [favoriteEventIds, setFavoriteEventIds] = useState<string[]>([]);
+  const [account, setAccount] = useState<CloudAccount | null>(null);
+  const [authMethods, setAuthMethods] = useState<AuthMethods>({ developmentLogin: false, google: false, apple: false });
+  const [demoAccount, setDemoAccount] = useState<"fan-one" | "fan-two">("fan-one");
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudError, setCloudError] = useState("");
+  const [onlyFavoriteArtists, setOnlyFavoriteArtists] = useState(false);
   const [chosenPerformances, setChosenPerformances] = useState<Record<string, string>>({});
   const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
   const [apiStatus, setApiStatus] = useState("Connecting...");
@@ -184,8 +194,19 @@ function App() {
   const desktop = Boolean(window.tixbam);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
-  }, [watchlist]);
+    if (!account) localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
+  }, [watchlist, account]);
+
+  useEffect(() => {
+    if (!window.tixbam) return;
+    let mounted = true;
+    window.tixbam.accountStatus().then(snapshot => {
+      if (mounted && snapshot) applySnapshot(snapshot);
+    }).catch(err => {
+      if (mounted) setCloudError(err instanceof Error ? err.message : "Account service unavailable");
+    });
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
@@ -218,19 +239,25 @@ function App() {
     setApiStatus("Connecting...");
     const refresh = async () => {
       try {
-        const [events, registry] = await Promise.all([
+        const [events, registry, artists, methods] = await Promise.all([
           getPublicData<{ items: RemoteEvent[] }>(apiUrl, "/v1/events"),
-          getPublicData<{ items: RemoteAddon[] }>(apiUrl, "/v1/addons")
+          getPublicData<{ items: RemoteAddon[] }>(apiUrl, "/v1/addons"),
+          getPublicData<{ items: RemoteArtist[] }>(apiUrl, "/v1/artists"),
+          getPublicData<AuthMethods>(apiUrl, "/v1/auth/methods").catch(() => ({ developmentLogin: false, google: false, apple: false }))
         ]);
         if (mounted) {
           setRemoteEvents(events.items);
           setRemoteAddons(registry.items);
+          setRemoteArtists(artists.items);
+          setAuthMethods(methods);
           setApiStatus("Connected");
         }
       } catch {
         if (mounted) {
           setRemoteEvents([]);
           setRemoteAddons([]);
+          setRemoteArtists([]);
+          setAuthMethods({ developmentLogin: false, google: false, apple: false });
           setApiStatus("Offline – local ticketing still works");
         }
       }
@@ -262,6 +289,109 @@ function App() {
 
   function inform(message: string, error = false) {
     setToast({ message, error });
+  }
+
+  function applySnapshot(snapshot: CloudSnapshot) {
+    setAccount(snapshot.user);
+    setWatchlist(snapshot.watchlist);
+    setFavoriteArtistIds(snapshot.favoriteArtistIds);
+    setFavoriteEventIds(snapshot.favoriteEventIds);
+    setCloudError("");
+  }
+
+  async function demoLogin() {
+    if (!window.tixbam || cloudBusy) return;
+    setCloudBusy(true);
+    try {
+      applySnapshot(await window.tixbam.accountDemoLogin(apiUrl, demoAccount));
+      inform("Signed in. Your favorites and events are now saved to TIXBAM cloud.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Sign-in failed";
+      setCloudError(message);
+      inform(message, true);
+    } finally { setCloudBusy(false); }
+  }
+
+  async function signOut() {
+    if (!window.tixbam || cloudBusy) return;
+    setCloudBusy(true);
+    try {
+      await window.tixbam.accountSignOut();
+      setAccount(null);
+      setWatchlist(loadWatchlist());
+      setFavoriteArtistIds([]);
+      setFavoriteEventIds([]);
+      setCloudError("");
+      inform("Signed out. Guest items remain on this device.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Sign-out failed", true);
+    } finally { setCloudBusy(false); }
+  }
+
+  async function refreshAccount() {
+    if (!window.tixbam || !account) return;
+    setCloudBusy(true);
+    try {
+      const snapshot = await window.tixbam.accountStatus();
+      if (snapshot) applySnapshot(snapshot);
+      else {
+        setAccount(null);
+        setWatchlist(loadWatchlist());
+        setFavoriteArtistIds([]);
+        setFavoriteEventIds([]);
+        inform("Session expired. Please sign in again.", true);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not sync";
+      setCloudError(message);
+      inform(message, true);
+    } finally { setCloudBusy(false); }
+  }
+
+  async function importGuestEvents() {
+    if (!window.tixbam || !account || cloudBusy) return;
+    const items = loadWatchlist();
+    if (!items.length) return;
+    if (!window.confirm("Copy this device's guest events into your cloud account?")) return;
+    setCloudBusy(true);
+    try {
+      for (const item of items) {
+        await window.tixbam.accountRequest("PUT", "/v1/me/watchlist/" + item.id, item);
+      }
+      const snapshot = await window.tixbam.accountStatus();
+      if (snapshot) applySnapshot(snapshot);
+      inform("Guest events copied to your account.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Import incomplete. Retry sync.", true);
+    } finally { setCloudBusy(false); }
+  }
+
+  async function toggleFavorite(kind: "artists" | "events", id: string) {
+    if (!account || !window.tixbam) {
+      setSection("settings");
+      inform("Sign in to save your favorite artists and events.", true);
+      return;
+    }
+    if (cloudBusy) return;
+    const saved = kind === "artists" ? favoriteArtistIds : favoriteEventIds;
+    const exists = saved.includes(id);
+    setCloudBusy(true);
+    try {
+      await window.tixbam.accountRequest(exists ? "DELETE" : "PUT", "/v1/me/" + kind + "/" + id);
+      const update = (items: string[]) => exists ? items.filter(value => value !== id) : [...items, id];
+      if (kind === "artists") setFavoriteArtistIds(update);
+      else setFavoriteEventIds(update);
+      inform(exists ? "Removed from favorites." : "Saved to your account.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not sync favorite", true);
+    } finally { setCloudBusy(false); }
+  }
+
+  async function addWatchItem(item: WatchEvent) {
+    if (account && window.tixbam) {
+      await window.tixbam.accountRequest("PUT", "/v1/me/watchlist/" + item.id, item);
+    }
+    setWatchlist(items => [item, ...items]);
   }
 
   async function toggleAddon(addon: TicketAddon) {
@@ -349,7 +479,7 @@ function App() {
     setEventModal(true);
   }
 
-  function saveEvent(e: FormEvent<HTMLFormElement>) {
+  async function saveEvent(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const provider = providerFor(form.providerId);
     if (!provider) return setFormError("Choose a ticketing provider.");
@@ -368,14 +498,18 @@ function App() {
       url: form.url.trim(),
       addedAt: new Date().toISOString(),
     };
-    setWatchlist((items) => [item, ...items]);
-    setEventModal(false);
-    setSection("watchlist");
-    setSearch("");
-    inform("Event added to your watchlist.");
+    try {
+      await addWatchItem(item);
+      setEventModal(false);
+      setSection("watchlist");
+      setSearch("");
+      inform(account ? "Event saved to your TIXBAM account." : "Event saved on this device.");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not save event to cloud");
+    }
   }
 
-  function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number], performance?: RemotePerformance) {
+  async function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number], performance?: RemotePerformance) {
     if (performance && (performance.status === "cancelled" || performance.status === "postponed")) {
       inform("This performance is not available to book.", true);
       return;
@@ -393,18 +527,31 @@ function App() {
       inform("This event is already in your watchlist.");
       return;
     }
-    setWatchlist(items => [{
-      id: crypto.randomUUID(), artist: event.artist, title: event.title,
-      city: event.city, providerId: sale.providerId,
+    const item: WatchEvent = {
+      id: crypto.randomUUID(), eventId: event.id, artist: event.artist, title: event.title,
+      city: event.city, providerId: sale.providerId, performanceId: performance?.id,
+      performanceAt: performance?.startsAt || undefined,
       saleAt: sale.saleAt || "", url: sale.bookingUrl,
       addedAt: new Date().toISOString()
-    }, ...items]);
-    inform("Added to your local watchlist.");
+    };
+    try {
+      await addWatchItem(item);
+      inform(account ? "Added to your cloud watchlist." : "Added to your local watchlist.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not save event", true);
+    }
   }
 
-  function removeEvent(id: string) {
-    setWatchlist((items) => items.filter((item) => item.id !== id));
-    inform("Event removed from your watchlist.");
+  async function removeEvent(id: string) {
+    try {
+      if (account && window.tixbam) {
+        await window.tixbam.accountRequest("DELETE", "/v1/me/watchlist/" + id);
+      }
+      setWatchlist((items) => items.filter((item) => item.id !== id));
+      inform("Event removed from your watchlist.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not remove event", true);
+    }
   }
 
   const localClock = new Intl.DateTimeFormat(undefined, {
@@ -463,7 +610,7 @@ function App() {
             <div className="top-time"><Clock3 size={14} />{localClock}<span>{localZone}</span></div>
             <span className="top-divider" />
             <span className="preview-tag"><span /> PROTOTYPE V0.1</span>
-            <button className="avatar-button" aria-label="App profile information" onClick={() => setSection("settings")}>TB</button>
+            <button className="avatar-button" aria-label="App profile information" title={account?.displayName || "Sign in"} onClick={() => setSection("settings")}>{account ? account.displayName.trim().slice(0, 2).toUpperCase() : "TB"}</button>
           </div>
         </header>
 
@@ -564,6 +711,7 @@ function App() {
                 return <article key={event.id} className="remote-card">
                   <span className="eyebrow">LIVE CATALOG · {event.country || "GLOBAL"}</span>
                   <h3>{event.artist}</h3><p>{event.title}</p>
+                  <div className="favorite-actions"><button className="button button-outline" disabled={cloudBusy} aria-pressed={favoriteEventIds.includes(event.id)} onClick={() => void toggleFavorite("events", event.id)}><Heart size={15} fill={favoriteEventIds.includes(event.id) ? "currentColor" : "none"}/>{favoriteEventIds.includes(event.id) ? "Event saved" : "Favorite event"}</button><button className="button button-outline" disabled={cloudBusy} aria-pressed={favoriteArtistIds.includes(event.artistId)} onClick={() => void toggleFavorite("artists", event.artistId)}><Star size={15} fill={favoriteArtistIds.includes(event.artistId) ? "currentColor" : "none"}/>{favoriteArtistIds.includes(event.artistId) ? "Following artist" : "Follow artist"}</button></div>
                   <div className="sample-place"><Globe2 size={14}/>{event.city || "City TBA"}{event.venue ? " · " + event.venue : ""}</div>
                   <div className="sample-place"><CalendarDays size={14}/>{sessions.length} session{sessions.length === 1 ? "" : "s"}</div>
                   {sessions.length > 0 && <label className="remote-performance-picker">Performance / session
@@ -598,7 +746,21 @@ function App() {
             </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Events appear automatically when published in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
           </>}
 
-          {section === "watchlist" && <>
+          {section === "artists" && <>
+             <SectionHeading eyebrow="YOUR FAVORITE ARTISTS" title="My artists" description="Follow artists to keep your preferences synced across devices." />
+             <div className="content-toolbar">
+               <label className="search-field"><Search size={18} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Find an artist..." /></label>
+               <label className="favorite-filter"><input type="checkbox" checked={onlyFavoriteArtists} onChange={e => setOnlyFavoriteArtists(e.target.checked)} /> Followed only ({favoriteArtistIds.length})</label>
+             </div>
+             {!account && <div className="remote-banner"><UserRound size={16}/>Sign in from Settings to follow artists and sync favorites.<button onClick={() => setSection("settings")}>Sign in <ArrowRight size={14}/></button></div>}
+             <div className="artist-grid">
+               {remoteArtists.filter(a => (!onlyFavoriteArtists || favoriteArtistIds.includes(a.id)) && a.name.toLowerCase().includes(search.toLowerCase())).map(artist => (
+                 <article className="artist-card" key={artist.id}><div className="artist-avatar">{artist.imageUrl ? <img src={artist.imageUrl} alt="" /> : <Star size={24}/>}</div><div><h3>{artist.name}</h3><p>{artist.country || "Global"} · {remoteEvents.filter(e => e.artistId === artist.id).length} events</p></div><button className="button button-outline" disabled={cloudBusy} aria-pressed={favoriteArtistIds.includes(artist.id)} onClick={() => void toggleFavorite("artists", artist.id)}><Star size={15} fill={favoriteArtistIds.includes(artist.id) ? "currentColor" : "none"}/>{favoriteArtistIds.includes(artist.id) ? "Following" : "Follow"}</button></article>
+               ))}
+             </div>
+           </>}
+
+           {section === "watchlist" && <>
             <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="My events" description="Your personal calendar of tickets worth chasing."
               action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
             <div className="content-toolbar">
@@ -664,14 +826,28 @@ function App() {
           {section === "settings" && <>
             <SectionHeading eyebrow="MAKE IT YOURS" title="Settings & privacy" description="A transparent look at what TIXBAM stores and how it works." />
             <div className="settings-grid"><div className="settings-main">
+               <div className="settings-panel account-panel">
+                 <div className="settings-panel-title"><UserRound size={20}/><div><h3>TIXBAM account</h3><p>{account ? "Your artist favorites, event favorites and watchlist sync to the cloud." : "Sign in to save favorites and events to your account."}</p></div></div>
+                 {account ? <>
+                   <div className="settings-inline"><div className="account-identity"><strong>{account.displayName}</strong><span>{account.email || "No verified email"} · {account.providers.join(", ")}</span></div><button className="button button-outline" onClick={() => void signOut()} disabled={cloudBusy}>Sign out</button></div>
+                   <div className="settings-inline"><span>{favoriteArtistIds.length} artists · {favoriteEventIds.length} favorite events · {watchlist.length} watched ticket sales</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void refreshAccount()}>Sync now</button></div>
+                   {loadWatchlist().length > 0 && <div className="settings-inline"><span>{loadWatchlist().length} guest events stored on this device</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void importGuestEvents()}>Import guest events</button></div>}
+                 </> : <>
+                   <div className="account-options"><button className="button button-outline" disabled title="Native Google authorization is not configured in the desktop app yet.">Continue with Google · Soon</button><button className="button button-outline" disabled title="Native Apple authorization is not configured in the desktop app yet.">Continue with Apple · Soon</button></div>
+                   {authMethods.developmentLogin && desktop && <div className="account-demo"><div><strong>Development sign-in</strong><p>Simulate social sign-in with two separate test accounts, no Google/Apple setup needed.</p></div><select aria-label="Demo account" value={demoAccount} onChange={e => setDemoAccount(e.target.value as "fan-one" | "fan-two")}><option value="fan-one">Demo Fan One</option><option value="fan-two">Demo Fan Two</option></select><button className="button button-primary" disabled={cloudBusy} onClick={() => void demoLogin()}>Sign in for testing</button></div>}
+                   {!authMethods.developmentLogin && <div className="settings-note">Demo sign-in is disabled on this API. OAuth buttons will be enabled after native provider configuration.</div>}
+                 </>}
+                 {cloudError && <p className="account-error" role="alert">{cloudError}</p>}
+                 <div className="settings-note">TIXBAM account data is stored on the server. Ticketing site logins and encrypted payment cards remain local to this device.</div>
+               </div>
               <CardVaultPanel />
               <div className="settings-panel"><div className="settings-panel-title"><Globe2 size={20}/><div><h3>TIXBAM cloud</h3><p role="status">{apiStatus}. Events and add-on versions update automatically. Your ticketing sessions stay local.</p></div></div>
                 <div className="settings-note">Connected to the official TIXBAM service automatically. No setup is required.</div>
                 <div className="settings-inline"><span>{remoteEvents.length} published events · {remoteAddons.length} catalog add-ons</span><button className="button button-outline" onClick={() => setApiRefresh(value => value + 1)}>Retry connection</button></div>
               </div>
               <div className="settings-panel"><div className="settings-panel-title"><LockKeyhole size={20} /><div><h3>Provider sign-in data</h3><p>Stored locally, separate for each ticketing provider.</p></div></div><div className="settings-provider-list">{providers.map((provider) => <div key={provider.id} className="settings-provider-row"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button onClick={() => clearProvider(provider)}>Clear cookies & storage <Trash2 size={14} /></button></div>)}</div><div className="settings-note">Close all windows for a provider before clearing their session. This will require a new manual sign-in.</div></div>
-              <div className="settings-panel"><div className="settings-panel-title"><Heart size={20} /><div><h3>My saved events</h3><p>Your personal watchlist is saved on this device only.</p></div></div><div className="settings-inline"><span>{watchlist.length} event{watchlist.length === 1 ? "" : "s"} in local storage</span><button className="button button-outline" onClick={() => setSection("watchlist")}>Manage events <ArrowRight size={15} /></button></div></div>
-            </div><div className="settings-side"><div className="settings-story"><div className="story-icon"><ShieldCheck size={28} /></div><h3>YOUR ACCOUNT.<br />YOUR RULES.</h3><p>We don't connect to a ticketing site's API, store passwords in our app, solve CAPTCHA or bypass queue systems.</p><span>V0.1 • LOCAL DESKTOP PROTOTYPE</span></div><div className="settings-facts"><strong>About this build</strong><div><span>Version</span><b>0.1.0 prototype</b></div><div><span>Providers</span><b>{installedIds.size} installed / {addons.length} available</b></div><div><span>Environment</span><b>{desktop ? "Electron desktop" : "Browser preview"}</b></div><div><span>Sync</span><b>Local only</b></div></div></div></div>
+              <div className="settings-panel"><div className="settings-panel-title"><Heart size={20} /><div><h3>My saved events</h3><p>{account ? "Your personal watchlist is saved to your TIXBAM account." : "Guest events are saved on this device only."}</p></div></div><div className="settings-inline"><span>{watchlist.length} event{watchlist.length === 1 ? "" : "s"} {account ? "synced to your account" : "in local storage"}</span><button className="button button-outline" onClick={() => setSection("watchlist")}>Manage events <ArrowRight size={15} /></button></div></div>
+            </div><div className="settings-side"><div className="settings-story"><div className="story-icon"><ShieldCheck size={28} /></div><h3>YOUR ACCOUNT.<br />YOUR RULES.</h3><p>We don't connect to a ticketing site's API, store passwords in our app, solve CAPTCHA or bypass queue systems.</p><span>V0.1 • LOCAL DESKTOP PROTOTYPE</span></div><div className="settings-facts"><strong>About this build</strong><div><span>Version</span><b>0.1.0 prototype</b></div><div><span>Providers</span><b>{installedIds.size} installed / {addons.length} available</b></div><div><span>Environment</span><b>{desktop ? "Electron desktop" : "Browser preview"}</b></div><div><span>Sync</span><b>{account ? "Cloud account" : "Guest / local"}</b></div></div></div></div>
           </>}
         </main>
 
