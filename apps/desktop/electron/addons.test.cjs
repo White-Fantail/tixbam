@@ -24,3 +24,18 @@ test("untrusted and cross-provider URLs are rejected for all add-ons", () => {
     assert.throws(() => resolveStartUrl(addon.id, "https://user:secret@" + addon.allowedHosts[0] + "/"));
   }
 });
+
+test("Live Nation uses event-presale delegation and official regional hosts", () => {
+  const addon = catalog.find(a => a.id === "livenation");
+  assert.ok(addon);
+  assert.equal(addon.kind, "event-presale");
+  assert.equal(addon.sites.length, 8);
+  assert.equal(addon.automation.level2.status, "delegated");
+  assert.equal(addon.automation.level3.status, "delegated");
+  assert.equal(addon.booking, undefined);
+  for (const site of addon.sites) {
+    assert.equal(resolveStartUrl(addon.id, site.url).url, new URL(site.url).toString());
+    assert.ok(isHostAllowed(new URL(site.url).hostname, addon.allowedHosts));
+  }
+  assert.throws(() => resolveStartUrl(addon.id, "https://www.cityline.com.hk/"));
+});

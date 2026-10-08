@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("tixbam", {
     return () => ipcRenderer.removeListener("tixbam:addons-changed", handler);
   },
   openWindow: (options) => ipcRenderer.invoke("tixbam:open-window", options),
+  openTicketAgent: (sourceWindowId, agentUrl) => ipcRenderer.invoke("tixbam:open-ticket-agent", sourceWindowId, agentUrl),
   listWindows: () => ipcRenderer.invoke("tixbam:list-windows"),
   focusWindow: (id) => ipcRenderer.invoke("tixbam:focus-window", id),
   closeWindow: (id) => ipcRenderer.invoke("tixbam:close-window", id),

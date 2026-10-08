@@ -3,7 +3,7 @@
  * v0.2: for discovery and compatibility only; remotely supplied code is NOT executed.
  * Future executable packaging requires signature verification and reviewed host permissions.
  */
-export type AutomationStatus = "available" | "restricted" | "unverified";
+export type AutomationStatus = "available" | "restricted" | "unverified" | "delegated";
 export type AutomationLevel = {
   status: AutomationStatus;
   summary: string;
@@ -12,9 +12,11 @@ export type AutomationLevel = {
 export type AddonManifest = {
   id: string;
   name: string;
+  kind: "ticketing" | "event-presale";
   version: string;
   url: string;
   allowedHosts: string[];
+  sites?: Array<{ label: string; url: string }>;
   booking?: BookingSchema;
   capabilities: Array<"browser" | "persistent-session" | string>;
   automation: {

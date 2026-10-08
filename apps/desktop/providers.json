@@ -5,9 +5,13 @@
     "region": "Hong Kong",
     "country": "HK",
     "url": "https://www.cityline.com.hk/en_US/",
-    "allowedHosts": ["cityline.com.hk", "cityline.com"],
+    "allowedHosts": [
+      "cityline.com.hk",
+      "cityline.com"
+    ],
     "color": "#bba9fc",
-    "initials": "CL"
+    "initials": "CL",
+    "kind": "ticketing"
   },
   {
     "id": "nol",
@@ -15,9 +19,12 @@
     "region": "South Korea",
     "country": "KR",
     "url": "https://world.nol.com/en",
-    "allowedHosts": ["world.nol.com"],
+    "allowedHosts": [
+      "world.nol.com"
+    ],
     "color": "#8decd6",
-    "initials": "NW"
+    "initials": "NW",
+    "kind": "ticketing"
   },
   {
     "id": "yes24",
@@ -25,9 +32,12 @@
     "region": "South Korea",
     "country": "KR",
     "url": "https://ticket.yes24.com/English",
-    "allowedHosts": ["ticket.yes24.com"],
+    "allowedHosts": [
+      "ticket.yes24.com"
+    ],
     "color": "#76b3ff",
-    "initials": "Y4"
+    "initials": "Y4",
+    "kind": "ticketing"
   },
   {
     "id": "ticketmaster",
@@ -35,9 +45,12 @@
     "region": "Global",
     "country": "GL",
     "url": "https://www.ticketmaster.com/",
-    "allowedHosts": ["ticketmaster.com"],
+    "allowedHosts": [
+      "ticketmaster.com"
+    ],
     "color": "#77b8ff",
-    "initials": "TM"
+    "initials": "TM",
+    "kind": "ticketing"
   },
   {
     "id": "axs",
@@ -45,9 +58,12 @@
     "region": "Global",
     "country": "GL",
     "url": "https://www.axs.com/",
-    "allowedHosts": ["axs.com"],
+    "allowedHosts": [
+      "axs.com"
+    ],
     "color": "#ff9ac5",
-    "initials": "AX"
+    "initials": "AX",
+    "kind": "ticketing"
   },
   {
     "id": "kktix",
@@ -55,8 +71,65 @@
     "region": "Taiwan",
     "country": "TW",
     "url": "https://kktix.com/",
-    "allowedHosts": ["kktix.com"],
+    "allowedHosts": [
+      "kktix.com"
+    ],
     "color": "#f2c77a",
-    "initials": "KK"
+    "initials": "KK",
+    "kind": "ticketing"
+  },
+  {
+    "id": "livenation",
+    "name": "Live Nation",
+    "kind": "event-presale",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.livenation.hk/en",
+    "allowedHosts": [
+      "livenation.hk",
+      "livenation.co.nz",
+      "livenation.sg",
+      "livenation.com.tw",
+      "livenation.kr",
+      "livenation.co.jp",
+      "livenation.com.au",
+      "livenation.com"
+    ],
+    "sites": [
+      {
+        "label": "Hong Kong",
+        "url": "https://www.livenation.hk/en"
+      },
+      {
+        "label": "New Zealand",
+        "url": "https://www.livenation.co.nz/"
+      },
+      {
+        "label": "Singapore",
+        "url": "https://www.livenation.sg/"
+      },
+      {
+        "label": "Taiwan",
+        "url": "https://www.livenation.com.tw/en"
+      },
+      {
+        "label": "South Korea",
+        "url": "https://www.livenation.kr/en"
+      },
+      {
+        "label": "Japan",
+        "url": "https://www.livenation.co.jp/en"
+      },
+      {
+        "label": "Australia",
+        "url": "https://www.livenation.com.au/"
+      },
+      {
+        "label": "United States",
+        "url": "https://www.livenation.com/"
+      }
+    ],
+    "color": "#ff6475",
+    "initials": "LN"
   }
 ]

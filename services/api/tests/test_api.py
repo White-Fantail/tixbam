@@ -11,8 +11,9 @@ def test_api_end_to_end():
         with TestClient(app) as client:
             assert client.get("/healthz").json()["status"] == "ok"
             addons = client.get("/v1/addons").json()["items"]
-            assert len(addons) == 6
+            assert len(addons) == 7
             assert any(item["id"] == "cityline" for item in addons)
+            assert any(item["id"] == "livenation" and item["kind"] == "event-presale" for item in addons)
             assert client.post("/v1/admin/artists", json={"name":"DAY6"}).status_code == 401
             headers = {"X-Admin-Key": "test-only-private-key"}
             artist = client.post("/v1/admin/artists", headers=headers,

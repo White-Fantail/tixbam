@@ -1,5 +1,5 @@
 import type { BookingSchema, BookingContext, BookingPreferences, BookingRun, CardSummary, CardInput } from "../../../packages/addon-sdk";
-export type AutomationSupportStatus = "available" | "restricted" | "unverified";
+export type AutomationSupportStatus = "available" | "restricted" | "unverified" | "delegated";
 
 export interface AutomationLevelSupport {
   status: AutomationSupportStatus;
@@ -30,8 +30,10 @@ export interface Provider {
   name: string;
   region: string;
   country: string;
+  kind: "ticketing" | "event-presale";
   url: string;
   allowedHosts: string[];
+  sites?: Array<{ label: string; url: string }>;
   color: string;
   initials: string;
 }
@@ -68,6 +70,7 @@ export interface DesktopBridge {
   stopBooking: (id: string) => Promise<BookingRun>;
   onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
+  openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
   closeWindow: (id: number) => Promise<boolean>;

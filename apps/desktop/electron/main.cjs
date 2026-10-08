@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, session, safeStorage } = require("electron"
 const path = require("node:path");
 const { MAX_WINDOWS, isSafeWebUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
+const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 
 const { registerBooking } = require("./booking/controller.cjs");
 let booking;
@@ -124,6 +125,14 @@ app.whenReady().then(() => {
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
     return openTicketWindow(options);
+  });
+  ipcMain.handle("tixbam:open-ticket-agent", (event, sourceWindowId, agentUrl) => {
+    dashboardOnly(event);
+    const source = ticketWindows.get(sourceWindowId);
+    if (!source) throw new Error("Source browser window is closed.");
+    const target = resolveAgentHandoff(source.providerId, agentUrl);
+    requireInstalled(target.providerId);
+    return openTicketWindow(target);
   });
   ipcMain.handle("tixbam:list-windows", (event) => {
     dashboardOnly(event);

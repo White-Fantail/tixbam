@@ -112,7 +112,8 @@
           ]
         }
       ]
-    }
+    },
+    "kind": "ticketing"
   },
   {
     "id": "nol",
@@ -147,7 +148,8 @@
         "summary": "Automated purchases require authorization; no integration permission is established.",
         "sourceUrl": "https://world.nol.com/en/pages/tos.html"
       }
-    }
+    },
+    "kind": "ticketing"
   },
   {
     "id": "yes24",
@@ -180,7 +182,8 @@
         "status": "unverified",
         "summary": "No approved automatic-checkout integration has been confirmed."
       }
-    }
+    },
+    "kind": "ticketing"
   },
   {
     "id": "ticketmaster",
@@ -215,7 +218,8 @@
         "summary": "Automated ticket purchases are expressly prohibited without permission.",
         "sourceUrl": "https://www.ticketmaster.co.nz/h/purchase.html"
       }
-    }
+    },
+    "kind": "ticketing"
   },
   {
     "id": "axs",
@@ -250,7 +254,8 @@
         "summary": "AXS can reject suspected bot purchases; no authorized checkout integration is established.",
         "sourceUrl": "https://www.axs.com/about-purchase-agreement_US_v6.html"
       }
-    }
+    },
+    "kind": "ticketing"
   },
   {
     "id": "kktix",
@@ -282,6 +287,86 @@
       "level3": {
         "status": "unverified",
         "summary": "No approved automatic-checkout integration has been confirmed."
+      }
+    },
+    "kind": "ticketing"
+  },
+  {
+    "id": "livenation",
+    "name": "Live Nation",
+    "kind": "event-presale",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.livenation.hk/en",
+    "allowedHosts": [
+      "livenation.hk",
+      "livenation.co.nz",
+      "livenation.sg",
+      "livenation.com.tw",
+      "livenation.kr",
+      "livenation.co.jp",
+      "livenation.com.au",
+      "livenation.com"
+    ],
+    "sites": [
+      {
+        "label": "Hong Kong",
+        "url": "https://www.livenation.hk/en"
+      },
+      {
+        "label": "New Zealand",
+        "url": "https://www.livenation.co.nz/"
+      },
+      {
+        "label": "Singapore",
+        "url": "https://www.livenation.sg/"
+      },
+      {
+        "label": "Taiwan",
+        "url": "https://www.livenation.com.tw/en"
+      },
+      {
+        "label": "South Korea",
+        "url": "https://www.livenation.kr/en"
+      },
+      {
+        "label": "Japan",
+        "url": "https://www.livenation.co.jp/en"
+      },
+      {
+        "label": "Australia",
+        "url": "https://www.livenation.com.au/"
+      },
+      {
+        "label": "United States",
+        "url": "https://www.livenation.com/"
+      }
+    ],
+    "color": "#ff6475",
+    "initials": "LN",
+    "version": "1.0.0",
+    "capabilities": [
+      "browser",
+      "persistent-session",
+      "event-presale",
+      "delegates-ticketing"
+    ],
+    "description": "Official concert listings and member presales. Purchases take place with each event's ticket agent.",
+    "automation": {
+      "reviewedAt": "2026-10-09",
+      "level1": {
+        "status": "available",
+        "summary": "Official concert pages, presale entry and local persistent browser sessions."
+      },
+      "level2": {
+        "status": "delegated",
+        "summary": "Seats are selected with the event's official ticket agent, not at Live Nation.",
+        "sourceUrl": "https://www.livenation.hk/en/faq"
+      },
+      "level3": {
+        "status": "delegated",
+        "summary": "Checkout and payment are handled by the event's ticket agent. No automatic Live Nation checkout is implemented.",
+        "sourceUrl": "https://www.livenation.hk/en/faq"
       }
     }
   }

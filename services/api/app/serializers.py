@@ -1,7 +1,7 @@
 from .models import Artist, Event, Provider, Source, TicketSale
 
 def provider_data(p: Provider):
-    return {"id": p.id, "name": p.name, "region": p.region, "country": p.country,
+    return {"id": p.id, "name": p.name, "kind": "event-presale" if "event-presale" in p.capabilities else "ticketing", "region": p.region, "country": p.country,
             "url": p.url, "allowedHosts": p.allowed_hosts, "automation": p.automation,
             "capabilities": p.capabilities, "version": p.version, "description": p.description,
             "published": p.published, "artifactUrl": p.artifact_url, "artifactSha256": p.artifact_sha256}
