@@ -1,35 +1,10 @@
 import { resolvePlatformApiUrl } from "./api-config";
 
-export interface RemotePerformance {
-  id: string;
-  eventId: string;
-  sessionKey: string;
-  label: string;
-  startsAt: string | null;
-  timezone: string | null;
-  status: "scheduled" | "cancelled" | "postponed" | "sold_out";
-}
-export interface RemoteSale {
-  id: string;
-  providerId: string;
-  saleType: string;
-  saleAt: string | null;
-  bookingUrl: string;
-  appliesToAll: boolean;
-  performanceIds: string[];
-}
-export interface RemoteEvent {
-  id: string;
-  artist: string;
-  title: string;
-  city: string;
-  country: string;
-  venue: string | null;
-  startsAt: string | null;
-  timezone: string | null;
-  performances: RemotePerformance[];
-  sales: RemoteSale[];
-}
+import type { CatalogEvent, CatalogPerformance, CatalogSale } from "../../../packages/catalog-types";
+export type RemotePerformance = CatalogPerformance;
+export type RemoteSale = CatalogSale;
+export type RemoteEvent = CatalogEvent;
+
 export interface RemoteAddon {
   id: string;
   name: string;
