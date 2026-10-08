@@ -1,3 +1,10 @@
+export interface TicketAddon extends Provider {
+  version: string;
+  description: string;
+  capabilities: string[];
+  installed: boolean;
+}
+
 export type Section = "overview" | "watchlist" | "sessions" | "providers" | "settings";
 
 export interface Provider {
@@ -36,6 +43,9 @@ export interface DesktopBridge {
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
   closeWindow: (id: number) => Promise<boolean>;
+  listAddons: () => Promise<TicketAddon[]>;
+  setAddonInstalled: (id: string, installed: boolean) => Promise<TicketAddon[]>;
+  onAddonsChanged: (listener: (addons: TicketAddon[]) => void) => () => void;
   clearProviderData: (id: string) => Promise<boolean>;
   onWindowsChanged: (listener: (windows: TicketWindow[]) => void) => () => void;
 }
