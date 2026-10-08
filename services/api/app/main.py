@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, SessionLocal, engine
@@ -7,6 +9,12 @@ from .migrations import migrate_schedule_columns
 from .routes import router
 from .admin import router as admin_router
 from .ingest import router as ingest_router
+
+# Local monorepo execution (cd services/api && uvicorn app.main:app) still works.
+# Docker installs this module into /app/tixbam_mcp instead.
+local_mcp = Path(__file__).resolve().parents[2] / "mcp"
+if local_mcp.is_dir() and str(local_mcp) not in sys.path:
+    sys.path.insert(0, str(local_mcp))
 
 # Optional MCP integration: unconfigured installations have no MCP route.
 # The module lives in services/mcp but runs in this same ASGI process.
