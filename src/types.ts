@@ -1,4 +1,20 @@
+export type AutomationSupportStatus = "available" | "restricted" | "unverified";
+
+export interface AutomationLevelSupport {
+  status: AutomationSupportStatus;
+  summary: string;
+  sourceUrl?: string;
+}
+
+export interface AddonAutomationSupport {
+  reviewedAt: string;
+  level1: AutomationLevelSupport;
+  level2: AutomationLevelSupport;
+  level3: AutomationLevelSupport;
+}
+
 export interface TicketAddon extends Provider {
+  automation: AddonAutomationSupport;
   version: string;
   description: string;
   capabilities: string[];

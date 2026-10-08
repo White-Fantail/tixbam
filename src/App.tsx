@@ -6,7 +6,7 @@ import {
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
 import providerData from "../addons/catalog.json";
-import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent } from "./types";
+import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
 const providers: Provider[] = providerData;
 const STORAGE_KEY = "tixbam.watchlist.v1";
@@ -97,6 +97,44 @@ function ProviderMark({ provider, small = false }: { provider: Provider; small?:
       style={{ background: provider.color + "1d", color: provider.color, borderColor: provider.color + "44" }}>
       {provider.initials}
     </span>
+  );
+}
+
+const levels = [
+  { key: "level1", name: "L1", title: "Assistant" },
+  { key: "level2", name: "L2", title: "Assisted" },
+  { key: "level3", name: "L3", title: "Full Auto" }
+] as const;
+
+const supportLabels: Record<AutomationSupportStatus, string> = {
+  available: "Available",
+  restricted: "Restricted",
+  unverified: "Unverified"
+};
+
+function AddonAutomationLevels({ addon }: { addon: TicketAddon }) {
+  return (
+    <div className="automation-levels" aria-label={addon.name + " automation support"}>
+      {levels.map((level) => {
+        const support = addon.automation[level.key];
+        return (
+          <div className="automation-level" key={level.key}>
+            <span className="automation-level-name">{level.name}<small>{level.title}</small></span>
+            <span className={"automation-support automation-support-" + support.status}
+              title={support.summary}>
+              {support.status === "available" ? <Check size={12} /> : support.status === "restricted" ? <X size={12} /> : <Clock3 size={12} />}
+              {supportLabels[support.status]}
+            </span>
+          </div>
+        );
+      })}
+      <p className="automation-support-note">{addon.automation.level2.summary} {addon.automation.level2.sourceUrl &&
+        <a href={addon.automation.level2.sourceUrl} target="_blank" rel="noopener noreferrer">Policy <ArrowUpRight size={11}/></a>}
+      </p>
+      <p className="automation-support-note">{addon.automation.level3.summary} {addon.automation.level3.sourceUrl &&
+        <a href={addon.automation.level3.sourceUrl} target="_blank" rel="noopener noreferrer">Policy <ArrowUpRight size={11}/></a>}
+      </p>
+    </div>
   );
 }
 
@@ -465,11 +503,16 @@ function App() {
 
           {section === "providers" && <>
             <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
-            <div className="provider-intro"><div><Zap size={20} /><strong>ONE-CLICK LAUNCH</strong></div><p>Open the original site in a real browser window. You handle sign-in, waiting rooms, seat selection and checkout directly with the provider.</p></div>
+            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Level 1: watchlist and browser sessions. Level 2: assisted seat / order workflow. Level 3: authorized full checkout. Level 2 and 3 are not implemented in this prototype; availability also requires provider authorization.</p></div>
+            <div className="automation-legend" aria-label="Automation support legend">
+              <span><span className="automation-legend-dot ready" />Available in TIXBAM</span>
+              <span><span className="automation-legend-dot limited" />Restricted by published terms</span>
+              <span><span className="automation-legend-dot pending" />Not yet verified</span>
+            </div>
             <div className="provider-grid">
               {addons.map((provider) => {
                 const openCount = windows.filter((item) => item.providerId === provider.id).length;
-                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : provider.installed ? "INSTALLED" : "NOT INSTALLED"}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" aria-label={(provider.installed ? "Remove " : "Install ") + provider.name + " add-on"} title={provider.installed ? "Remove add-on" : "Install add-on"} disabled={Boolean(busy) || !desktop} onClick={() => toggleAddon(provider)} style={{width:"auto",padding:"0 12px",fontSize:12}}>{provider.installed ? "Remove" : "Install"}</button>{provider.installed && <button aria-label={"Open " + provider.name} disabled={Boolean(busy)} onClick={() => launch(provider.id)}><ArrowUpRight size={20} /></button>}</div></div></article>;
+                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><AddonAutomationLevels addon={provider} /><div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : provider.installed ? "INSTALLED" : "NOT INSTALLED"}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" aria-label={(provider.installed ? "Remove " : "Install ") + provider.name + " add-on"} title={provider.installed ? "Remove add-on" : "Install add-on"} disabled={Boolean(busy) || !desktop} onClick={() => toggleAddon(provider)} style={{width:"auto",padding:"0 12px",fontSize:12}}>{provider.installed ? "Remove" : "Install"}</button>{provider.installed && <button aria-label={"Open " + provider.name} disabled={Boolean(busy)} onClick={() => launch(provider.id)}><ArrowUpRight size={20} /></button>}</div></div></article>;
               })}
             </div>
             <div className="hint-box"><ShieldCheck size={21} /><p><strong>Know before you go.</strong> Some websites may restrict embedded/desktop browsers or simultaneous access. TIXBAM never promises login compatibility or availability; always respect each site's policies.</p></div>

@@ -63,3 +63,17 @@ Provider-specific launch / login compatibility testing, dedicated multi-pane Web
 Open **Add-on Store** from the dashboard to install or remove Cityline, NOL World, YES24 Ticket, Ticketmaster, AXS, and KKTIX. The add-on manager saves the enabled IDs in Electron userData/addons.json, and the main process rejects launching disabled add-ons even if the UI is bypassed. On first upgrade, all six are enabled to preserve the previous setup. Removing an add-on requires closing its open windows and **does not remove sign-in cookies or saved events**; use Settings to erase provider storage separately. Quick Launch shows installed add-ons only.
 
 The bundled catalog is the first manifest format: each record declares id, version, official URL, allowedHosts, display metadata, and capabilities. This release installs/removes bundled provider adapters rather than downloading untrusted code. Future independently packaged add-ons must use signature verification, a capability-based API, and explicit per-host permission validation before introducing remote downloads or third-party scripts. No automation, queue circumvention, or unattended checkout is present.
+
+## Add-on automation levels (capability manifest)
+
+The built-in `addons/catalog.json` registry now records `automation.level1`, `level2` and `level3` for every provider, with `status`, a reason, optional official policy link and `reviewedAt`. Add-on Store displays this three-level matrix.
+
+- **L1 — Assistant (available prototype):** event watchlist, official provider windows and locally persisted per-provider sessions. Ticket-drop notifications are **not** implemented yet.
+- **L2 — Assisted selection:** seat/type and quantity assistance where explicitly authorized by the provider.
+- **L3 — Full auto checkout:** only when a documented, authorized provider integration allows checkout.
+- **restricted:** public terms impose relevant limits (for example Ticketmaster, AXS, NOL); this is not an assessment of separately approved partner integrations.
+- **unverified:** provider permission is not established; this is **not** a supported or enabled feature.
+
+**No L2 or L3 automation is currently implemented, enabled or tested for any add-on.** The capability matrix reports current limitations honestly and does not enable automated workflows. Site terms vary by jurisdiction, event and date; published conditions must be reviewed before any capability is upgraded. Review date for initial catalog: October 8, 2026. Any future promotion to an available status should require verified provider authorization, tested implementation, and an enforcement gate in the Electron main process (not only a UI badge).
+
+References used to classify restrictions: [Ticketmaster NZ terms](https://www.ticketmaster.co.nz/h/terms.html), [Ticketmaster NZ purchase rules](https://www.ticketmaster.co.nz/h/purchase.html), [AXS NZ terms](https://www.axs.com/nz/about-terms-of-use_NZ_v1.html?staticDetails=staticDetails), [AXS purchase agreement](https://www.axs.com/about-purchase-agreement_US_v6.html), [NOL World terms](https://world.nol.com/en/pages/tos.html). Other providers remain unverified.
