@@ -111,8 +111,12 @@ export function PerformanceForm({ events, performance }: { events: Event[]; perf
   </form>;
 }
 
-export function SaleForm({ events, providers, sale }: { events: Event[]; providers: Provider[]; sale?: Sale }) {
+export function SaleForm({ events, providers, sale, defaultPerformanceId }: {
+  events: Event[]; providers: Provider[]; sale?: Sale; defaultPerformanceId?: string;
+}) {
   const startEvent = events.find(e => e.id === sale?.eventId) || events[0];
+  const initialPerformanceId = !sale && startEvent?.performances.some(p => p.id === defaultPerformanceId)
+    ? defaultPerformanceId : undefined;
   const [eventId, setEventId] = useState(startEvent?.id || "");
   const [city, setCity] = useState(sale?.city || startEvent?.city || "");
   const [country, setCountry] = useState(sale?.country || startEvent?.country || "");
@@ -120,8 +124,9 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
     || startEvent?.timezone || guessZone(startEvent?.city, startEvent?.country);
   const [zone, setZone] = useState(initialZone);
   const [localTime, setLocalTime] = useState(toLocalInput(sale?.saleAt, initialZone || "UTC"));
-  const [allPerformances, setAllPerformances] = useState(sale?.appliesToAll !== false);
-  const [selectedPerformances, setSelectedPerformances] = useState<string[]>(sale?.performanceIds || []);
+  const [allPerformances, setAllPerformances] = useState(sale ? sale.appliesToAll !== false : !initialPerformanceId);
+  const [selectedPerformances, setSelectedPerformances] = useState<string[]>(
+    sale?.performanceIds || (initialPerformanceId ? [initialPerformanceId] : []));
 
   function changeLocation(nextCity: string, nextCountry: string) {
     setZone(old => applyLocationZone(old, city, country, nextCity, nextCountry));
