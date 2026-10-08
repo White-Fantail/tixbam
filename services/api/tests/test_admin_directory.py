@@ -47,6 +47,27 @@ def test_directory_and_provider_management(monkeypatch):
         assert listing.json()["items"][0]["name"] == "DAY6"
         assert client.get(root + "/artists/" + artist_id, headers=headers).status_code == 200
         assert client.get(root + "/events/" + event_id, headers=headers).status_code == 200
+        # Artist detail pages must display only that artist's events, with stable pagination.
+        with Session() as db:
+            other_artist = Artist(name="IVE", country="KR")
+            db.add(other_artist)
+            db.flush()
+            other_artist_id = other_artist.id
+            db.add_all([
+                Event(artist_id=artist_id, title="Singapore", city="Singapore", country="SG"),
+                Event(artist_id=other_artist_id, title="Seoul", city="Seoul", country="KR"),
+            ])
+            db.commit()
+        base = root + "/events?artist_id=" + artist_id + "&limit=1&offset="
+        first = client.get(base + "0", headers=headers).json()
+        second = client.get(base + "1", headers=headers).json()
+        assert first["total"] == second["total"] == 2
+        assert first["items"][0]["id"] != second["items"][0]["id"]
+        assert {first["items"][0]["title"], second["items"][0]["title"]} == {"Hong Kong", "Singapore"}
+        other_events = client.get(root + "/events?artist_id=" + other_artist_id, headers=headers).json()
+        assert other_events["total"] == 1
+        assert other_events["items"][0]["title"] == "Seoul"
+        assert client.get(root + "/events?artist_id=nonexistent", headers=headers).json()["total"] == 0
         performance = client.get(root + "/performances/" + show_id, headers=headers)
         assert performance.json()["eventTitle"] == "Hong Kong"
         assert client.get(root + "/artists/missing", headers=headers).status_code == 404
