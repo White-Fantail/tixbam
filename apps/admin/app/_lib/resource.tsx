@@ -179,7 +179,7 @@ async function relations(resource:string,item:RecordItem,parent?:RecordItem,quer
       s.appliesToAll || (s.performanceIds||[]).includes(item.id));
     return <section className="detail-section">
       <div className="section-heading"><h2>Ticket Sales ({parent ? sales.length : "—"})</h2>
-        <Link className="button-subtle" href={"/sales/new?eventId="+encodeURIComponent(item.eventId)}>+ Add ticket sale</Link></div>
+        <Link className="button-subtle" href={"/sales/new?"+new URLSearchParams({eventId:item.eventId,performanceId:item.id})}>+ Add ticket sale</Link></div>
       <div className="related-list">
         {sales.map(s=><Link className="related-item" key={s.id} href={"/sales/"+encodeURIComponent(s.id)}>
           <span><strong>{s.providerId} · {s.saleType}</strong><small>{s.appliesToAll?"All event performances":"Selected performance"}</small></span>
@@ -333,7 +333,7 @@ async function editorPage(resource:string,id:string|null,query:Query) {
       {resource==="artists" && <ArtistForm artist={item as Artist|undefined}/>}
       {resource==="events" && <EventForm artists={artists} event={item as Event|undefined}/>}
       {resource==="performances" && <PerformanceForm events={events} performance={item as Performance|undefined}/>}
-      {resource==="sales" && <SaleForm events={events} providers={providers.filter(p => p.kind !== "event-presale" || p.id === item?.providerId)} sale={item as Sale|undefined}/>}
+      {resource==="sales" && <SaleForm events={events} providers={providers.filter(p => p.kind !== "event-presale" || p.id === item?.providerId)} sale={item as Sale|undefined} defaultPerformanceId={safe(query.performanceId)}/>}
       {resource==="providers" && <ProviderForm provider={item as ProviderRecord|undefined}/>}
       {resource==="addons" && item && <AddonForm provider={item}/>}
       {resource==="crawlers" && <SourceForm source={item as SourceRecord|undefined}/>}
