@@ -95,6 +95,7 @@ class TicketSale(Base):
     applies_to_all: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     performance_links: Mapped[list["SalePerformance"]] = relationship(back_populates="sale", cascade="all, delete-orphan")
     event: Mapped["Event"] = relationship(back_populates="sales")
+    provider: Mapped["Provider"] = relationship()
 
 
 class Source(Base):
