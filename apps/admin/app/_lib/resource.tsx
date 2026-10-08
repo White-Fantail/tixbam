@@ -254,7 +254,7 @@ async function editorPage(resource:string,id:string|null,query:Query) {
       {resource==="artists" && <ArtistForm artist={item as Artist|undefined}/>}
       {resource==="events" && <EventForm artists={artists} event={item as Event|undefined}/>}
       {resource==="performances" && <PerformanceForm events={events} performance={item as Performance|undefined}/>}
-      {resource==="sales" && <SaleForm events={events} providers={providers} sale={item as Sale|undefined}/>}
+      {resource==="sales" && <SaleForm events={events} providers={providers.filter(p => p.kind !== "event-presale" || p.id === item?.providerId)} sale={item as Sale|undefined}/>}
       {resource==="providers" && <ProviderForm provider={item as ProviderRecord|undefined}/>}
       {resource==="addons" && item && <AddonForm provider={item}/>}
       {resource==="crawlers" && <SourceForm source={item as SourceRecord|undefined}/>}
@@ -263,7 +263,7 @@ async function editorPage(resource:string,id:string|null,query:Query) {
 }
 
 export async function renderResource(resource:string, segments:string[], query:Query) {
-  if(!(resource in metadata)) notFound();
+  if(!Object.prototype.hasOwnProperty.call(metadata, resource)) notFound();
   if(segments.length===0) return listPage(resource,query);
   if(segments.length===1&&segments[0]==="new") return editorPage(resource,null,query);
   if(segments.length===1) return detailPage(resource,segments[0],query);
