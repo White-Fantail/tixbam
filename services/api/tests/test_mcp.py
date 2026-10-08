@@ -120,6 +120,34 @@ def test_catalog_idempotency_and_timezones(catalog):
     assert next(x for x in catalog.events(artist_id)["items"] if x["id"] == event_id)["sales"][0]["id"] == sale["sale"]["id"]
 
 
+def test_provider_mcp_registration_and_updates(catalog):
+    from pydantic import ValidationError
+    assert not any(p["id"] == "fresh-agent" for p in catalog.providers(True)["items"])
+    registered = catalog.create_provider(
+        provider_id="fresh-agent", name="Fresh Agent", url="https://tickets.example.net",
+        region="New Zealand", country="NZ", allowed_hosts=["tickets.example.net"],
+        capabilities=["browser"], published=False,
+    )
+    assert registered["created"] is True
+    assert registered["provider"]["published"] is False
+    assert not any(p["id"] == "fresh-agent" for p in catalog.providers()["items"])
+    assert any(p["id"] == "fresh-agent" for p in catalog.providers(True)["items"])
+    with pytest.raises(ValueError, match="already exists"):
+        catalog.create_provider("fresh-agent", "Duplicate", "https://tickets.example.net")
+    with pytest.raises(ValidationError):
+        catalog.create_provider("bad-host", "Bad", "http://tickets.example.net")
+    updated = catalog.update_provider(
+        "fresh-agent", name="Fresh Tickets", published=True,
+        allowed_hosts=["tickets.example.net"],
+    )
+    assert updated["name"] == "Fresh Tickets"
+    assert updated["published"] is True
+    assert updated["capabilities"] == ["browser"]
+    assert any(p["id"] == "fresh-agent" for p in catalog.providers()["items"])
+    with pytest.raises(ValueError, match="not found"):
+        catalog.update_provider("not-registered", name="Never")
+
+
 def test_oauth_token_checks_signature_audience_owner_expiry_and_scope(monkeypatch):
     config = MCPConfig(
         "https://tixbam.example.com/mcp",
@@ -213,6 +241,13 @@ def test_mcp_discovery_and_tool_scopes():
     ]
     assert wire_tools["create_event"]["securitySchemes"] == [
         {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
+    ]
+    for tool_name in ("create_provider", "update_provider"):
+        assert wire_tools[tool_name]["securitySchemes"] == [
+            {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
+        ]
+    assert wire_tools["list_providers"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": [READ_SCOPE]}
     ]
     update_sale_tool = wire_tools["update_ticket_sale"]
     assert update_sale_tool["securitySchemes"] == [
