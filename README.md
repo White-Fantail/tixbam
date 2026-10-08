@@ -24,7 +24,7 @@ npm run desktop # opens production renderer after npm run build
 
 ## What works in v0.1
 
-- **Six ticketing providers:** Cityline, NOL World (formerly Interpark Global), YES24 Ticket, Ticketmaster, AXS, and KKTIX.
+- **Six built-in installable add-ons:** Cityline, NOL World (formerly Interpark Global), YES24 Ticket, Ticketmaster, AXS, and KKTIX.
 - **Real provider browser windows:** opens official HTTPS sites inside sandboxed Electron BrowserWindows.
 - **Per-provider persistent sessions:** windows for the same provider share cookies and storage across app launches; different providers have separate storage partitions.
 - **Multiple windows:** up to six provider windows concurrently, with window focus, close and clear-storage controls.
@@ -49,10 +49,17 @@ npm run desktop # opens production renderer after npm run build
 ```
 electron/            Electron main process, limited IPC, isolated browser sessions, safety tests
 src/                 React + TypeScript dashboard
-providers.json       Single provider registry shared by desktop and renderer
+addons/catalog.json  Versioned built-in add-on catalog
+ electron/addon-manager.cjs  Local installation state and launch authorization
 .github/workflows/   CI for tests, typecheck and renderer build
 ```
 
 ## Next milestones
 
 Provider-specific launch / login compatibility testing, dedicated multi-pane WebContentsView workspace, event notifications, secure preference storage and macOS/Windows packaging. Provider support should be validated against site terms and security constraints before release.
+
+## Add-ons (v0.2)
+
+Open **Add-on Store** from the dashboard to install or remove Cityline, NOL World, YES24 Ticket, Ticketmaster, AXS, and KKTIX. The add-on manager saves the enabled IDs in Electron userData/addons.json, and the main process rejects launching disabled add-ons even if the UI is bypassed. On first upgrade, all six are enabled to preserve the previous setup. Removing an add-on requires closing its open windows and **does not remove sign-in cookies or saved events**; use Settings to erase provider storage separately. Quick Launch shows installed add-ons only.
+
+The bundled catalog is the first manifest format: each record declares id, version, official URL, allowedHosts, display metadata, and capabilities. This release installs/removes bundled provider adapters rather than downloading untrusted code. Future independently packaged add-ons must use signature verification, a capability-based API, and explicit per-host permission validation before introducing remote downloads or third-party scripts. No automation, queue circumvention, or unattended checkout is present.
