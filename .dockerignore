@@ -1,0 +1,16 @@
+# Root-context Docker build: only services/api + services/mcp are copied
+.git
+.gitignore
+**/.env
+**/.env.*
+**/node_modules
+**/.next
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+**/dist
+**/build
+**/*.db
+**/*.dump
+**/*.log
