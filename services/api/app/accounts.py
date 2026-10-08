@@ -26,7 +26,7 @@ SESSION_AUDIENCE = "tixbam-desktop"
 
 def session_secret():
     secret = os.getenv("TIXBAM_SESSION_SECRET", "")
-    if len(secret) < 32:
+    if len(secret) < 32 or secret.startswith("replace-with-"):
         raise HTTPException(status_code=503, detail="User authentication is not configured")
     return secret
 

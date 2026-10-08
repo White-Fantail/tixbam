@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .accounts import create_session, identity_user, verified_social_claims
+from .accounts import create_session, identity_user, verified_social_claims, session_secret
 from .db import get_db
 from .models import OAuthLoginFlow, User
 
@@ -53,7 +53,9 @@ def callback_url(provider, origin):
 
 def provider_config(provider):
     """Only accept a configured, server-owned origin, never request Host."""
-    if len(os.getenv("TIXBAM_SESSION_SECRET", "")) < 32:
+    try:
+        session_secret()
+    except HTTPException:
         return None
     origin = os.getenv("TIXBAM_PUBLIC_URL", "https://tixbam-production.up.railway.app").strip().rstrip("/")
     try:

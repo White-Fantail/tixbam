@@ -28,6 +28,7 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
   const file = path.join(app.getPath("userData"), "tixbam-account.enc");
   let session = null;
   let pending = null;
+  let oauthGeneration = 0;
   function save() {
     if (!session) {
       try { fs.unlinkSync(file); } catch (e) { if (e.code !== "ENOENT") throw e; }
@@ -95,9 +96,11 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     if (provider !== "google" && provider !== "apple") throw Error("Unsupported OAuth provider");
     apiUrl = publicOrigin(apiUrl);
     // Only the main process knows this verifier: the renderer never receives it.
+    const generation = ++oauthGeneration;
     const verifier = crypto.randomBytes(48).toString("base64url");
     const codeChallenge = crypto.createHash("sha256").update(verifier).digest("base64url");
     const info = await request(apiUrl, "/v1/auth/oauth/start", "POST", { provider, codeChallenge });
+    if (generation !== oauthGeneration) throw Error("Sign-in was cancelled");
     if (!/^[0-9a-f-]{36}$/i.test(info.flowId) || !Number.isInteger(info.expiresIn)
         || info.expiresIn < 10 || info.expiresIn > 600) throw Error("Invalid OAuth flow from TIXBAM");
     const url = new URL(info.authorizationUrl);
@@ -138,11 +141,13 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
   });
   ipcMain.handle("tixbam:account-oauth-cancel", event => {
     dashboardOnly(event);
+    ++oauthGeneration;
     pending = null;
     return true;
   });
   ipcMain.handle("tixbam:account-sign-out", event => {
     dashboardOnly(event);
+    ++oauthGeneration;
     session = null;
     pending = null;
     save();
