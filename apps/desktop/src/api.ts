@@ -1,3 +1,5 @@
+import { resolvePlatformApiUrl } from "./api-config";
+
 export interface RemoteSale {
   id: string;
   providerId: string;
@@ -22,7 +24,7 @@ export interface RemoteAddon {
   published: boolean;
 }
 export const initialApiUrl = () =>
-  localStorage.getItem("tixbam.api.url") || import.meta.env.VITE_TIXBAM_API_URL || "";
+  resolvePlatformApiUrl(import.meta.env.DEV, import.meta.env.VITE_TIXBAM_API_URL);
 
 export function validApiUrl(url: string): boolean {
   try {

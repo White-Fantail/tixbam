@@ -40,18 +40,18 @@ uvicorn app.main:app --reload --port 8000
 
 Use the same API key in `apps/admin/.env.local`, and set `TIXBAM_API_URL=http://127.0.0.1:8000`. Set `TIXBAM_ADMIN_USER` and `TIXBAM_ADMIN_PASSWORD` in that file before starting Next.js. The admin is **fail-closed** until credentials are configured.
 
-In the desktop app, visit **Settings → Platform API connection** and enter `http://127.0.0.1:8000`, or use `apps/desktop/.env.local` with `VITE_TIXBAM_API_URL`. The desktop remains usable without an API connection; provider cookies and local watchlists are never uploaded by this integration.
+The desktop automatically connects to the official API at `https://tixbam-production.up.railway.app`; users do **not** configure server URLs. **Settings → TIXBAM cloud** shows connection status and a manual retry option. For *local development only*, set `VITE_TIXBAM_API_URL=http://127.0.0.1:8000` in `apps/desktop/.env.local`. Production builds always use the official service and ignore any previously saved `tixbam.api.url` preference. The app stays usable offline; provider cookies and local watchlists are never uploaded by this integration.
 
 ## Railway deployment
 
-Use one GitHub repo with two **separate Railway services** using branch `dev` while testing:
+Use one GitHub repo with two **separate Railway services** deploying production from branch `main` (development continues on `dev`):
 
 | Service | Root directory | Dockerfile | Command |
 | --- | --- | --- | --- |
 | `tixbam-api` | `/services/api` | `Dockerfile` | Default CMD (uvicorn on `$PORT`) |
 | `tixbam-crawler` | `/services/crawler` | `Dockerfile` | Default CMD (single crawl pass, then exit) |
 
-Add a Railway PostgreSQL service, configure `DATABASE_URL` on the API (Railway variable reference to your Postgres connection string) and set `TIXBAM_ADMIN_API_KEY` to a long unique secret. Publish HTTPS domain for the API. Set `TIXBAM_API_URL` to the public or accessible internal API URL for the crawler and copy the same secret to its environment. Configure crawler as a **Cron service**, e.g. `0 * * * *` (UTC); the worker also respects each source's `interval_minutes` field. Never run the crawler as an always-on Web Service. Railway configuration details: https://docs.railway.com/deployments/monorepo
+Add a Railway PostgreSQL service, configure `DATABASE_URL` on the API (Railway variable reference to your Postgres connection string) and set `TIXBAM_ADMIN_API_KEY` to a long unique secret. Publish HTTPS domain for the API. Set `TIXBAM_API_URL` to the public or accessible internal API URL for the crawler and copy the same secret to its environment. Configure crawler as a **Cron service**, currently `0 0 * * *` (daily, UTC); the worker also respects each source's `interval_minutes` field. Never run the crawler as an always-on Web Service. Railway configuration details: https://docs.railway.com/deployments/monorepo
 
 For Vercel, import this repo and set **Root Directory** `apps/admin`. Use the Next.js framework, `TIXBAM_API_URL` pointing to the Railway API HTTPS domain, matching `TIXBAM_ADMIN_API_KEY`, and separate `TIXBAM_ADMIN_USER`/`TIXBAM_ADMIN_PASSWORD` for the admin website. Do **not** prefix admin keys with `NEXT_PUBLIC_` or `VITE_`.
 

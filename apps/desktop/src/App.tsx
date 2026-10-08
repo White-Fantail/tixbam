@@ -6,7 +6,7 @@ import {
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
 import providerData from "../addons/catalog.json";
-import { getPublicData, initialApiUrl, validApiUrl, type RemoteEvent, type RemoteAddon } from "./api";
+import { getPublicData, initialApiUrl, type RemoteEvent, type RemoteAddon } from "./api";
 import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
@@ -163,11 +163,11 @@ function App() {
   const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
-  const [apiUrl, setApiUrl] = useState(initialApiUrl);
-  const [apiInput, setApiInput] = useState(initialApiUrl);
+  const apiUrl = initialApiUrl();
+  const [apiRefresh, setApiRefresh] = useState(0);
   const [remoteEvents, setRemoteEvents] = useState<RemoteEvent[]>([]);
   const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
-  const [apiStatus, setApiStatus] = useState("Not configured");
+  const [apiStatus, setApiStatus] = useState("Connecting...");
   const [now, setNow] = useState(() => Date.now());
   const [eventModal, setEventModal] = useState(false);
   const [form, setForm] = useState<EventFormState>(emptyEvent);
@@ -207,13 +207,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!apiUrl) {
-      setApiStatus("Not configured");
-      setRemoteEvents([]);
-      setRemoteAddons([]);
-      return;
-    }
     let mounted = true;
+    setApiStatus("Connecting...");
     const refresh = async () => {
       try {
         const [events, registry] = await Promise.all([
@@ -226,13 +221,17 @@ function App() {
           setApiStatus("Connected");
         }
       } catch {
-        if (mounted) setApiStatus("Offline – local ticketing still works");
+        if (mounted) {
+          setRemoteEvents([]);
+          setRemoteAddons([]);
+          setApiStatus("Offline – local ticketing still works");
+        }
       }
     };
     void refresh();
     const timer = window.setInterval(() => { void refresh(); }, 300000);
     return () => { mounted = false; window.clearInterval(timer); };
-  }, [apiUrl]);
+  }, [apiUrl, apiRefresh]);
 
   useEffect(() => {
     if (!toast) return;
@@ -373,18 +372,6 @@ function App() {
       addedAt: new Date().toISOString()
     }, ...items]);
     inform("Added to your local watchlist.");
-  }
-
-  function saveApiSettings() {
-    const value = apiInput.trim().replace(/\/$/, "");
-    if (value && !validApiUrl(value)) {
-      inform("Use HTTPS or localhost for local development.", true);
-      return;
-    }
-    if (value) localStorage.setItem("tixbam.api.url", value);
-    else localStorage.removeItem("tixbam.api.url");
-    setApiUrl(value);
-    inform("API connection setting saved.");
   }
 
   function removeEvent(id: string) {
@@ -532,7 +519,7 @@ function App() {
           {section === "discover" && <>
             <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover events" description="Concerts and ticket sales published by the TIXBAM platform." />
             <div className="remote-banner"><Globe2 size={17} /><span>API: {apiStatus}</span>
-              <button onClick={() => setSection("settings")}>Connection settings <ArrowUpRight size={15}/></button></div>
+              <button onClick={() => setSection("settings")}>Service status <ArrowUpRight size={15}/></button></div>
             {remoteEvents.length ? <div className="remote-grid">
               {remoteEvents.filter(e => [e.title, e.artist, e.city].join(" ").toLowerCase().includes(search.toLowerCase())).map(event =>
                 <article key={event.id} className="remote-card">
@@ -548,7 +535,7 @@ function App() {
                     </div>) : <span className="muted">Ticket sale details not published yet.</span>}
                   </div>
                 </article>)}
-            </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Connect to the API and add events in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
+            </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Events appear automatically when published in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
           </>}
 
           {section === "watchlist" && <>
@@ -611,9 +598,9 @@ function App() {
           {section === "settings" && <>
             <SectionHeading eyebrow="MAKE IT YOURS" title="Settings & privacy" description="A transparent look at what TIXBAM stores and how it works." />
             <div className="settings-grid"><div className="settings-main">
-              <div className="settings-panel"><div className="settings-panel-title"><Globe2 size={20}/><div><h3>Platform API connection</h3><p>{apiStatus}. This only provides public events and add-on version metadata. Your provider sessions stay local.</p></div></div>
-                <label>API endpoint <div className="field-with-icon"><Link2 size={17}/><input type="url" placeholder="https://your-api.up.railway.app" value={apiInput} onChange={e => setApiInput(e.target.value)}/></div></label>
-                <div className="settings-inline"><span>{remoteEvents.length} published events · {remoteAddons.length} catalog add-ons</span><button className="button button-primary" onClick={saveApiSettings}>Save endpoint</button></div>
+              <div className="settings-panel"><div className="settings-panel-title"><Globe2 size={20}/><div><h3>TIXBAM cloud</h3><p role="status">{apiStatus}. Events and add-on versions update automatically. Your ticketing sessions stay local.</p></div></div>
+                <div className="settings-note">Connected to the official TIXBAM service automatically. No setup is required.</div>
+                <div className="settings-inline"><span>{remoteEvents.length} published events · {remoteAddons.length} catalog add-ons</span><button className="button button-outline" onClick={() => setApiRefresh(value => value + 1)}>Retry connection</button></div>
               </div>
               <div className="settings-panel"><div className="settings-panel-title"><LockKeyhole size={20} /><div><h3>Provider sign-in data</h3><p>Stored locally, separate for each ticketing provider.</p></div></div><div className="settings-provider-list">{providers.map((provider) => <div key={provider.id} className="settings-provider-row"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button onClick={() => clearProvider(provider)}>Clear cookies & storage <Trash2 size={14} /></button></div>)}</div><div className="settings-note">Close all windows for a provider before clearing their session. This will require a new manual sign-in.</div></div>
               <div className="settings-panel"><div className="settings-panel-title"><Heart size={20} /><div><h3>My saved events</h3><p>Your personal watchlist is saved on this device only.</p></div></div><div className="settings-inline"><span>{watchlist.length} event{watchlist.length === 1 ? "" : "s"} in local storage</span><button className="button button-outline" onClick={() => setSection("watchlist")}>Manage events <ArrowRight size={15} /></button></div></div>
