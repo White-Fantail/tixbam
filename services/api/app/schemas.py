@@ -97,6 +97,46 @@ class SaleInput(BaseModel):
     @classmethod
     def secure_booking(cls, value): return only_https(value)
 
+
+class ProviderInput(BaseModel):
+    """Full registry entry. Provider IDs are stable references for ticket sales."""
+    id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{1,59}$", max_length=60)
+    name: str = Field(min_length=1, max_length=160)
+    region: str = Field(default="Global", max_length=120)
+    country: str = Field(default="GL", min_length=2, max_length=8)
+    url: str
+    allowed_hosts: list[str] = Field(default_factory=list, max_length=30)
+    automation: dict = Field(default_factory=dict)
+    capabilities: list[str] = Field(default_factory=list, max_length=30)
+    version: str = Field(default="1.0.0", min_length=1, max_length=60)
+    description: str = ""
+    published: bool = False
+    artifact_url: str | None = None
+    artifact_sha256: str | None = Field(None, pattern=r"^[a-fA-F0-9]{64}$")
+
+    @field_validator("url", "artifact_url")
+    @classmethod
+    def https_only(cls, value):
+        return only_https(value)
+
+    @field_validator("allowed_hosts")
+    @classmethod
+    def validate_hosts(cls, value):
+        from urllib.parse import urlsplit
+        import re
+        for host in value:
+            if (not re.fullmatch(r"[a-z0-9][a-z0-9.-]*[a-z0-9]", host, re.I)
+                or "." not in host or ".." in host or len(host) > 253):
+                raise ValueError("Allowed hosts must be DNS hostnames without schemes or paths")
+        return value
+
+    @field_validator("automation")
+    @classmethod
+    def valid_automation(cls, value):
+        if len(str(value)) > 20000:
+            raise ValueError("Automation metadata too large")
+        return value
+
 class AddonInput(BaseModel):
     version: str = Field(min_length=1, max_length=60)
     published: bool = True
