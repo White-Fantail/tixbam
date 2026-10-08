@@ -16,6 +16,7 @@ from .tools import register_tools
 
 WRITE_TOOLS = {
     "create_artist", "update_artist",
+    "create_provider", "update_provider",
     "create_event", "update_event",
     "create_ticket_sale", "update_ticket_sale",
     "create_performance", "update_performance",
