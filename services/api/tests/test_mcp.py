@@ -180,14 +180,13 @@ def test_mcp_discovery_and_tool_scopes():
     from fastapi.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.routing import Mount
-    from mcp.types import ListToolsResult
 
     config = MCPConfig(
         "https://testserver/mcp", "https://auth.example.com/",
         "https://auth.example.com/jwks", "owner-subject",
     )
     server, subapp = build_mcp(config)
-    result = ListToolsResult(tools=asyncio.run(server.list_tools()))
+    result = asyncio.run(server._handle_list_tools(None, None))
     wire_tools = {item["name"]: item for item in result.model_dump(by_alias=True)["tools"]}
     assert wire_tools["search_artists"]["securitySchemes"] == [
         {"type": "oauth2", "scopes": [READ_SCOPE]}
