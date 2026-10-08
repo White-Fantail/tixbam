@@ -212,3 +212,55 @@ def test_mcp_discovery_and_tool_scopes():
             assert data["resource"] == config.resource_url
             assert data["authorization_servers"] == [config.issuer_url]
             assert data["scopes_supported"] == [READ_SCOPE, WRITE_SCOPE]
+
+
+def test_authenticated_http_tool_listing_exposes_scopes(monkeypatch):
+    from contextlib import asynccontextmanager
+    from fastapi.testclient import TestClient
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+
+    config = MCPConfig(
+        "https://testserver/mcp", "https://auth.example.com/",
+        "https://auth.example.com/jwks", "owner-subject",
+    )
+    server, subapp = build_mcp(config)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    verifier = server._token_verifier
+    monkeypatch.setattr(verifier.keys, "get_signing_key_from_jwt",
+                        lambda token: SimpleNamespace(key=key.public_key()))
+    now = int(time.time())
+    token = jwt.encode({
+        "iss": config.issuer_url, "aud": config.resource_url,
+        "sub": config.owner_sub, "iat": now, "exp": now + 600,
+        "scope": f"{READ_SCOPE} {WRITE_SCOPE}",
+    }, key, algorithm="RS256")
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        async with server.session_manager.run():
+            yield
+
+    app = Starlette(routes=[Mount("/", app=subapp)], lifespan=lifespan)
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+    }
+    with TestClient(app) as client:
+        initialize = client.post("/mcp", headers=headers, json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {"name": "ChatGPT", "version": "1"},
+            },
+        })
+        assert initialize.status_code == 200, initialize.text
+        listing = client.post("/mcp", headers=headers, json={
+            "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
+        })
+        assert listing.status_code == 200, listing.text
+        tools = {item["name"]: item for item in listing.json()["result"]["tools"]}
+        assert tools["list_events"]["securitySchemes"][0]["scopes"] == [READ_SCOPE]
+        assert tools["create_ticket_sale"]["securitySchemes"][0]["scopes"] == [READ_SCOPE, WRITE_SCOPE]
