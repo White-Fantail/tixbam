@@ -156,6 +156,13 @@ def update_sale(sale_id: str, body: SaleInput, db: Db):
         raise HTTPException(status_code=404, detail="Ticket sale not found")
     if not db.get(Event, body.event_id) or not db.get(Provider, body.provider_id):
         raise HTTPException(status_code=404, detail="Event or provider not found")
+    # Legacy PUT clients know nothing about scoped sales. Preserve existing
+    # session targeting unless the payload explicitly changes the selector.
+    if not ({"applies_to_all", "performance_ids"} & body.model_fields_set):
+        body = body.model_copy(update={
+            "applies_to_all": item.applies_to_all,
+            "performance_ids": [link.performance_id for link in item.performance_links],
+        })
     for key, value in body.model_dump(exclude={"sale_at_local", "performance_ids"}).items():
         setattr(item, key, value)
     try:
