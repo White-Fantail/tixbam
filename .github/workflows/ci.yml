@@ -28,6 +28,8 @@ jobs:
           python-version: "3.12"
       - name: Install API dependencies
         run: python -m pip install -r services/api/requirements-dev.txt
+      - name: Verify root-context Railway API Docker image
+        run: docker build -f services/api/Dockerfile -t tixbam-api-ci .
       - name: Run API and MCP tests
         env:
           PYTHONPATH: services/api:services/mcp
