@@ -529,6 +529,28 @@ function App() {
             </div>
           </>}
 
+          {section === "discover" && <>
+            <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover events" description="Concerts and ticket sales published by the TIXBAM platform." />
+            <div className="remote-banner"><Globe2 size={17} /><span>API: {apiStatus}</span>
+              <button onClick={() => setSection("settings")}>Connection settings <ArrowUpRight size={15}/></button></div>
+            {remoteEvents.length ? <div className="remote-grid">
+              {remoteEvents.filter(e => [e.title, e.artist, e.city].join(" ").toLowerCase().includes(search.toLowerCase())).map(event =>
+                <article key={event.id} className="remote-card">
+                  <span className="eyebrow">LIVE CATALOG · {event.country || "GLOBAL"}</span>
+                  <h3>{event.artist}</h3><p>{event.title}</p>
+                  <div className="sample-place"><Globe2 size={14}/>{event.city || "City TBA"}{event.venue ? " · " + event.venue : ""}</div>
+                  <div className="sample-place"><CalendarDays size={14}/>{event.startsAt ? new Date(event.startsAt).toLocaleString() : "Performance date TBA"}</div>
+                  <div className="remote-sales">
+                    {event.sales.length ? event.sales.map(sale => <div className="remote-sale" key={sale.id}>
+                      <div><strong>{providerFor(sale.providerId)?.name || sale.providerId}</strong><span>{sale.saleType} · {sale.saleAt ? new Date(sale.saleAt).toLocaleString() : "Sale TBA"}</span></div>
+                      <button className="button button-outline" onClick={() => saveDiscoveredEvent(event, sale)}>Watch</button>
+                      <button className="button button-primary" disabled={!installedIds.has(sale.providerId)} onClick={() => launch(sale.providerId, sale.bookingUrl)}>Open</button>
+                    </div>) : <span className="muted">Ticket sale details not published yet.</span>}
+                  </div>
+                </article>)}
+            </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Connect to the API and add events in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
+          </>}
+
           {section === "watchlist" && <>
             <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="My events" description="Your personal calendar of tickets worth chasing."
               action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
@@ -568,6 +590,8 @@ function App() {
           </>}
 
           {section === "providers" && <>
+            {remoteAddons.length > 0 && <div className="remote-banner"><Globe2 size={17}/><span>Server registry connected. {remoteAddons.filter(remote => { const local = addons.find(a => a.id === remote.id); return local && local.version !== remote.version; }).length} version updates available as metadata. Remote executable installation is not enabled yet.</span></div>}
+
             <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
             <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Level 1: watchlist and browser sessions. Level 2: assisted seat / order workflow. Level 3: authorized full checkout. Level 2 and 3 are not implemented in this prototype; availability also requires provider authorization.</p></div>
             <div className="automation-legend" aria-label="Automation support legend">
@@ -587,6 +611,10 @@ function App() {
           {section === "settings" && <>
             <SectionHeading eyebrow="MAKE IT YOURS" title="Settings & privacy" description="A transparent look at what TIXBAM stores and how it works." />
             <div className="settings-grid"><div className="settings-main">
+              <div className="settings-panel"><div className="settings-panel-title"><Globe2 size={20}/><div><h3>Platform API connection</h3><p>{apiStatus}. This only provides public events and add-on version metadata. Your provider sessions stay local.</p></div></div>
+                <label>API endpoint <div className="field-with-icon"><Link2 size={17}/><input type="url" placeholder="https://your-api.up.railway.app" value={apiInput} onChange={e => setApiInput(e.target.value)}/></div></label>
+                <div className="settings-inline"><span>{remoteEvents.length} published events · {remoteAddons.length} catalog add-ons</span><button className="button button-primary" onClick={saveApiSettings}>Save endpoint</button></div>
+              </div>
               <div className="settings-panel"><div className="settings-panel-title"><LockKeyhole size={20} /><div><h3>Provider sign-in data</h3><p>Stored locally, separate for each ticketing provider.</p></div></div><div className="settings-provider-list">{providers.map((provider) => <div key={provider.id} className="settings-provider-row"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button onClick={() => clearProvider(provider)}>Clear cookies & storage <Trash2 size={14} /></button></div>)}</div><div className="settings-note">Close all windows for a provider before clearing their session. This will require a new manual sign-in.</div></div>
               <div className="settings-panel"><div className="settings-panel-title"><Heart size={20} /><div><h3>My saved events</h3><p>Your personal watchlist is saved on this device only.</p></div></div><div className="settings-inline"><span>{watchlist.length} event{watchlist.length === 1 ? "" : "s"} in local storage</span><button className="button button-outline" onClick={() => setSection("watchlist")}>Manage events <ArrowRight size={15} /></button></div></div>
             </div><div className="settings-side"><div className="settings-story"><div className="story-icon"><ShieldCheck size={28} /></div><h3>YOUR ACCOUNT.<br />YOUR RULES.</h3><p>We don't connect to a ticketing site's API, store passwords in our app, solve CAPTCHA or bypass queue systems.</p><span>V0.1 • LOCAL DESKTOP PROTOTYPE</span></div><div className="settings-facts"><strong>About this build</strong><div><span>Version</span><b>0.1.0 prototype</b></div><div><span>Providers</span><b>{installedIds.size} installed / {addons.length} available</b></div><div><span>Environment</span><b>{desktop ? "Electron desktop" : "Browser preview"}</b></div><div><span>Sync</span><b>Local only</b></div></div></div></div>
