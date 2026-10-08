@@ -60,3 +60,16 @@
 .automation-support-note{font-size:10px;line-height:1.5;color:#9996a9;margin:0}
 .automation-support-note a{color:#d3e9a2;white-space:nowrap;display:inline-flex;align-items:center;gap:2px;text-decoration:none}
 .automation-support-note a:hover{text-decoration:underline}
+
+/* Online discovery remains optional; local browser sessions work without the API. */
+.remote-banner{display:flex;align-items:center;gap:12px;padding:15px 19px;border:1px solid rgba(128,160,255,.25);background:rgba(80,99,170,.1);border-radius:14px;margin:16px 0 24px;color:#cad6fd;font-size:13px}
+.remote-banner button{margin-left:auto;background:transparent;color:#d6ddfc;border:0;display:flex;align-items:center;gap:6px;cursor:pointer}
+.remote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.remote-card{border:1px solid rgba(139,156,204,.2);border-radius:17px;padding:23px;background:#161a27;min-width:0}
+.remote-card h3{font-size:22px;margin:14px 0 6px}.remote-card p{font-size:16px;color:#e0e6fc;margin:0 0 19px}
+.remote-card .sample-place{margin:8px 0;color:#9eaacb;display:flex;align-items:center;gap:8px}
+.remote-sales{margin-top:20px;border-top:1px solid #303b59;padding-top:14px}
+.remote-sale{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
+.remote-sale>div{display:flex;flex-direction:column;gap:4px;flex:1;min-width:125px}
+.remote-sale span{font-size:11px;color:#9faccc}
+.remote-sale .button{padding:9px 12px;font-size:12px;white-space:nowrap}
