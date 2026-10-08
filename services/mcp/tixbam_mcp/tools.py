@@ -41,6 +41,11 @@ def register_tools(server, config: MCPConfig):
         """List provider registry IDs. Include unpublished entries for owner reconciliation."""
         return catalog.providers(include_unpublished)
 
+    @server.tool(annotations=read)
+    def get_provider(provider_id: str) -> dict:
+        """Read registered provider metadata by stable ID, including unpublished entries."""
+        return catalog.provider(provider_id)
+
     @server.tool(annotations=write)
     def create_provider(provider_id: str, name: str, url: str,
                         region: str = "Global", country: str = "GL",
