@@ -128,7 +128,7 @@ async function relations(resource:string,item:RecordItem) {
     const events:Event[]=data.items||[];
     return <section className="detail-section">
       <div className="section-heading"><h2>Events ({events.length})</h2>
-        <Link className="button-subtle" href="/events/new">+ Add event</Link></div>
+        <Link className="button-subtle" href={"/events/new?artistId="+encodeURIComponent(item.id)}>+ Add event</Link></div>
       <div className="related-list">
         {events.map(event=><Link className="related-item" key={event.id} href={"/events/"+encodeURIComponent(event.id)}>
           <span><strong>{event.title}</strong><small>{event.city||"Location TBA"}</small></span>
@@ -254,12 +254,26 @@ async function editorPage(resource:string,id:string|null,query:Query) {
   let artists:Artist[]=[];
   let events:Event[]=[];
   let providers:ProviderRecord[]=[];
-  if(resource==="events") artists=(await apiRead("/v1/artists")).items||[];
+  if(resource==="events") {
+    artists=(await apiRead("/v1/artists")).items||[];
+    const selectedArtist=safe(query.artistId);
+    if(selectedArtist&&!id) artists.sort((a,b)=>Number(b.id===selectedArtist)-Number(a.id===selectedArtist));
+  }
   if(resource==="performances"||resource==="sales") {
     events=(await apiRead("/v1/events?limit=500")).items||[];
+    const neededId=id?item?.eventId:eventId;
+    if(neededId && !events.some(e=>e.id===neededId)) {
+      const missing=await apiRead(directory("events")+"/"+encodeURIComponent(neededId));
+      events.unshift(missing);
+    }
     if(eventId&&!id) events.sort((a,b)=>Number(b.id===eventId)-Number(a.id===eventId));
   }
-  if(resource==="sales") providers=(await apiRead(directory("providers")+"?limit=100")).items||[];
+  if(resource==="sales") {
+    providers=(await apiRead(directory("providers")+"?limit=100")).items||[];
+    if(item?.providerId&&!providers.some(p=>p.id===item.providerId)) {
+      providers.unshift(await apiRead(directory("providers")+"/"+encodeURIComponent(item.providerId)));
+    }
+  }
   const title=(id?"Edit ":"Add ")+meta.singular;
   return <div className="page-content">
     <Breadcrumb resource={resource} title={title}/>
