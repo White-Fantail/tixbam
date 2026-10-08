@@ -106,6 +106,15 @@ def test_catalog_idempotency_and_timezones(catalog):
                                  performance_ids=[second["id"]], applies_to_all=False)
     assert scoped["performanceIds"] == [second["id"]]
     assert scoped["appliesToAll"] is False
+    # Metadata-only changes must retain session targeting.
+    metadata_only = catalog.update_sale(
+        sale["sale"]["id"], booking_url="https://www.cityline.com.hk/new-listing"
+    )
+    assert metadata_only["performanceIds"] == [second["id"]]
+    assert metadata_only["appliesToAll"] is False
+    # Scope changes without the required session IDs must fail.
+    with pytest.raises(ValueError):
+        catalog.update_sale(sale["sale"]["id"], performance_ids=[], applies_to_all=False)
     widened = catalog.update_sale(sale["sale"]["id"], applies_to_all=True)
     assert widened["appliesToAll"] is True and widened["performanceIds"] == []
     assert next(x for x in catalog.events(artist_id)["items"] if x["id"] == event_id)["sales"][0]["id"] == sale["sale"]["id"]
@@ -205,6 +214,16 @@ def test_mcp_discovery_and_tool_scopes():
     assert wire_tools["create_event"]["securitySchemes"] == [
         {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
     ]
+    update_sale_tool = wire_tools["update_ticket_sale"]
+    assert update_sale_tool["securitySchemes"] == [
+        {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
+    ]
+    sale_fields = update_sale_tool["inputSchema"]["properties"]
+    assert sale_fields["performance_ids"]["anyOf"][0]["type"] == "array"
+    assert sale_fields["applies_to_all"]["anyOf"][0]["type"] == "boolean"
+    assert {"performance_ids", "applies_to_all"}.isdisjoint(
+        set(update_sale_tool["inputSchema"].get("required", []))
+    )
 
     @asynccontextmanager
     async def lifespan(_app):
