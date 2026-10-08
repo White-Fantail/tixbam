@@ -44,3 +44,9 @@ Run state remains in memory and is not resumed across app restarts. Before resta
 ## Validation
 
 `npm test` covers schema validation, persistence without secrets, rankings and hard conditions, vault encryption/fail-closed behavior, CVV clearing/expiry, single submission, stale final totals, wrong events, unsupported payment profiles, in-flight cancellation, rehearsal handoff/confirmation and observed Cityline control mapping. The tests use synthetic cards and mock storage, not real cards or transactions. `npm run build:desktop` checks TypeScript and builds the renderer. Live bank/payment compatibility and platform secure-storage behavior still require checks on the target operating systems.
+
+## Live Nation presale handoff
+
+Live Nation is a Level 1 **Event / Presale** add-on. Official Live Nation FAQs confirm the actual ticket sale is transacted by the ticket agent designated for the specific show; that agent may require separate registration and sign-in. Level 2 and 3 are therefore shown as **Via agent**, not as verified automatic seat selection/checkout at Live Nation. No automated scraping or unverified agent inference is attempted.
+
+In **Add-on Store**, choose the Live Nation region and open its official site. Sign in and open the show page. Copy the show's **official ticket-agent URL** (such as Cityline). In **Live windows** select **Ticket agent** beside the Live Nation window and paste that URL. TIXBAM verifies its HTTPS domain against installed official ticketing provider add-ons and launches it as a separate session. Unsupported ticket agents must be opened manually at their official site. Provider cookies, queue positions and authentication are never transferred. The handoff is not a verified automated checkout integration.

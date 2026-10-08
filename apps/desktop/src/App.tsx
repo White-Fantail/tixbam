@@ -115,7 +115,8 @@ const levels = [
 const supportLabels: Record<AutomationSupportStatus, string> = {
   available: "Available",
   restricted: "Restricted",
-  unverified: "Unverified"
+  unverified: "Unverified",
+  delegated: "Via agent"
 };
 
 function AddonAutomationLevels({ addon }: { addon: TicketAddon }) {
@@ -128,7 +129,7 @@ function AddonAutomationLevels({ addon }: { addon: TicketAddon }) {
             <span className="automation-level-name">{level.name}<small>{level.title}</small></span>
             <span className={"automation-support automation-support-" + support.status}
               title={support.summary}>
-              {support.status === "available" ? <Check size={12} /> : support.status === "restricted" ? <X size={12} /> : <Clock3 size={12} />}
+              {support.status === "available" ? <Check size={12} /> : support.status === "restricted" ? <X size={12} /> : support.status === "delegated" ? <ArrowUpRight size={12} /> : <Clock3 size={12} />}
               {supportLabels[support.status]}
             </span>
           </div>
@@ -164,6 +165,7 @@ function App() {
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
   const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
+  const [siteByProvider, setSiteByProvider] = useState<Record<string, string>>({});
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
   const apiUrl = initialApiUrl();
@@ -301,6 +303,18 @@ function App() {
       inform(err instanceof Error ? err.message : "Could not open the ticketing window.", true);
     } finally {
       setBusy("");
+    }
+  }
+
+  async function handoffToTicketAgent(sourceWindowId: number) {
+    if (!window.tixbam) return;
+    const agentUrl = window.prompt("Paste the official ticket agent URL from the Live Nation event (for example, its Cityline event link):");
+    if (!agentUrl?.trim()) return;
+    try {
+      const opened = await window.tixbam.openTicketAgent(sourceWindowId, agentUrl.trim());
+      inform((providerFor(opened.providerId)?.name || "Ticket agent") + " opened in its own browser session. Sign in there if needed.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not open the ticket agent.", true);
     }
   }
 
@@ -576,7 +590,7 @@ function App() {
               {windows.map((item) => {
                 const provider = providerFor(item.providerId);
                 if (!provider) return null;
-                return <div key={item.id} className="session-row"><ProviderMark provider={provider} /><div className="session-meta"><strong>{provider.name} <span>· Window #{item.id}</span></strong><p title={item.url}>{item.title || item.url || provider.url}</p></div><span className={"session-state" + (item.loading ? " is-loading" : "")}><span />{item.loading ? "LOADING" : "OPEN"}</span><button className="button button-outline" onClick={() => controlWindow("focus", item.id)}><ExternalLink size={15} /> Focus</button><button className="icon-button" aria-label={"Close window " + item.id} onClick={() => controlWindow("close", item.id)}><X size={18} /></button></div>;
+                return <div key={item.id} className="session-row"><ProviderMark provider={provider} /><div className="session-meta"><strong>{provider.name} <span>· Window #{item.id}</span></strong><p title={item.url}>{item.title || item.url || provider.url}</p></div><span className={"session-state" + (item.loading ? " is-loading" : "")}><span />{item.loading ? "LOADING" : "OPEN"}</span>{provider.kind === "event-presale" && <button className="button button-outline" onClick={() => handoffToTicketAgent(item.id)}><ArrowRight size={15} /> Ticket agent</button>}<button className="button button-outline" onClick={() => controlWindow("focus", item.id)}><ExternalLink size={15} /> Focus</button><button className="icon-button" aria-label={"Close window " + item.id} onClick={() => controlWindow("close", item.id)}><X size={18} /></button></div>;
               })}
             </div> : <div className="empty-state sessions-empty"><div className="empty-icon"><Layers3 size={31} /></div><h3>No active windows yet.</h3><p>Open a provider to start a manual ticketing session. Your sign-in storage is kept separately for each provider.</p><button className="button button-primary" onClick={() => setSection("providers")}>Browse providers <ArrowRight size={16} /></button></div>}
             <div className="session-footnote"><LockKeyhole size={17} /> Windows are local to this device. Passwords and verification stay in the provider window. Saved cards are encrypted locally and used only for prepared booking runs.</div>
@@ -586,18 +600,22 @@ function App() {
             {remoteAddons.length > 0 && <div className="remote-banner"><Globe2 size={17}/><span>Server registry connected. {remoteAddons.filter(remote => { const local = addons.find(a => a.id === remote.id); return local && local.version !== remote.version; }).length} version updates available as metadata. Remote executable installation is not enabled yet.</span></div>}
 
             <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
-            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Level 1: watchlist and browser sessions. Level 2: assisted seat / order workflow. Level 3: authorized full checkout. Cityline supports performance and price selection plus a checkout rehearsal. Live seat and payment mappings are pending; each add-on reports its own support.</p></div>
+            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Event / presale providers publish official event pages and member sale links; ticketing providers handle seat selection and checkout. Level 1 is browser assistance, Level 2 seat / order assistance, and Level 3 authorized checkout. “Via agent” indicates that a different official ticket agent performs that step. Cityline currently has performance and price selection plus checkout rehearsal only.</p></div>
             <div className="automation-legend" aria-label="Automation support legend">
               <span><span className="automation-legend-dot ready" />Available in TIXBAM</span>
               <span><span className="automation-legend-dot limited" />Restricted by published terms</span>
-              <span><span className="automation-legend-dot pending" />Not yet verified</span>
+              <span><span className="automation-legend-dot pending" />Not yet verified</span><span>Via agent = handled by the official ticketing partner</span>
             </div>
-            <div className="provider-grid">
-              {addons.map((provider) => {
+            {(["event-presale", "ticketing"] as const).map(kind => <section key={kind} className="addon-provider-section">
+              <h3 className="addon-group-title">{kind === "event-presale" ? "Event & presale providers" : "Ticketing providers"}</h3>
+              <p className="addon-group-description">{kind === "event-presale" ? "Official concert pages and member presales. Tickets are purchased with each event's ticket agent." : "Open official ticketing websites. Booking automation support varies by provider."}</p>
+              <div className="provider-grid">
+              {addons.filter(addon => addon.kind === kind).map((provider) => {
                 const openCount = windows.filter((item) => item.providerId === provider.id).length;
-                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><AddonAutomationLevels addon={provider} /><div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : provider.installed ? "INSTALLED" : "NOT INSTALLED"}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" aria-label={(provider.installed ? "Remove " : "Install ") + provider.name + " add-on"} title={provider.installed ? "Remove add-on" : "Install add-on"} disabled={Boolean(busy) || !desktop} onClick={() => toggleAddon(provider)} style={{width:"auto",padding:"0 12px",fontSize:12}}>{provider.installed ? "Remove" : "Install"}</button>{provider.installed && <button aria-label={"Open " + provider.name} disabled={Boolean(busy)} onClick={() => launch(provider.id)}><ArrowUpRight size={20} /></button>}</div></div></article>;
+                return <article key={provider.id} className="provider-card"><div className="provider-card-top"><ProviderMark provider={provider} /><span className="provider-region"><Globe2 size={13} /> {provider.region}</span></div><h3>{provider.name}</h3><p className="provider-url">{new URL(provider.url).hostname}</p><AddonAutomationLevels addon={provider} />{provider.sites && <label className="addon-region-select">Regional site<select aria-label={provider.name + " regional website"} value={siteByProvider[provider.id] || provider.url} onChange={event => setSiteByProvider(prev => ({ ...prev, [provider.id]: event.target.value }))}>{provider.sites.map(site => <option key={site.url} value={site.url}>{site.label}</option>)}</select></label>}<div className="provider-card-bottom"><span className="provider-count"><span className="tiny-green-dot" /> {openCount ? openCount + " WINDOW" + (openCount === 1 ? "" : "S") + " OPEN" : provider.installed ? "INSTALLED" : "NOT INSTALLED"}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" aria-label={(provider.installed ? "Remove " : "Install ") + provider.name + " add-on"} title={provider.installed ? "Remove add-on" : "Install add-on"} disabled={Boolean(busy) || !desktop} onClick={() => toggleAddon(provider)} style={{width:"auto",padding:"0 12px",fontSize:12}}>{provider.installed ? "Remove" : "Install"}</button>{provider.installed && <button aria-label={"Open " + provider.name} disabled={Boolean(busy)} onClick={() => launch(provider.id, siteByProvider[provider.id])}><ArrowUpRight size={20} /></button>}</div></div></article>;
               })}
-            </div>
+              </div>
+            </section>)}
             <div className="hint-box"><ShieldCheck size={21} /><p><strong>Know before you go.</strong> Some websites may restrict embedded/desktop browsers or simultaneous access. TIXBAM never promises login compatibility or availability; always respect each site's policies.</p></div>
           </>}
 

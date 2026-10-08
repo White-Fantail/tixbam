@@ -96,3 +96,10 @@
 .booking-run strong { font-size: 12px; color: #cfc4fa; }
 .rehearsal-note { background: #19372a; border: 1px solid #8decd644; padding: 12px; border-radius: 8px; color: #8decd6 !important; }
 .booking-modal button:disabled, .booking-panel button:disabled { opacity: .45; cursor: not-allowed; }
+
+.automation-support-delegated{color:#9edce2;background:#23383c;border-color:#39585f}
+.addon-provider-section{margin-top:28px}
+.addon-group-title{font-size:18px;font-weight:700;letter-spacing:-.2px;margin:0 0 5px}
+.addon-group-description{font-size:12px;color:#a7a4b6;margin:0 0 15px;line-height:1.6}
+.addon-region-select{display:flex;flex-direction:column;gap:7px;color:#bab6cc;font-size:11px;margin-top:14px}
+.addon-region-select select{width:100%;background:#24232d;color:#f0edf7;border:1px solid #484557;border-radius:8px;padding:8px 10px;font:inherit;font-size:12px}

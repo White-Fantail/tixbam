@@ -69,7 +69,7 @@ Authenticated administration (requires `X-Admin-Key`):
 - `GET/POST /v1/admin/sources`, `PUT /v1/admin/sources/{id}`
 - `POST /v1/admin/ingest`, `GET/POST /v1/admin/crawl-runs`
 
-FastAPI Swagger documentation is served at `/docs`. The API initializes its MVP tables on startup and seeds the six built-in provider registry entries only when absent. Before a production schema migration, replace bootstrapping `create_all` with a versioned Alembic migration workflow.
+FastAPI Swagger documentation is served at `/docs`. The API initializes its MVP tables on startup and seeds the seven built-in provider registry entries only when absent. Before a production schema migration, replace bootstrapping `create_all` with a versioned Alembic migration workflow.
 
 ## Crawler
 
@@ -90,7 +90,9 @@ Use **My events → Booking preferences & automation** on a Cityline event. Read
 
 ## Add-ons
 
-The original six built-in add-ons still install and uninstall locally, manage separate persistent Electron sessions, and preserve existing watchlists. The server now publishes provider/add-on **metadata** (version, status, compatible capability registry). Electron can read this registry and flag different versions, but it **does not download or execute remote add-on code yet**. This deliberate security boundary requires signed package verification and permission-scoped loading before remotely downloaded code can run. API or crawler outages never block existing browser windows.
+**Live Nation is an Event / Presale add-on**, not a checkout provider. It supports eight official regional websites (pick the region in Add-on Store), sign-in and presale pages. The event's ticket agent handles seats and payment. To continue from a Live Nation event, use **Live windows → Ticket agent**, paste the official ticket-agent HTTPS URL supplied by the event, and TIXBAM opens it in the matching installed ticketing add-on's own persistent session. This user-confirmed handoff never guesses providers or shares session credentials. It does not automate eligibility, presale codes, seats, queues or payments.
+
+The seven built-in add-ons install and uninstall locally, manage separate persistent Electron sessions, and preserve existing watchlists. The server now publishes provider/add-on **metadata** (version, status, compatible capability registry). Electron can read this registry and flag different versions, but it **does not download or execute remote add-on code yet**. This deliberate security boundary requires signed package verification and permission-scoped loading before remotely downloaded code can run. API or crawler outages never block existing browser windows.
 
 ## Tests
 
