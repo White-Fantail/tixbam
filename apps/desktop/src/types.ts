@@ -21,7 +21,7 @@ export interface TicketAddon extends Provider {
   installed: boolean;
 }
 
-export type Section = "overview" | "watchlist" | "sessions" | "providers" | "settings";
+export type Section = "overview" | "discover" | "watchlist" | "sessions" | "providers" | "settings";
 
 export interface Provider {
   id: string;
