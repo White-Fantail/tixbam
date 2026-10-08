@@ -8,20 +8,43 @@ from .routes import router
 from .admin import router as admin_router
 from .ingest import router as ingest_router
 
+# Optional MCP integration: unconfigured installations have no MCP route.
+# The module lives in services/mcp but runs in this same ASGI process.
+from tixbam_mcp.auth import MCPConfig
+from tixbam_mcp.server import build_mcp
+
+mcp_config = MCPConfig.from_env()
+mcp_server, mcp_asgi_app = build_mcp(mcp_config) if mcp_config else (None, None)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_schedule_columns(engine)
     with SessionLocal() as db:
         seed_providers(db)
-    yield
+    if mcp_server:
+        # Mounted ASGI apps do not run their own lifespan; the parent must run
+        # the MCP session manager or the first tool invocation will fail.
+        async with mcp_server.session_manager.run():
+            yield
+    else:
+        yield
 
-app = FastAPI(title="TIXBAM API", version="0.2.0", lifespan=lifespan)
+
+app = FastAPI(title="TIXBAM API", version="0.3.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 app.include_router(router)
 app.include_router(admin_router)
 app.include_router(ingest_router)
 
+
 @app.get("/healthz")
 def health():
     return {"status": "ok", "service": "tixbam-api"}
+
+
+if mcp_asgi_app is not None:
+    # Catch-all mount MUST follow the FastAPI routes. MCP itself exposes /mcp
+    # and /.well-known/oauth-protected-resource on the existing hostname.
+    app.mount("/", mcp_asgi_app)

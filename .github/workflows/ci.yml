@@ -28,9 +28,9 @@ jobs:
           python-version: "3.12"
       - name: Install API dependencies
         run: python -m pip install -r services/api/requirements-dev.txt
-      - name: Run API tests
+      - name: Run API and MCP tests
         env:
-          PYTHONPATH: services/api
+          PYTHONPATH: services/api:services/mcp
         run: python -m pytest services/api/tests -q
       - name: Install crawler dependencies
         run: python -m pip install -r services/crawler/requirements-dev.txt
@@ -39,4 +39,4 @@ jobs:
           PYTHONPATH: services/crawler
         run: python -m pytest services/crawler/tests -q
       - name: Python syntax checks
-        run: python -m compileall -q services/api/app services/crawler/crawler
+        run: python -m compileall -q services/api/app services/mcp/tixbam_mcp services/crawler/crawler

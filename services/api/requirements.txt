@@ -4,3 +4,6 @@ SQLAlchemy>=2.0,<3
 psycopg[binary]>=3.2,<4
 pydantic>=2.10,<3
 tzdata>=2025.2,<2027
+# MCP v2 is mounted into FastAPI rather than deployed as another service.
+mcp>=2.0,<3
+PyJWT[crypto]>=2.10,<3
