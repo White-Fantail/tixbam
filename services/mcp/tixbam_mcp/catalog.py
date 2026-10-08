@@ -1,4 +1,5 @@
 """Catalog operations shared by the MCP tools; reuse API models and validation."""
+from datetime import timezone
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.db import SessionLocal
@@ -7,6 +8,13 @@ from app.schemas import ArtistInput, EventInput, PerformanceInput, SaleInput
 from app.serializers import artist_data, event_data, performance_data, provider_data, sale_data, refresh_legacy_event_start
 from app.schedule import iso_utc
 from app.performances import ensure_initial_performance, update_legacy_performance, add_performance, edit_performance, assign_sale_performances
+
+
+def aware_utc(value):
+    """SQLAlchemy SQLite loads instants as naive UTC; normalize for input validation."""
+    if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class Catalog:
@@ -120,7 +128,7 @@ class Catalog:
                 timezone=timezone if timezone is not None else item.timezone,
                 source_url=source_url if source_url is not None else item.source_url,
                 starts_at_local=starts_at_local,
-                starts_at=None if starts_at_local is not None else item.starts_at,
+                starts_at=None if starts_at_local is not None else aware_utc(item.starts_at),
             )
             for key, value in payload.model_dump(exclude={"starts_at_local", "starts_at"}).items():
                 setattr(item, key, value)
@@ -174,7 +182,7 @@ class Catalog:
                 city=item.city, country=item.country,
                 timezone=timezone if timezone is not None else item.timezone,
                 sale_at_local=sale_at_local,
-                sale_at=None if sale_at_local is not None else item.sale_at,
+                sale_at=None if sale_at_local is not None else aware_utc(item.sale_at),
                 applies_to_all=applies_to_all if applies_to_all is not None else (not bool(performance_ids) if performance_ids is not None else item.applies_to_all),
                 performance_ids=([] if applies_to_all is True else
                                  (performance_ids if performance_ids is not None else
