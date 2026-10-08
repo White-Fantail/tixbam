@@ -43,13 +43,19 @@ def extract_events(html: str, page_url: str) -> list[dict]:
             if not isinstance(url, str) or not url.startswith("https://"):
                 digest = hashlib.sha256((title + str(date)).encode()).hexdigest()[:16]
                 url = page_url.split("#")[0] + "#event-" + digest
-            if url in seen:
+            # Multiple sessions frequently share the same tour announcement URL.
+            # Deduplicate per distinct physical showing, never by source URL alone.
+            session_identity = json.dumps([title, date, location.get("name"),
+                                           address.get("addressLocality"), url], ensure_ascii=False)
+            if session_identity in seen:
                 continue
-            seen.add(url)
+            seen.add(session_identity)
             result.append({"artist": artist.strip(), "title": title.strip(),
                            "city": str(address.get("addressLocality") or ""),
                            "country": str(address.get("addressCountry") or ""),
                            "venue": location.get("name"),
                            "starts_at": date if isinstance(date, str) else None,
-                           "source_url": url})
+                           "source_url": url,
+                           "session_key": ("start:" + date if isinstance(date, str)
+                                           else "tba:" + hashlib.sha256(session_identity.encode()).hexdigest()[:18])})
     return result

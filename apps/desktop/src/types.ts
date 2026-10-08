@@ -47,6 +47,8 @@ export interface WatchEvent {
   saleAt: string;
   url: string;
   addedAt: string;
+  performanceId?: string;
+  performanceAt?: string;
 }
 
 export interface TicketWindow {

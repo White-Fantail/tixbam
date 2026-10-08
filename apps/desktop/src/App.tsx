@@ -9,7 +9,7 @@ import { BookingPanel } from "./booking/BookingPanel";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import providerData from "../addons/catalog.json";
-import { getPublicData, initialApiUrl, type RemoteEvent, type RemoteAddon } from "./api";
+import { getPublicData, initialApiUrl, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
 import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
@@ -171,6 +171,7 @@ function App() {
   const apiUrl = initialApiUrl();
   const [apiRefresh, setApiRefresh] = useState(0);
   const [remoteEvents, setRemoteEvents] = useState<RemoteEvent[]>([]);
+  const [chosenPerformances, setChosenPerformances] = useState<Record<string, string>>({});
   const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
   const [apiStatus, setApiStatus] = useState("Connecting...");
   const [now, setNow] = useState(() => Date.now());
@@ -374,12 +375,21 @@ function App() {
     inform("Event added to your watchlist.");
   }
 
-  function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number]) {
+  function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number], performance?: RemotePerformance) {
+    if (performance && (performance.status === "cancelled" || performance.status === "postponed")) {
+      inform("This performance is not available to book.", true);
+      return;
+    }
+    if (performance && !sale.appliesToAll && !sale.performanceIds.includes(performance.id)) {
+      inform("This ticket sale does not cover the selected performance.", true);
+      return;
+    }
     if (!providerFor(sale.providerId)) {
       inform("This ticket provider is not installed in the current app.", true);
       return;
     }
-    if (watchlist.some(item => item.url === sale.bookingUrl && item.title === event.title)) {
+    if (watchlist.some(item => item.url === sale.bookingUrl && item.title === event.title
+      && item.performanceId === performance?.id)) {
       inform("This event is already in your watchlist.");
       return;
     }
@@ -539,20 +549,52 @@ function App() {
             <div className="remote-banner"><Globe2 size={17} /><span>API: {apiStatus}</span>
               <button onClick={() => setSection("settings")}>Service status <ArrowUpRight size={15}/></button></div>
             {remoteEvents.length ? <div className="remote-grid">
-              {remoteEvents.filter(e => [e.title, e.artist, e.city].join(" ").toLowerCase().includes(search.toLowerCase())).map(event =>
-                <article key={event.id} className="remote-card">
+              {remoteEvents.filter(e => [e.title, e.artist, e.city].join(" ").toLowerCase().includes(search.toLowerCase())).map(event => {
+                const sessions = event.performances || [];
+                const selectedSession = sessions.find(p => p.id === chosenPerformances[event.id]) || sessions[0];
+                const sessionTime = (p: RemotePerformance) => {
+                  if (!p.startsAt) return "TBA";
+                  try {
+                    return new Intl.DateTimeFormat(undefined, {
+                      timeZone: p.timezone || event.timezone || "UTC",
+                      dateStyle: "medium", timeStyle: "short"
+                    }).format(new Date(p.startsAt));
+                  } catch { return "Time zone unavailable"; }
+                };
+                return <article key={event.id} className="remote-card">
                   <span className="eyebrow">LIVE CATALOG · {event.country || "GLOBAL"}</span>
                   <h3>{event.artist}</h3><p>{event.title}</p>
                   <div className="sample-place"><Globe2 size={14}/>{event.city || "City TBA"}{event.venue ? " · " + event.venue : ""}</div>
-                  <div className="sample-place"><CalendarDays size={14}/>{event.startsAt ? new Date(event.startsAt).toLocaleString() : "Performance date TBA"}</div>
+                  <div className="sample-place"><CalendarDays size={14}/>{sessions.length} session{sessions.length === 1 ? "" : "s"}</div>
+                  {sessions.length > 0 && <label className="remote-performance-picker">Performance / session
+                    <select aria-label={"Choose performance for " + event.title}
+                      value={selectedSession?.id || ""}
+                      onChange={e => setChosenPerformances(prev => ({ ...prev, [event.id]: e.target.value }))}>
+                      {sessions.map(p => <option key={p.id} value={p.id}>
+                        {p.label || p.sessionKey} · {sessionTime(p)} ({p.timezone || event.timezone || "UTC"}){p.status !== "scheduled" ? " · " + p.status : ""}
+                      </option>)}
+                    </select>
+                  </label>}
                   <div className="remote-sales">
-                    {event.sales.length ? event.sales.map(sale => <div className="remote-sale" key={sale.id}>
-                      <div><strong>{providerFor(sale.providerId)?.name || sale.providerId}</strong><span>{sale.saleType} · {sale.saleAt ? new Date(sale.saleAt).toLocaleString() : "Sale TBA"}</span></div>
-                      <button className="button button-outline" onClick={() => saveDiscoveredEvent(event, sale)}>Watch</button>
-                      <button className="button button-primary" disabled={!installedIds.has(sale.providerId)} onClick={() => launch(sale.providerId, sale.bookingUrl)}>Open</button>
-                    </div>) : <span className="muted">Ticket sale details not published yet.</span>}
+                    {event.sales.length ? event.sales.map(sale => {
+                      const eligible = !selectedSession || (sale.appliesToAll !== false ||
+                        (sale.performanceIds || []).includes(selectedSession.id));
+                      const active = !selectedSession || !["cancelled", "postponed"].includes(selectedSession.status);
+                      return <div className="remote-sale" key={sale.id}>
+                        <div><strong>{providerFor(sale.providerId)?.name || sale.providerId}</strong>
+                          <span>{sale.saleType} · {sale.saleAt ? new Date(sale.saleAt).toLocaleString() : "Sale TBA"}</span>
+                          {!eligible && <span>Not valid for this session</span>}
+                        </div>
+                        <button className="button button-outline" disabled={!eligible || !active}
+                          onClick={() => saveDiscoveredEvent(event, sale, selectedSession)}>Watch</button>
+                        <button className="button button-primary" disabled={!eligible || !active || !installedIds.has(sale.providerId)}
+                          onClick={() => launch(sale.providerId, sale.bookingUrl)}>Open</button>
+                      </div>;
+                    }) : <span className="muted">Ticket sale details not published yet.</span>}
                   </div>
-                </article>)}
+                </article>;
+              })}
+
             </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Events appear automatically when published in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
           </>}
 
@@ -569,7 +611,7 @@ function App() {
                 if (!provider) return null;
                 return (
                   <article className="watch-card" key={item.id}>
-                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p></div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
+                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{humanDate(item.saleAt)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <div className="countdown-chip"><Clock3 size={13} />{countdown(item.saleAt, now)}</div>

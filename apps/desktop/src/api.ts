@@ -1,11 +1,22 @@
 import { resolvePlatformApiUrl } from "./api-config";
 
+export interface RemotePerformance {
+  id: string;
+  eventId: string;
+  sessionKey: string;
+  label: string;
+  startsAt: string | null;
+  timezone: string | null;
+  status: "scheduled" | "cancelled" | "postponed" | "sold_out";
+}
 export interface RemoteSale {
   id: string;
   providerId: string;
   saleType: string;
   saleAt: string | null;
   bookingUrl: string;
+  appliesToAll: boolean;
+  performanceIds: string[];
 }
 export interface RemoteEvent {
   id: string;
@@ -15,6 +26,8 @@ export interface RemoteEvent {
   country: string;
   venue: string | null;
   startsAt: string | null;
+  timezone: string | null;
+  performances: RemotePerformance[];
   sales: RemoteSale[];
 }
 export interface RemoteAddon {
