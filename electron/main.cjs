@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, session } = require("electron");
 const path = require("node:path");
-const { MAX_WINDOWS, findProvider, isSafeWebUrl, resolveStartUrl } = require("./security.cjs");
+const { MAX_WINDOWS, isSafeWebUrl } = require("./security.cjs");
+const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
 
 let dashboard = null;
 const ticketWindows = new Map();
@@ -56,7 +57,7 @@ function createDashboard() {
 }
 
 function openTicketWindow({ providerId, url: candidate } = {}) {
-  const { provider, url } = resolveStartUrl(providerId, candidate);
+  const { provider, url } = resolveAddonUrl(providerId, candidate);
   if (ticketWindows.size >= MAX_WINDOWS) {
     throw new Error("You can have up to " + MAX_WINDOWS + " ticketing windows open.");
   }
@@ -143,12 +144,25 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("tixbam:clear-provider-data", async (event, providerId) => {
     dashboardOnly(event);
-    if (!findProvider(providerId)) throw new Error("Unknown ticketing provider.");
+    if (!findAddon(providerId)) throw new Error("Unknown ticketing provider.");
     if (Array.from(ticketWindows.values()).some((item) => item.providerId === providerId)) {
-      throw new Error("Close all " + findProvider(providerId).name + " windows first.");
+      throw new Error("Close all " + findAddon(providerId).name + " windows first.");
     }
     await session.fromPartition("persist:tixbam-" + providerId).clearStorageData();
     return true;
+  });
+  ipcMain.handle("tixbam:list-addons", (event) => {
+    dashboardOnly(event);
+    return listAddons();
+  });
+  ipcMain.handle("tixbam:set-addon-installed", (event, id, enabled) => {
+    dashboardOnly(event);
+    if (!enabled && Array.from(ticketWindows.values()).some(item => item.providerId === id)) {
+      throw new Error("Close this provider's windows before removing the add-on.");
+    }
+    const result = setInstalled(id, enabled);
+    if (dashboard && !dashboard.isDestroyed()) dashboard.webContents.send("tixbam:addons-changed", result);
+    return result;
   });
   createDashboard();
   app.on("activate", () => {
