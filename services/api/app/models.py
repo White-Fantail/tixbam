@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from uuid import uuid4
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -50,10 +50,35 @@ class Event(Base):
     venue: Mapped[str | None] = mapped_column(Text, nullable=True)
     starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    source_url: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     artist: Mapped["Artist"] = relationship(back_populates="events")
-    sales: Mapped[list["TicketSale"]] = relationship(back_populates="event",cascade="all, delete-orphan")
+    performances: Mapped[list["Performance"]] = relationship(back_populates="event", cascade="all, delete-orphan", order_by="Performance.created_at")
+    sales: Mapped[list["TicketSale"]] = relationship(back_populates="event", cascade="all, delete-orphan")
+
+
+class Performance(Base):
+    """One physical show or fan-meeting session; many per city/venue event."""
+    __tablename__ = "performances"
+    __table_args__ = (UniqueConstraint("event_id", "session_key", name="uq_performance_session"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    event_id: Mapped[str] = mapped_column(ForeignKey("events.id"), index=True)
+    session_key: Mapped[str] = mapped_column(String(160))
+    label: Mapped[str] = mapped_column(String(160), default="")
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="scheduled")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    event: Mapped["Event"] = relationship(back_populates="performances")
+    sale_links: Mapped[list["SalePerformance"]] = relationship(back_populates="performance", cascade="all, delete-orphan")
+
+
+class SalePerformance(Base):
+    __tablename__ = "sale_performances"
+    sale_id: Mapped[str] = mapped_column(ForeignKey("ticket_sales.id", ondelete="CASCADE"), primary_key=True)
+    performance_id: Mapped[str] = mapped_column(ForeignKey("performances.id", ondelete="CASCADE"), primary_key=True)
+    sale: Mapped["TicketSale"] = relationship(back_populates="performance_links")
+    performance: Mapped["Performance"] = relationship(back_populates="sale_links")
 
 
 class TicketSale(Base):
@@ -67,6 +92,8 @@ class TicketSale(Base):
     country: Mapped[str | None] = mapped_column(String(8), nullable=True)
     timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     booking_url: Mapped[str] = mapped_column(Text)
+    applies_to_all: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    performance_links: Mapped[list["SalePerformance"]] = relationship(back_populates="sale", cascade="all, delete-orphan")
     event: Mapped["Event"] = relationship(back_populates="sales")
 
 

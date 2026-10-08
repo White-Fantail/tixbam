@@ -42,6 +42,27 @@ class EventInput(BaseModel):
     @classmethod
     def secure_source(cls, value): return only_https(value)
 
+class PerformanceInput(BaseModel):
+    event_id: str
+    session_key: str = Field(min_length=1, max_length=160)
+    label: str = Field("", max_length=160)
+    starts_at: datetime | None = None
+    starts_at_local: str | None = None
+    timezone: str | None = Field(None, max_length=100)
+    status: str = Field("scheduled", pattern="^(scheduled|cancelled|postponed|sold_out)$")
+
+    @model_validator(mode="after")
+    def normalize_schedule(self):
+        validate_timezone(self.timezone)
+        if self.starts_at_local and self.starts_at is not None:
+            raise ValueError("Use either UTC or local time, not both.")
+        if self.starts_at_local:
+            self.starts_at = local_to_utc(self.starts_at_local, self.timezone)
+        elif self.starts_at:
+            self.starts_at = as_utc(self.starts_at)
+        return self
+
+
 class SaleInput(BaseModel):
     event_id: str
     provider_id: str
@@ -52,10 +73,18 @@ class SaleInput(BaseModel):
     country: str | None = Field(None, max_length=8)
     timezone: str | None = Field(None, max_length=100)
     booking_url: str
+    applies_to_all: bool = True
+    performance_ids: list[str] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
     def normalize_schedule(self):
         validate_timezone(self.timezone)
+        if self.applies_to_all and self.performance_ids:
+            raise ValueError("Select either all performances or specific performance IDs.")
+        if not self.applies_to_all and not self.performance_ids:
+            raise ValueError("Select at least one performance.")
+        if len(set(self.performance_ids)) != len(self.performance_ids):
+            raise ValueError("Duplicate performance IDs.")
         if self.sale_at_local and self.sale_at is not None:
             raise ValueError("Use either a UTC timestamp or local date/time, not both.")
         if self.sale_at_local:
@@ -103,6 +132,7 @@ class DiscoveredEvent(BaseModel):
     venue: str | None = None
     starts_at: datetime | None = None
     source_url: str
+    session_key: str | None = Field(None, max_length=160)
 
     @field_validator("source_url")
     @classmethod
