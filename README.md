@@ -60,11 +60,11 @@ For Vercel, import this repo and set **Root Directory** `apps/admin`. Use the Ne
 Public GET:
 - `/healthz`
 - `/v1/artists`
-- `/v1/events` and `/v1/events/{id}`
+- `/v1/events`, `/v1/events/{id}`, `/v1/events/{id}/performances` and `/v1/performances/{id}`
 - `/v1/providers`, `/v1/addons`
 
 Authenticated administration (requires `X-Admin-Key`):
-- `POST /v1/admin/artists`, `POST /v1/admin/events`, `POST /v1/admin/sales`
+- `POST /v1/admin/artists`, `POST /v1/admin/events`, `POST /v1/admin/performances`, `POST /v1/admin/sales`
 - `PUT /v1/admin/addons/{id}` (version/publication/metadata)
 - `GET/POST /v1/admin/sources`, `PUT /v1/admin/sources/{id}`
 - `POST /v1/admin/ingest`, `GET/POST /v1/admin/crawl-runs`
@@ -106,3 +106,13 @@ PYTHONPATH=services/crawler python -m pytest services/crawler/tests -q
 ```
 
 Admin operators: [editing and time zones](docs/ADMIN_SCHEDULES.md). All date/time forms use local venue or ticket-sale region time; UTC is internal only.
+
+
+### Performance sessions and ticket sale scope
+
+An Event represents a concert at one venue/city and contains multiple
+Performances (different dates or separate same-day showings). A TicketSale
+targets either every performance or selected performance IDs. Existing events
+automatically acquire one default session on the API schema migration.
+All consumer surfaces (FastAPI, Admin, MCP, crawler, Desktop) use the same
+session-aware API contract. See [Performance architecture](docs/PERFORMANCES.md).
