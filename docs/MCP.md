@@ -113,17 +113,18 @@ Do not use real ticketing data to test without verifying official sources.
 | Read (`tixbam:read`) | Write (`tixbam:read` + `tixbam:write`) |
 | --- | --- |
 | `search_artists` | `create_artist`, `update_artist` |
-| `list_events`, `get_event` | `create_event`, `update_event` |
+| `list_events`, `get_event`, `list_performances` | `create_event`, `update_event`, `create_performance`, `update_performance` |
 | `list_providers` | `create_ticket_sale`, `update_ticket_sale` |
 
 Tool handlers use the same SQLAlchemy models and timestamp validation as
 the existing FastAPI. MCP has no automated internet search functionality:
 ChatGPT may independently research official event sources and then ask
 to register the verified information. `source_url` must be an official
-HTTPS URL. Existing events are deduplicated against `source_url`.
-Be aware that the current database has a unique event source URL:
-multiple dates on one tour page need distinct event URLs or a future
-deduplication/schema improvement.
+HTTPS URL. Event identity is based on artist, title, city and venue, not `source_url`.
+Multiple dates for one venue belong to different Performance records,
+and multiple city events can share one source announcement URL.
+A sale can apply to all performances or an explicit set of performance IDs.
+See [performance model](PERFORMANCES.md).
 
 ## 5. Local tests
 
