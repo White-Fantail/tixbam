@@ -75,7 +75,7 @@ function listExtra(resource:string, item:RecordItem) {
   switch(resource) {
     case "events": return <>{item.performances?.length || 0} sessions · {item.country || "TBA"}</>;
     case "performances": return <>{item.status} · {time(item.startsAt,item.timezone || item.eventTimezone,item.city,item.country)}</>;
-    case "sales": return time(item.saleAt,item.timezone,item.city,item.country,"Sale region");
+    case "sales": return time(item.saleAt,item.timezone||item.eventTimezone,item.city||item.eventCity,item.country||item.eventCountry,"Sale region");
     case "providers": case "addons": return <>{item.published ? "Published" : "Unpublished"} · {item.version}</>;
     case "crawlers": return <>{item.enabled ? "Enabled" : "Disabled"} · Every {item.intervalMinutes} min</>;
     case "crawl-runs": return item.startedAt ? new Date(item.startedAt).toLocaleString("en-NZ", {timeZone:"UTC"})+" UTC" : "—";
