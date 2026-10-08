@@ -14,6 +14,17 @@ router = APIRouter(prefix="/v1/admin/directory", dependencies=[Depends(admin_req
 Db = Annotated[Session, Depends(get_db)]
 
 
+def performance_row(p):
+    return {**performance_data(p), "eventTitle": p.event.title, "artist": p.event.artist.name,
+            "city": p.event.city, "country": p.event.country,
+            "eventTimezone": p.event.timezone}
+
+
+def sale_row(s):
+    return {**sale_data(s), "eventTitle": s.event.title,
+            "artist": s.event.artist.name, "providerName": s.provider_id}
+
+
 def page(db, statement, serializer, limit, offset):
     count = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
     return {"items": [serializer(item) for item in db.scalars(statement.limit(limit).offset(offset))],
@@ -66,12 +77,12 @@ def performances(db: Db, q: str = "", limit: int = Query(25, ge=1, le=100),
         like = f"%{q[:100]}%"
         stmt = stmt.where(or_(Event.title.ilike(like), Artist.name.ilike(like),
                               Performance.label.ilike(like), Performance.session_key.ilike(like)))
-    return page(db, stmt, performance_data, limit, offset)
+    return page(db, stmt, performance_row, limit, offset)
 
 
 @router.get("/performances/{item_id}")
 def performance(item_id: str, db: Db):
-    return require(db, Performance, item_id, performance_data)
+    return require(db, Performance, item_id, performance_row)
 
 
 @router.get("/sales")
@@ -83,12 +94,12 @@ def sales(db: Db, q: str = "", limit: int = Query(25, ge=1, le=100),
         like = f"%{q[:100]}%"
         stmt = stmt.where(or_(Event.title.ilike(like), Artist.name.ilike(like),
                               Provider.name.ilike(like), TicketSale.sale_type.ilike(like)))
-    return page(db, stmt, sale_data, limit, offset)
+    return page(db, stmt, sale_row, limit, offset)
 
 
 @router.get("/sales/{item_id}")
 def sale(item_id: str, db: Db):
-    return require(db, TicketSale, item_id, sale_data)
+    return require(db, TicketSale, item_id, sale_row)
 
 
 @router.get("/providers")
