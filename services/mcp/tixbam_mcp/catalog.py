@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.db import SessionLocal
 from app.models import Artist, Event, Performance, Provider, TicketSale
-from app.schemas import ArtistInput, EventInput, PerformanceInput, SaleInput
+from app.schemas import ArtistInput, EventInput, PerformanceInput, SaleInput, ProviderInput
 from app.serializers import artist_data, event_data, performance_data, provider_data, sale_data, refresh_legacy_event_start
 from app.schedule import iso_utc
 from app.performances import ensure_initial_performance, update_legacy_performance, add_performance, edit_performance, assign_sale_performances
@@ -39,10 +39,60 @@ class Catalog:
                 raise ValueError("Event not found")
             return event_data(item)
 
-    def providers(self):
+    def providers(self, include_unpublished: bool = False):
         with SessionLocal() as db:
-            statement = select(Provider).where(Provider.published.is_(True)).order_by(Provider.name)
+            statement = select(Provider).order_by(Provider.name)
+            if not include_unpublished:
+                statement = statement.where(Provider.published.is_(True))
             return {"items": [provider_data(p) for p in db.scalars(statement)]}
+
+    def create_provider(self, provider_id: str, name: str, url: str, region: str = "Global",
+                        country: str = "GL", allowed_hosts: list[str] | None = None,
+                        capabilities: list[str] | None = None, description: str = "",
+                        published: bool = False):
+        """Register metadata only; no browser add-on is installed or executed."""
+        data = ProviderInput(id=provider_id, name=name, url=url, region=region,
+                             country=country, allowed_hosts=allowed_hosts or [],
+                             capabilities=capabilities or [], description=description,
+                             published=published)
+        with SessionLocal() as db:
+            if db.get(Provider, data.id) is not None:
+                raise ValueError("Provider ID already exists; use update_provider")
+            item = Provider(**data.model_dump())
+            db.add(item)
+            try:
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                raise ValueError("Provider ID already exists") from None
+            return {"created": True, "provider": provider_data(item)}
+
+    def update_provider(self, provider_id: str, name: str | None = None,
+                        url: str | None = None, region: str | None = None,
+                        country: str | None = None, allowed_hosts: list[str] | None = None,
+                        capabilities: list[str] | None = None, description: str | None = None,
+                        published: bool | None = None):
+        with SessionLocal() as db:
+            item = db.get(Provider, provider_id)
+            if item is None:
+                raise ValueError("Provider not found")
+            existing = provider_data(item)
+            data = ProviderInput(
+                id=item.id, name=name if name is not None else item.name,
+                url=url if url is not None else item.url,
+                region=region if region is not None else item.region,
+                country=country if country is not None else item.country,
+                allowed_hosts=allowed_hosts if allowed_hosts is not None else item.allowed_hosts,
+                capabilities=capabilities if capabilities is not None else item.capabilities,
+                description=description if description is not None else item.description,
+                published=published if published is not None else item.published,
+                automation=item.automation, version=item.version,
+                artifact_url=item.artifact_url, artifact_sha256=item.artifact_sha256,
+            )
+            for key, value in data.model_dump(exclude={"id"}).items():
+                setattr(item, key, value)
+            db.commit()
+            return provider_data(item)
 
     def create_artist(self, name: str, country: str | None = None, image_url: str | None = None):
         payload = ArtistInput(name=name.strip(), country=country, image_url=image_url)
