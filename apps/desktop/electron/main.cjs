@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, session, safeStorage, shell } = require("electron");
 const path = require("node:path");
 const { MAX_WINDOWS, isSafeWebUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
@@ -123,7 +123,7 @@ function openTicketWindow({ providerId, url: candidate } = {}) {
 }
 
 app.whenReady().then(() => {
-  registerAccount({ ipcMain, dashboardOnly, safeStorage, app });
+  registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
     return openTicketWindow(options);

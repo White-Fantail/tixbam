@@ -6,7 +6,7 @@ export type RemoteSale = CatalogSale;
 export type RemoteEvent = CatalogEvent;
 
 export interface RemoteArtist { id: string; name: string; country: string | null; imageUrl: string | null; }
-export interface AuthMethods { developmentLogin: boolean; google: boolean; apple: boolean; }
+export interface AuthMethods { google: boolean; apple: boolean; }
 export interface RemoteAddon {
   id: string;
   name: string;

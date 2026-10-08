@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronRight,
   Clock3, ExternalLink, Globe2, Heart, LayoutDashboard, Layers3,
@@ -176,8 +176,9 @@ function App() {
   const [favoriteArtistIds, setFavoriteArtistIds] = useState<string[]>([]);
   const [favoriteEventIds, setFavoriteEventIds] = useState<string[]>([]);
   const [account, setAccount] = useState<CloudAccount | null>(null);
-  const [authMethods, setAuthMethods] = useState<AuthMethods>({ developmentLogin: false, google: false, apple: false });
-  const [demoAccount, setDemoAccount] = useState<"fan-one" | "fan-two">("fan-one");
+  const [authMethods, setAuthMethods] = useState<AuthMethods>({ google: false, apple: false });
+  const [signingProvider, setSigningProvider] = useState<"google" | "apple" | null>(null);
+  const signInCancelled = useRef(false);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState("");
   const [onlyFavoriteArtists, setOnlyFavoriteArtists] = useState(false);
@@ -260,7 +261,7 @@ function App() {
           getPublicData<{ items: RemoteEvent[] }>(apiUrl, "/v1/events"),
           getPublicData<{ items: RemoteAddon[] }>(apiUrl, "/v1/addons"),
           getPublicData<{ items: RemoteArtist[] }>(apiUrl, "/v1/artists"),
-          getPublicData<AuthMethods>(apiUrl, "/v1/auth/methods").catch(() => ({ developmentLogin: false, google: false, apple: false }))
+          getPublicData<AuthMethods>(apiUrl, "/v1/auth/methods").catch(() => ({ google: false, apple: false }))
         ]);
         if (mounted) {
           setRemoteEvents(events.items);
@@ -274,7 +275,7 @@ function App() {
           setRemoteEvents([]);
           setRemoteAddons([]);
           setRemoteArtists([]);
-          setAuthMethods({ developmentLogin: false, google: false, apple: false });
+          setAuthMethods({ google: false, apple: false });
           setApiStatus("Offline – local ticketing still works");
         }
       }
@@ -316,17 +317,49 @@ function App() {
     setCloudError("");
   }
 
-  async function demoLogin() {
-    if (!window.tixbam || cloudBusy) return;
+  async function socialLogin(provider: "google" | "apple") {
+    const bridge = window.tixbam;
+    if (!bridge || cloudBusy) return;
     setCloudBusy(true);
+    setSigningProvider(provider);
+    signInCancelled.current = false;
+    setCloudError("");
     try {
-      applySnapshot(await window.tixbam.accountDemoLogin(apiUrl, demoAccount));
-      inform("Signed in. Your favorites and events are now saved to TIXBAM cloud.");
+      const started = await bridge.accountOAuthStart(apiUrl, provider);
+      const maxAttempts = Math.ceil(started.expiresIn / 2);
+      for (let i = 0; i < maxAttempts; i++) {
+        if (signInCancelled.current) return;
+        await new Promise<void>(resolve => window.setTimeout(resolve, 2000));
+        if (signInCancelled.current) return;
+        const snapshot = await bridge.accountOAuthPoll();
+        if (snapshot) {
+          applySnapshot(snapshot);
+          inform("Signed in with " + (provider === "google" ? "Google" : "Apple") + ".");
+          return;
+        }
+      }
+      throw new Error("Sign-in timed out. Please try again.");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Sign-in failed";
-      setCloudError(message);
-      inform(message, true);
-    } finally { setCloudBusy(false); }
+      if (!signInCancelled.current) {
+        const message = err instanceof Error ? err.message : "Sign-in failed";
+        setCloudError(message);
+        inform(message, true);
+      }
+    } finally {
+      if (signInCancelled.current || !window.tixbam) {
+        // The main process forgets any unfinished OAuth verifier.
+      } else {
+        void window.tixbam.accountOAuthCancel();
+      }
+      setSigningProvider(null);
+      setCloudBusy(false);
+    }
+  }
+
+  async function cancelSocialLogin() {
+    signInCancelled.current = true;
+    await window.tixbam?.accountOAuthCancel();
+    setSigningProvider(null);
   }
 
   async function signOut() {
@@ -860,9 +893,13 @@ function App() {
                    <div className="settings-inline"><span>{favoriteArtistIds.length} artists · {favoriteEventIds.length} favorite events · {watchlist.length} watched ticket sales</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void refreshAccount()}>Sync now</button></div>
                    {loadWatchlist().length > 0 && <div className="settings-inline"><span>{loadWatchlist().length} guest events stored on this device</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void importGuestEvents()}>Import guest events</button></div>}
                  </> : <>
-                   <div className="account-options"><button className="button button-outline" disabled title="Native Google authorization is not configured in the desktop app yet.">Continue with Google · Soon</button><button className="button button-outline" disabled title="Native Apple authorization is not configured in the desktop app yet.">Continue with Apple · Soon</button></div>
-                   {authMethods.developmentLogin && desktop && <div className="account-demo"><div><strong>Development sign-in</strong><p>Simulate social sign-in with two separate test accounts, no Google/Apple setup needed.</p></div><select aria-label="Demo account" value={demoAccount} onChange={e => setDemoAccount(e.target.value as "fan-one" | "fan-two")}><option value="fan-one">Demo Fan One</option><option value="fan-two">Demo Fan Two</option></select><button className="button button-primary" disabled={cloudBusy} onClick={() => void demoLogin()}>Sign in for testing</button></div>}
-                   {!authMethods.developmentLogin && <div className="settings-note">Demo sign-in is disabled on this API. OAuth buttons will be enabled after native provider configuration.</div>}
+                   <div className="account-options">
+                     <button className="button button-outline" disabled={!authMethods.google || !desktop || cloudBusy} onClick={() => void socialLogin("google")}><span className="google-mark">G</span> Continue with Google</button>
+                     <button className="button button-outline" disabled={!authMethods.apple || !desktop || cloudBusy} onClick={() => void socialLogin("apple")}><span className="apple-mark">●</span> Continue with Apple</button>
+                   </div>
+                   {signingProvider && <div className="settings-inline" role="status"><span>Finish signing in with {signingProvider === "google" ? "Google" : "Apple"} in your browser…</span><button className="button button-outline" onClick={() => void cancelSocialLogin()}>Cancel</button></div>}
+                   {!authMethods.google && !authMethods.apple && <div className="settings-note">Social login needs Google / Apple OAuth credentials configured on the TIXBAM API. No test accounts are available.</div>}
+                   {!desktop && <div className="settings-note">Social sign-in is available in the Electron desktop app.</div>
                  </>}
                  {cloudError && <p className="account-error" role="alert">{cloudError}</p>}
                  <div className="settings-note">TIXBAM account data is stored on the server. Ticketing site logins and encrypted payment cards remain local to this device.</div>

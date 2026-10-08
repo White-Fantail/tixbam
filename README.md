@@ -147,4 +147,4 @@ session-aware API contract. See [Performance architecture](docs/PERFORMANCES.md)
 
 ## User accounts & favorites
 
-The desktop has account-aware favorite artists, favorite events and cloud-backed ticket-sale watchlists. Anonymous guest events remain in local storage. Backend verifies Google and Apple ID tokens, while desktop native OAuth is pending; development-only simulated sign-in is available without provider-console credentials. See [Account architecture and setup](docs/ACCOUNTS.md). The API requires a separate \`TIXBAM_SESSION_SECRET\` to issue user sessions. Provider sessions and card vaults remain local.
+The desktop has account-aware favorite artists, favorite events and cloud-backed ticket-sale watchlists. Anonymous guest events remain in local storage. Google and Apple sign-in use real system-browser OAuth authorization-code flows; Google/Apple developer credentials are required before the buttons become available. Legacy demo logins are removed. See [Account architecture and setup](docs/ACCOUNTS.md). The API requires a separate \`TIXBAM_SESSION_SECRET\` to issue user sessions. Provider sessions and card vaults remain local.

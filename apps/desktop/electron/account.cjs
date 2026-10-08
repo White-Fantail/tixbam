@@ -2,6 +2,7 @@
 // Account access stays in Electron's main process. The renderer never receives
 // the bearer token, and ticket-provider cookies/cards are never uploaded.
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const path = require("node:path");
 const PRODUCTION_API = "https://tixbam-production.up.railway.app";
 
@@ -23,9 +24,10 @@ function allowedAccountEndpoint(method, endpoint) {
     /^\/v1\/me\/(artists|events|watchlist)\/[0-9a-fA-F-]{36}$/.test(endpoint);
 }
 
-function registerAccount({ ipcMain, dashboardOnly, safeStorage, app }) {
+function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
   const file = path.join(app.getPath("userData"), "tixbam-account.enc");
   let session = null;
+  let pending = null;
   function save() {
     if (!session) {
       try { fs.unlinkSync(file); } catch (e) { if (e.code !== "ENOENT") throw e; }
@@ -88,35 +90,61 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app }) {
       throw error;
     }
   });
-  ipcMain.handle("tixbam:account-demo-login", async (event, apiUrl, account) => {
+  ipcMain.handle("tixbam:account-oauth-start", async (event, apiUrl, provider) => {
     dashboardOnly(event);
-    if (account !== "fan-one" && account !== "fan-two") throw Error("Unknown demo account");
+    if (provider !== "google" && provider !== "apple") throw Error("Unsupported OAuth provider");
     apiUrl = publicOrigin(apiUrl);
-    const result = await request(apiUrl, "/v1/auth/dev", "POST", { account });
-    if (!result.accessToken) throw Error("No account session returned");
-    if (!safeStorage.isEncryptionAvailable()) throw Error("Encrypted account storage unavailable");
-    const next = { apiUrl, token: result.accessToken };
-    const previous = session;
-    session = next;
-    try { save(); } catch (error) { session = previous; throw error; }
-    return request(apiUrl, "/v1/me", "GET", undefined, next.token);
+    // Only the main process knows this verifier: the renderer never receives it.
+    const verifier = crypto.randomBytes(48).toString("base64url");
+    const codeChallenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+    const info = await request(apiUrl, "/v1/auth/oauth/start", "POST", { provider, codeChallenge });
+    if (!/^[0-9a-f-]{36}$/i.test(info.flowId) || !Number.isInteger(info.expiresIn)
+        || info.expiresIn < 10 || info.expiresIn > 600) throw Error("Invalid OAuth flow from TIXBAM");
+    const url = new URL(info.authorizationUrl);
+    if (url.protocol !== "https:" ||
+        url.origin !== (provider === "google" ? "https://accounts.google.com" : "https://appleid.apple.com") ||
+        url.pathname !== (provider === "google" ? "/o/oauth2/v2/auth" : "/auth/authorize") ||
+        url.username || url.password) throw Error("Unsafe OAuth provider URL");
+    pending = { apiUrl, verifier, flowId: info.flowId, expiresAt: Date.now() + info.expiresIn * 1000 };
+    try {
+      await shell.openExternal(url.toString());
+    } catch (error) {
+      pending = null;
+      throw error;
+    }
+    return { provider, expiresIn: info.expiresIn };
   });
-  // Once native authorization-code + PKCE UI is connected, it can pass the
-  // *provider-issued ID token* here; the API verifies signature/aud/iss/exp.
-  ipcMain.handle("tixbam:account-social-token", async (event, apiUrl, provider, idToken) => {
+  ipcMain.handle("tixbam:account-oauth-poll", async event => {
     dashboardOnly(event);
-    if (!["google", "apple"].includes(provider) || typeof idToken !== "string") throw Error("Invalid provider token");
-    apiUrl = publicOrigin(apiUrl);
-    const result = await request(apiUrl, "/v1/auth/social", "POST", { provider, idToken });
-    if (!result.accessToken || !safeStorage.isEncryptionAvailable()) throw Error("Cannot store sign-in securely");
+    if (!pending) throw Error("No active social sign-in");
+    if (Date.now() >= pending.expiresAt) {
+      pending = null;
+      throw Error("Sign-in timed out. Please try again.");
+    }
+    const attempt = pending;
+    const result = await request(attempt.apiUrl, "/v1/auth/oauth/complete", "POST",
+      { flowId: attempt.flowId, verifier: attempt.verifier });
+    if (result.status === "pending") return null;
+    if (!result.accessToken || !safeStorage.isEncryptionAvailable()) {
+      throw Error("Encrypted account storage is unavailable");
+    }
+    // Avoid races if the user cancelled this attempt while polling.
+    if (pending !== attempt) return null;
     const previous = session;
-    session = { apiUrl, token: result.accessToken };
+    session = { apiUrl: attempt.apiUrl, token: result.accessToken };
     try { save(); } catch (error) { session = previous; throw error; }
-    return request(apiUrl, "/v1/me", "GET", undefined, session.token);
+    pending = null;
+    return request(session.apiUrl, "/v1/me", "GET", undefined, session.token);
+  });
+  ipcMain.handle("tixbam:account-oauth-cancel", event => {
+    dashboardOnly(event);
+    pending = null;
+    return true;
   });
   ipcMain.handle("tixbam:account-sign-out", event => {
     dashboardOnly(event);
     session = null;
+    pending = null;
     save();
     return true;
   });

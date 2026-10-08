@@ -65,8 +65,9 @@ export interface CloudAccount { id: string; displayName: string; email: string |
 export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; watchlist: WatchEvent[]; }
 export interface DesktopBridge {
   accountStatus: () => Promise<CloudSnapshot | null>;
-  accountDemoLogin: (url: string, account: "fan-one" | "fan-two") => Promise<CloudSnapshot>;
-  accountSocialToken: (url: string, provider: "google" | "apple", idToken: string) => Promise<CloudSnapshot>;
+  accountOAuthStart: (url: string, provider: "google" | "apple") => Promise<{ provider: "google" | "apple"; expiresIn: number }>;
+  accountOAuthPoll: () => Promise<CloudSnapshot | null>;
+  accountOAuthCancel: () => Promise<boolean>;
   accountSignOut: () => Promise<boolean>;
   accountRequest: (method: "GET" | "PUT" | "DELETE", endpoint: string, body?: unknown) => Promise<unknown>;
   vaultStatus: () => Promise<{ available: boolean; cards: CardSummary[] }>;

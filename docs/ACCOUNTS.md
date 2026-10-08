@@ -1,67 +1,91 @@
-# TIXBAM cloud accounts (dev)
+# TIXBAM account: Google and Apple sign-in
 
-TIXBAM stores each user's account profile, immutable social-provider identity
-references, followed artists, favorited events and watched ticket-sale entries
-in the platform PostgreSQL database. Provider browsing cookies, bank challenges
-and encrypted card vaults are **never** sent to these endpoints.
+TIXBAM's desktop application opens the user's **system browser** to sign in
+with Google or Apple. The API exchanges provider authorization codes, validates
+the ID token signature/audience/issuer/expiry and per-login nonce, and creates
+a TIXBAM account keyed to the stable **(provider, subject)** pair. Matching
+emails alone do **not** merge social accounts.
 
-## Development sign-in (no Google / Apple console setup)
+The OAuth callback is on the API's own HTTPS domain, not in a local webview.
+The desktop and backend bind each login to a one-time, random, desktop-held
+verifier (SHA-256 challenge). The API stores a pending flow in Postgres (5-minute
+TTL), but **never stores provider access/refresh tokens** and never passes the
+TIXBAM bearer token through a browser redirect URL. The desktop polls the
+server to claim a completed login, and encrypts the returned TIXBAM token with
+Electron `safeStorage`. Provider ticket-site sessions, bank challenges and
+payment card information stay local.
 
-On a **separate development database only**, set on the FastAPI service:
+## Set up social-provider credentials (required once, before login works)
 
-```env
-TIXBAM_SESSION_SECRET=<random 32+ character secret>
-TIXBAM_AUTH_MODE=development
-TIXBAM_DEV_AUTH_ENABLED=true
-```
+The application code is ready, but Google and Apple require real credentials
+created by the TIXBAM application's owner; those credentials cannot be
+created by code and must not be committed to GitHub.
 
-Run the API locally (or against a separate isolated development deployment).
-For the desktop Vite development build use `VITE_TIXBAM_API_URL=http://127.0.0.1:8000`
-in `apps/desktop/.env.local`. Launch `npm run dev`. Under **Settings →
-TIXBAM account**, choose **Demo Fan One** or **Demo Fan Two** and press
-**Sign in for testing**. These are **shared fixed fake identities**:
-anyone who can reach that development endpoint can become either one.
-Do not use a real customer database, never enable mock auth on production,
-and never store sensitive user data in these accounts.
+1. **Google Cloud Console:** configure the OAuth consent screen, authorized
+   users/audience and a **Web application** OAuth client. Register the exact
+   authorized redirect URI:
+   `https://tixbam-production.up.railway.app/v1/auth/oauth/google/callback`.
+   Keep the client secret on the FastAPI Railway service.
+2. **Apple Developer:** enable **Sign in with Apple** for an App ID, create
+   its associated **Services ID**, configure and verify the website domain
+   and the exact Return URL:
+   `https://tixbam-production.up.railway.app/v1/auth/oauth/apple/callback`.
+   Create a Sign in with Apple private key and obtain its Team ID and Key ID.
+   Apple requires a registered HTTPS redirect domain; localhost is unsupported.
+3. **Railway API variables:** add a different 32+ character
+   `TIXBAM_SESSION_SECRET`; add credentials as applicable:
+   
+   ```env
+   TIXBAM_PUBLIC_URL=https://tixbam-production.up.railway.app
+   TIXBAM_SESSION_SECRET=<32+ strong random characters>
+   TIXBAM_GOOGLE_CLIENT_ID=<Google Web client ID>
+   TIXBAM_GOOGLE_CLIENT_SECRET=<Google Web client secret>
+   TIXBAM_APPLE_CLIENT_ID=<Apple Services ID>
+   TIXBAM_APPLE_TEAM_ID=<Apple Team ID>
+   TIXBAM_APPLE_KEY_ID=<Apple private key identifier>
+   TIXBAM_APPLE_PRIVATE_KEY=<Apple .p8 private key text, newline-escaped if necessary>
+   ```
 
-For a packaged desktop, the authenticated API origin is pinned to the
-official production service. Dev overrides are only accepted by a development
-Electron build; they cannot redirect production account tokens. Account bearer
-tokens are kept in Electron main and encrypted via OS-backed `safeStorage`
-before persistence. If encrypted storage is unavailable, sign-in fails closed.
+Credentials are independent: one provider's button works when its respective
+variables are complete. The app disables only unconfigured sign-in methods.
+The native Sign in with Apple on macOS is not required; both providers use
+the OS system browser. OAuth may require app publication / provider
+verification before sign-in is allowed for the general public.
 
-## Google and Apple design
+## Developer workflow
 
-The server has verified-ID-token exchange at `POST /v1/auth/social`.
-Set `TIXBAM_GOOGLE_CLIENT_ID` and/or `TIXBAM_APPLE_CLIENT_ID` when the
-real provider credentials are ready. A supplied provider-issued ID token is
-checked for its RSA signature against the provider's JWKS, issuer, expected
-client ID audience, expiration and stable subject before it is linked to a
-TIXBAM user. The pairing key is `(provider, subject)`; matching emails alone
-never link accounts. The desktop bridge for exchanging provider tokens is in
-place, but **native system-browser OAuth authorization-code/PKCE and callback
-flow is not yet connected**. Google/Apple buttons are correctly disabled
-until that work is complete. Do not consider OAuth sign-in production-ready.
+Run the API and Electron locally, with developer OAuth credentials registered
+to your callback domain. For an isolated Google-only local API test you can
+set `TIXBAM_AUTH_MODE=development`,
+`TIXBAM_PUBLIC_URL=http://127.0.0.1:8000`, and register its callback with
+Google if your Google client accepts the URI. Apple still requires HTTPS and
+a registered domain. A packaged desktop always sends authentication requests
+only to the official production API.
 
-`TIXBAM_SESSION_SECRET` is independently configured for TIXBAM's signed
-seven-day bearer tokens. It is not the admin API key or an OAuth client secret.
-Rotating this secret invalidates existing account sessions.
+**Test accounts and bypass endpoints are removed.**
+On FastAPI startup, legacy fixed demo identities `fan-one` and `fan-two`
+are purged, along with their data when they have no real linked identity.
+Social users and their favorite data are retained. No shared pretend-identity
+sign-in remains available, even in development mode.
 
-## Account API
+## API
 
-- `GET /v1/auth/methods` → available login methods / demo availability
-- `POST /v1/auth/dev` → fixed simulated test user, only in dev mode
-- `POST /v1/auth/social` → **verified** Google/Apple ID-token exchange
-- `GET /v1/me` → account and synced favorites/watchlist
-- `PUT/DELETE /v1/me/artists/{artist_uuid}` → follow/unfollow
-- `PUT/DELETE /v1/me/events/{event_uuid}` → favorite/unfavorite
-- `PUT/DELETE /v1/me/watchlist/{item_uuid}` → save/delete watched sale
+- `GET /v1/auth/methods` — configured Google/Apple providers only
+- `POST /v1/auth/oauth/start` — provider + desktop-generated SHA-256 challenge;
+  returns sign-in URL + one-time flow ID
+- `GET /v1/auth/oauth/google/callback` — Google browser return
+- `POST /v1/auth/oauth/apple/callback` — Apple `form_post` return
+- `POST /v1/auth/oauth/complete` — desktop-only claim with verifier; yields
+  a signed 7-day TIXBAM session once, or returns `202 pending`
+- `GET /v1/me` — signed-in user favorites, ticket-sale watchlist
+- `PUT/DELETE /v1/me/artists/{artist_uuid}` — follow/unfollow
+- `PUT/DELETE /v1/me/events/{event_uuid}` — favorite/unfavorite
+- `PUT/DELETE /v1/me/watchlist/{item_uuid}` — save/delete watched ticket sale
 
-Every `/v1/me` call requires `Authorization: Bearer <TIXBAM token>`; a
-user identifier in the request body cannot select another user's data.
-Signed-in watchlists are cloud-authoritative. Guest watchlists remain
-device-local, and users can choose **Import guest events** after sign-in.
-Unsuccessful server writes do not show a misleading local success.
+`/v1/me` calls require the TIXBAM account bearer token. Signed-in data lives
+in the cloud; anonymous guest watchlists remain device-local until explicitly
+imported. Account sessions and provider-site browser cookies remain separate.
 
-Future work: native Google/Apple OAuth PKCE implementation, refresh/revocation
-and account-linking UX, server-side pagination and push synchronization.
+Production follow-ups: token refresh/revocation, optional deliberate linking
+of multiple social identities to one account, account self-service deletion,
+rate limits / monitoring on unauthenticated start endpoints.

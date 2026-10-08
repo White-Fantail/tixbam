@@ -7,3 +7,4 @@ tzdata>=2025.2,<2027
 # MCP v2 is mounted into FastAPI rather than deployed as another service.
 mcp>=2.0,<3
 PyJWT[crypto]>=2.10,<3
+httpx>=0.27,<1

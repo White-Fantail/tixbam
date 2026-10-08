@@ -1,9 +1,7 @@
 """User accounts and cloud bookmarks. Never trust client-provided identity details.
 
-Google/Apple ID tokens are verified against provider JWKS, issuer, audience and
-expiry. Demo sign-in creates isolated test identities only behind two explicit
-development environment switches. Provider browser cookies and card data are
-not accepted or stored here.
+Google/Apple identity tokens are verified against provider JWKS, issuer,
+audience, nonce and expiry. Provider cookies and card data are never uploaded.
 """
 import os
 from datetime import datetime, timedelta, timezone
@@ -12,7 +10,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,11 +22,6 @@ router = APIRouter(prefix="/v1")
 Db = Annotated[Session, Depends(get_db)]
 SESSION_ISSUER = "tixbam-api"
 SESSION_AUDIENCE = "tixbam-desktop"
-
-
-def demo_enabled():
-    return (os.getenv("TIXBAM_AUTH_MODE") == "development"
-            and os.getenv("TIXBAM_DEV_AUTH_ENABLED", "").lower() == "true")
 
 
 def session_secret():
@@ -74,7 +67,7 @@ def current_user(db: Db, authorization: Annotated[str | None, Header()] = None):
 CurrentUser = Annotated[User, Depends(current_user)]
 
 
-def identity_login(db: Session, provider: str, subject: str, name: str, email: str | None):
+def identity_user(db: Session, provider: str, subject: str, name: str, email: str | None):
     session_secret()  # Fail closed before creating an account when auth is unconfigured.
     identity = db.scalar(select(UserIdentity).where(
         UserIdentity.provider == provider, UserIdentity.subject == subject))
@@ -87,33 +80,32 @@ def identity_login(db: Session, provider: str, subject: str, name: str, email: s
         db.refresh(user)
     else:
         user = db.get(User, identity.user_id)
-    return create_session(user)
+    return user
 
 
-class DevLogin(BaseModel):
-    account: Literal["fan-one", "fan-two"] = "fan-one"
-
-
-class SocialLogin(BaseModel):
-    provider: Literal["google", "apple"]
-    idToken: str = Field(min_length=20, max_length=16000)
+def purge_development_accounts(db: Session):
+    """Remove legacy fixed demo identities and their saved test data on startup."""
+    identities = db.scalars(select(UserIdentity).where(
+        UserIdentity.provider == "development",
+        UserIdentity.subject.in_(("fan-one", "fan-two")))).all()
+    for identity in identities:
+        user = db.get(User, identity.user_id)
+        if not user:
+            db.delete(identity)
+            continue
+        if any(other.provider != "development" for other in user.identities):
+            db.delete(identity)  # A real social identity may own this account.
+        else:
+            db.delete(user)  # Cascades only this demo account's test favorites.
+    if identities:
+        db.commit()
 
 
 @router.get("/auth/methods")
 def auth_methods():
-    return {"developmentLogin": demo_enabled(),
-            "google": bool(os.getenv("TIXBAM_GOOGLE_CLIENT_ID")),
-            "apple": bool(os.getenv("TIXBAM_APPLE_CLIENT_ID"))}
-
-
-@router.post("/auth/dev")
-def login_dev(payload: DevLogin, db: Db):
-    if not demo_enabled():
-        raise HTTPException(status_code=404, detail="Development sign-in is disabled")
-    # Fixed identities. This endpoint MUST NOT be available against real user data.
-    email = payload.account + "@tixbam.test"
-    return identity_login(db, "development", payload.account,
-                          "Demo Fan One" if payload.account == "fan-one" else "Demo Fan Two", email)
+    from .oauth import provider_config
+    return {"google": provider_config("google") is not None,
+            "apple": provider_config("apple") is not None}
 
 
 @lru_cache(maxsize=2)
@@ -138,14 +130,6 @@ def verified_social_claims(provider: str, id_token: str):
     if not isinstance(subject, str) or not subject or len(subject) > 255:
         raise HTTPException(status_code=401, detail="Invalid identity subject")
     return claims
-
-
-@router.post("/auth/social")
-def login_social(payload: SocialLogin, db: Db):
-    claims = verified_social_claims(payload.provider, payload.idToken)
-    verified_email = claims.get("email") if claims.get("email_verified") in (True, "true") else None
-    return identity_login(db, payload.provider, claims["sub"],
-                          claims.get("name") or "TIXBAM Fan", verified_email)
 
 
 @router.get("/me")

@@ -2,8 +2,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("tixbam", {
   accountStatus: () => ipcRenderer.invoke("tixbam:account-status"),
-  accountDemoLogin: (url, account) => ipcRenderer.invoke("tixbam:account-demo-login", url, account),
-  accountSocialToken: (url, provider, idToken) => ipcRenderer.invoke("tixbam:account-social-token", url, provider, idToken),
+  accountOAuthStart: (url, provider) => ipcRenderer.invoke("tixbam:account-oauth-start", url, provider),
+  accountOAuthPoll: () => ipcRenderer.invoke("tixbam:account-oauth-poll"),
+  accountOAuthCancel: () => ipcRenderer.invoke("tixbam:account-oauth-cancel"),
   accountSignOut: () => ipcRenderer.invoke("tixbam:account-sign-out"),
   accountRequest: (method, endpoint, body) => ipcRenderer.invoke("tixbam:account-request", method, endpoint, body),
   vaultStatus: () => ipcRenderer.invoke("tixbam:vault-status"),

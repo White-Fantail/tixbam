@@ -139,6 +139,20 @@ class UserWatchItem(Base):
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 
 
+class OAuthLoginFlow(Base):
+    __tablename__ = "oauth_login_flows"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    nonce: Mapped[str] = mapped_column(String(128), nullable=False)
+    client_challenge: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_verifier: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    failure: Mapped[str | None] = mapped_column(String(180), nullable=True)
+
+
 class Source(Base):
     __tablename__ = "crawl_sources"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)

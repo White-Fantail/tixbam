@@ -25,3 +25,9 @@ test("renderer may call only scoped self-service account routes", () => {
     assert.equal(allowedAccountEndpoint(...pair), false);
   }
 });
+
+test("OAuth account flow URLs cannot be used to bypass the self-service API allowlist", () => {
+  for (const endpoint of ["/v1/auth/oauth/start", "/v1/auth/oauth/complete", "/v1/auth/dev", "/v1/auth/social"]) {
+    assert.equal(allowedAccountEndpoint("POST", endpoint), false);
+  }
+});
