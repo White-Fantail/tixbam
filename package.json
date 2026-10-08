@@ -1,33 +1,24 @@
 {
   "name": "tixbam",
-  "version": "0.1.0",
   "private": true,
-  "description": "A multi-provider ticketing workspace for fans",
-  "main": "electron/main.cjs",
+  "version": "0.2.0",
+  "workspaces": [
+    "apps/desktop",
+    "apps/admin"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
-    "dev:web": "vite",
-    "desktop": "electron .",
-    "check": "tsc --noEmit",
-    "test": "node --test electron/*.test.cjs",
-    "build": "npm run check && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^0.468.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^4.7.0",
-    "concurrently": "^9.2.0",
-    "cross-env": "^7.0.3",
-    "electron": "^37.2.0",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5",
-    "wait-on": "^8.0.3"
+    "dev": "npm run dev -w @tixbam/desktop",
+    "dev:desktop": "npm run dev -w @tixbam/desktop",
+    "dev:web": "npm run dev:web -w @tixbam/desktop",
+    "dev:admin": "npm run dev -w @tixbam/admin",
+    "test": "npm run test -w @tixbam/desktop",
+    "check": "npm run check -w @tixbam/desktop",
+    "build": "npm run build -w @tixbam/desktop && npm run build -w @tixbam/admin",
+    "build:desktop": "npm run build -w @tixbam/desktop",
+    "build:admin": "npm run build -w @tixbam/admin",
+    "desktop": "npm run desktop -w @tixbam/desktop"
   }
 }
