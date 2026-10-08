@@ -58,4 +58,8 @@ def extract_events(html: str, page_url: str) -> list[dict]:
                            "source_url": url,
                            "session_key": ("start:" + date if isinstance(date, str)
                                            else "tba:" + hashlib.sha256(session_identity.encode()).hexdigest()[:18])})
-    return result
+    # When a page contains both a dated event and an incomplete duplicate
+    # pointing to that same URL, prefer the dated showing.
+    dated_urls = {row["source_url"] for row in result if row["starts_at"]}
+    return [row for row in result
+            if row["starts_at"] or row["source_url"] not in dated_urls]
