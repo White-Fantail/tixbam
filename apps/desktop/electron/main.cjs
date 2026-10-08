@@ -1,8 +1,10 @@
-const { app, BrowserWindow, ipcMain, session } = require("electron");
+const { app, BrowserWindow, ipcMain, session, safeStorage } = require("electron");
 const path = require("node:path");
 const { MAX_WINDOWS, isSafeWebUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
 
+const { registerBooking } = require("./booking/controller.cjs");
+let booking;
 let dashboard = null;
 const ticketWindows = new Map();
 
@@ -24,7 +26,7 @@ function broadcast() {
 }
 
 function dashboardOnly(event) {
-  if (!dashboard || event.sender !== dashboard.webContents) {
+  if (!dashboard || (event.sender !== dashboard.webContents || event.senderFrame !== dashboard.webContents.mainFrame)) {
     throw new Error("This action is only available in the TIXBAM dashboard.");
   }
 }
@@ -46,6 +48,7 @@ function createDashboard() {
       webSecurity: true
     }
   });
+  dashboard.webContents.on("will-navigate", event => event.preventDefault());
   dashboard.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl === "http://127.0.0.1:5173") {
@@ -53,7 +56,7 @@ function createDashboard() {
   } else {
     dashboard.loadFile(path.join(__dirname, "../dist/index.html"));
   }
-  dashboard.on("closed", () => { dashboard = null; });
+  dashboard.on("closed", () => { booking?.stopAll(); dashboard = null; });
 }
 
 function openTicketWindow({ providerId, url: candidate } = {}) {
@@ -110,7 +113,7 @@ function openTicketWindow({ providerId, url: candidate } = {}) {
   wc.on("page-title-updated", broadcast);
   wc.on("did-navigate", broadcast);
   wc.on("did-navigate-in-page", broadcast);
-  win.on("closed", () => { ticketWindows.delete(win.id); broadcast(); });
+  win.on("closed", () => { booking?.windowClosed(win.id); ticketWindows.delete(win.id); broadcast(); });
   ticketWindows.set(win.id, { win, providerId, openedAt: Date.now() });
   wc.loadURL(url).catch(() => { if (!win.isDestroyed()) broadcast(); });
   broadcast();
@@ -157,12 +160,15 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("tixbam:set-addon-installed", (event, id, enabled) => {
     dashboardOnly(event);
-    if (!enabled && Array.from(ticketWindows.values()).some(item => item.providerId === id)) {
+    if (!enabled && (booking?.providerActive(id) || Array.from(ticketWindows.values()).some(item => item.providerId === id))) {
       throw new Error("Close this provider's windows before removing the add-on.");
     }
     const result = setInstalled(id, enabled);
     if (dashboard && !dashboard.isDestroyed()) dashboard.webContents.send("tixbam:addons-changed", result);
     return result;
+  });
+  booking = registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl,
+    send(channel, state) { if (dashboard && !dashboard.isDestroyed()) dashboard.webContents.send(channel, state); }
   });
   createDashboard();
   app.on("activate", () => {

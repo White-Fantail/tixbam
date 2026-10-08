@@ -1,6 +1,6 @@
 # TIXBAM
 
-Desktop ticketing workspace + concert directory + provider add-on registry. Development happens on `dev`. The desktop application opens official ticketing websites for **manual** login, CAPTCHA, seat selection and payment; no queue bypass, guaranteed purchase or unsupported automated checkout.
+Desktop ticketing workspace + concert directory + provider add-on registry. Development happens on `dev`. The desktop application opens official ticketing websites for manual login and verification. Cityline now has event-specific booking preferences, verified performance/price selection, a checkout rehearsal and a local encrypted card vault. Live Cityline seat and payment mappings remain pending; no queue bypass or guaranteed purchase. See [Booking workflow](docs/BOOKING.md).
 
 ## Repository
 
@@ -9,7 +9,7 @@ apps/desktop/         Electron 37 + React 19 + Vite (local sessions and watchlis
 apps/admin/           Next.js 16 protected operations dashboard (Vercel)
 services/api/         FastAPI + SQLAlchemy + PostgreSQL (Railway)
 services/crawler/     Opt-in structured-event ingestion worker (Railway cron)
-packages/addon-sdk/   Shared add-on manifest contract (metadata only)
+packages/addon-sdk/   Shared add-on manifest and booking option contracts
 ```
 
 ## Run locally
@@ -83,6 +83,10 @@ export TIXBAM_ADMIN_API_KEY="your-long-random-development-secret"
 python -m crawler.run
 pytest tests -q
 ```
+
+## Booking
+
+Use **My events → Booking preferences & automation** on a Cityline event. Read the open booking form’s options, rank preferences and set required conditions. **Try rehearsal** exercises the full simulated workflow without charges. Manage runs in **Live windows**, and encrypted local cards in **Settings**. Details and current live limitations: [docs/BOOKING.md](docs/BOOKING.md).
 
 ## Add-ons
 

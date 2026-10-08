@@ -5,6 +5,9 @@ import {
   Link2, LockKeyhole, Monitor, Plus, Radio, Search, Settings2, ShieldCheck,
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
+import { BookingPanel } from "./booking/BookingPanel";
+import { BookingRunList } from "./booking/BookingRunList";
+import { CardVaultPanel } from "./booking/CardVaultPanel";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type RemoteEvent, type RemoteAddon } from "./api";
 import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
@@ -169,6 +172,7 @@ function App() {
   const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
   const [apiStatus, setApiStatus] = useState("Connecting...");
   const [now, setNow] = useState(() => Date.now());
+  const [bookingEvent, setBookingEvent] = useState<WatchEvent | null>(null);
   const [eventModal, setEventModal] = useState(false);
   const [form, setForm] = useState<EventFormState>(emptyEvent);
   const [formError, setFormError] = useState("");
@@ -511,7 +515,7 @@ function App() {
               </div>
               <div className="safety-card">
                 <div className="safety-circle"><ShieldCheck size={29} /></div>
-                <div><strong>Human first. Fan always.</strong><p>TIXBAM never skips CAPTCHAs, queues or payment steps. You stay in control of every purchase.</p><button onClick={() => setSection("settings")}>Privacy & limitations <ArrowUpRight size={15} /></button></div>
+                <div><strong>Human first. Fan always.</strong><p>TIXBAM pauses for CAPTCHAs, queues and bank verification. You stay in control of every purchase.</p><button onClick={() => setSection("settings")}>Privacy & limitations <ArrowUpRight size={15} /></button></div>
               </div>
             </div>
           </>}
@@ -555,6 +559,7 @@ function App() {
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{humanDate(item.saleAt)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <div className="countdown-chip"><Clock3 size={13} />{countdown(item.saleAt, now)}</div>
+                    {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" disabled={!installedIds.has(item.providerId)} onClick={()=>setBookingEvent(item)}><Settings2 size={15}/> Booking preferences & automation</button>}
                     <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button className="button button-primary" disabled={busy === provider.id} onClick={() => installedIds.has(provider.id) ? launch(provider.id, item.url) : setSection("providers")}><ExternalLink size={15} /> {installedIds.has(provider.id) ? "Open site" : "Install add-on"}</button></div>
                   </article>
                 );
@@ -566,6 +571,7 @@ function App() {
             <SectionHeading eyebrow="THE CONTROL ROOM" title="Live windows" description="Manage the ticketing browsers you have opened."
               action={<span className="counter-badge"><span className="tiny-green-dot" />{windows.length} / {MAX_WINDOWS} WINDOWS OPEN</span>} />
             <div className="desktop-explainer"><div className="desktop-explainer-icon"><Monitor size={23} /></div><div><strong>{desktop ? "Each window is a real ticketing browser." : "Live ticketing windows require the desktop app."}</strong><p>Windows for the same provider share sign-in cookies. Keep track of provider queues yourself; opening more windows does not create extra queue positions.</p></div><button onClick={() => setSection("providers")}>Open a provider <ArrowUpRight size={17} /></button></div>
+            <BookingRunList />
             {windows.length ? <div className="session-list">
               {windows.map((item) => {
                 const provider = providerFor(item.providerId);
@@ -573,14 +579,14 @@ function App() {
                 return <div key={item.id} className="session-row"><ProviderMark provider={provider} /><div className="session-meta"><strong>{provider.name} <span>· Window #{item.id}</span></strong><p title={item.url}>{item.title || item.url || provider.url}</p></div><span className={"session-state" + (item.loading ? " is-loading" : "")}><span />{item.loading ? "LOADING" : "OPEN"}</span><button className="button button-outline" onClick={() => controlWindow("focus", item.id)}><ExternalLink size={15} /> Focus</button><button className="icon-button" aria-label={"Close window " + item.id} onClick={() => controlWindow("close", item.id)}><X size={18} /></button></div>;
               })}
             </div> : <div className="empty-state sessions-empty"><div className="empty-icon"><Layers3 size={31} /></div><h3>No active windows yet.</h3><p>Open a provider to start a manual ticketing session. Your sign-in storage is kept separately for each provider.</p><button className="button button-primary" onClick={() => setSection("providers")}>Browse providers <ArrowRight size={16} /></button></div>}
-            <div className="session-footnote"><LockKeyhole size={17} /> Windows are local to this device. TIXBAM does not read your passwords, CAPTCHAs or payment information.</div>
+            <div className="session-footnote"><LockKeyhole size={17} /> Windows are local to this device. Passwords and verification stay in the provider window. Saved cards are encrypted locally and used only for prepared booking runs.</div>
           </>}
 
           {section === "providers" && <>
             {remoteAddons.length > 0 && <div className="remote-banner"><Globe2 size={17}/><span>Server registry connected. {remoteAddons.filter(remote => { const local = addons.find(a => a.id === remote.id); return local && local.version !== remote.version; }).length} version updates available as metadata. Remote executable installation is not enabled yet.</span></div>}
 
             <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
-            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Level 1: watchlist and browser sessions. Level 2: assisted seat / order workflow. Level 3: authorized full checkout. Level 2 and 3 are not implemented in this prototype; availability also requires provider authorization.</p></div>
+            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Level 1: watchlist and browser sessions. Level 2: assisted seat / order workflow. Level 3: authorized full checkout. Cityline supports performance and price selection plus a checkout rehearsal. Live seat and payment mappings are pending; each add-on reports its own support.</p></div>
             <div className="automation-legend" aria-label="Automation support legend">
               <span><span className="automation-legend-dot ready" />Available in TIXBAM</span>
               <span><span className="automation-legend-dot limited" />Restricted by published terms</span>
@@ -598,6 +604,7 @@ function App() {
           {section === "settings" && <>
             <SectionHeading eyebrow="MAKE IT YOURS" title="Settings & privacy" description="A transparent look at what TIXBAM stores and how it works." />
             <div className="settings-grid"><div className="settings-main">
+              <CardVaultPanel />
               <div className="settings-panel"><div className="settings-panel-title"><Globe2 size={20}/><div><h3>TIXBAM cloud</h3><p role="status">{apiStatus}. Events and add-on versions update automatically. Your ticketing sessions stay local.</p></div></div>
                 <div className="settings-note">Connected to the official TIXBAM service automatically. No setup is required.</div>
                 <div className="settings-inline"><span>{remoteEvents.length} published events · {remoteAddons.length} catalog add-ons</span><button className="button button-outline" onClick={() => setApiRefresh(value => value + 1)}>Retry connection</button></div>
@@ -608,7 +615,7 @@ function App() {
           </>}
         </main>
 
-        <footer className="footer"><div>© TIXBAM • FOR THE FANS, BY DESIGN.</div><div><span className="tiny-green-dot" /> MANUAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
+        <footer className="footer"><div>© TIXBAM • FOR THE FANS, BY DESIGN.</div><div><span className="tiny-green-dot" /> LOCAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
       </div>
 
       {eventModal && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setEventModal(false); }}>
@@ -627,6 +634,7 @@ function App() {
         </div>
       </div>}
 
+      {bookingEvent && <BookingPanel event={bookingEvent} addon={addons.find(a=>a.id===bookingEvent.providerId)!} windows={windows.filter(w=>w.providerId===bookingEvent.providerId)} onClose={()=>setBookingEvent(null)}/>}
       {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );

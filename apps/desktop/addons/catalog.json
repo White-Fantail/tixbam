@@ -11,7 +11,7 @@
     ],
     "color": "#bba9fc",
     "initials": "CL",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "capabilities": [
       "browser",
       "persistent-session"
@@ -25,12 +25,93 @@
       },
       "level2": {
         "status": "unverified",
-        "summary": "Public assisted-automation permission has not been confirmed."
+        "summary": "Performance and price selection implemented; seat pages still require verification. Provider permission remains unverified."
       },
       "level3": {
         "status": "unverified",
-        "summary": "No approved automatic-checkout integration has been confirmed."
+        "summary": "Checkout runner and local card preparation implemented; live Cityline payment mapping is not yet verified."
       }
+    },
+    "booking": {
+      "schemaVersion": 1,
+      "currency": "HKD",
+      "maxTickets": 6,
+      "adapter": "cityline-event-detail-v1",
+      "implementation": {
+        "options": "verified",
+        "seats": "pending",
+        "payment": "pending"
+      },
+      "fields": [
+        {
+          "id": "performance",
+          "label": "Performance",
+          "type": "select",
+          "required": true,
+          "choices": []
+        },
+        {
+          "id": "priceTier",
+          "label": "Price preference order",
+          "type": "ranked",
+          "required": true,
+          "choices": []
+        },
+        {
+          "id": "section",
+          "label": "Section preference order",
+          "type": "ranked",
+          "required": false,
+          "hint": "Enter exact section names, one per line. These must be verified at the seat step."
+        },
+        {
+          "id": "floor",
+          "label": "Floor preference order",
+          "type": "ranked",
+          "required": false,
+          "hint": "Enter exact floor labels, one per line (for example, Balcony)."
+        },
+        {
+          "id": "seatMode",
+          "label": "Seat selection",
+          "type": "select",
+          "required": false,
+          "choices": [
+            {
+              "id": "assigned",
+              "label": "Assigned seats"
+            },
+            {
+              "id": "standing",
+              "label": "Standing"
+            },
+            {
+              "id": "automatic",
+              "label": "Provider automatic allocation"
+            }
+          ]
+        },
+        {
+          "id": "fulfillment",
+          "label": "Ticket collection",
+          "type": "select",
+          "required": false,
+          "choices": [
+            {
+              "id": "eticket",
+              "label": "E-ticket"
+            },
+            {
+              "id": "pickup",
+              "label": "Box office pickup"
+            },
+            {
+              "id": "delivery",
+              "label": "Delivery"
+            }
+          ]
+        }
+      ]
     }
   },
   {

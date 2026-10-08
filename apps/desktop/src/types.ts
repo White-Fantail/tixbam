@@ -1,3 +1,4 @@
+import type { BookingSchema, BookingContext, BookingPreferences, BookingRun, CardSummary, CardInput } from "../../../packages/addon-sdk";
 export type AutomationSupportStatus = "available" | "restricted" | "unverified";
 
 export interface AutomationLevelSupport {
@@ -14,6 +15,7 @@ export interface AddonAutomationSupport {
 }
 
 export interface TicketAddon extends Provider {
+  booking?: BookingSchema;
   automation: AddonAutomationSupport;
   version: string;
   description: string;
@@ -55,6 +57,16 @@ export interface TicketWindow {
 }
 
 export interface DesktopBridge {
+  vaultStatus: () => Promise<{ available: boolean; cards: CardSummary[] }>;
+  saveCard: (input: CardInput) => Promise<CardSummary[]>;
+  removeCard: (id: string) => Promise<CardSummary[]>;
+  bookingContext: (input: { providerId: string; eventUrl: string; windowId?: number; rehearsal?: boolean }) => Promise<BookingContext>;
+  saveBookingPreferences: (id: string, input: BookingPreferences) => Promise<BookingPreferences>;
+  startBooking: (input: { contextId: string; preferences: BookingPreferences; cardId?: string; cvv?: string; paymentConsent: boolean }) => Promise<BookingRun>;
+  listBookings: () => Promise<BookingRun[]>;
+  resumeBooking: (id: string, confirm?: boolean) => Promise<BookingRun>;
+  stopBooking: (id: string) => Promise<BookingRun>;
+  onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
