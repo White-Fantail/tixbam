@@ -188,6 +188,10 @@ def handle_callback(provider, state, code, error, db, apple_user=None):
         flow.status, flow.failure = "failed", "Provider is no longer configured"
         db.commit()
         return completion_page(False)
+    # Claim the callback before external network I/O, then release the row
+    # lock so desktop polls immediately receive 202 rather than timing out.
+    flow.status = "processing"
+    db.commit()
     try:
         claims = exchange_code(provider, config, code, flow)
         if not hmac.compare_digest(str(claims.get("nonce") or ""), flow.nonce):
@@ -209,7 +213,7 @@ def handle_callback(provider, state, code, error, db, apple_user=None):
     except (HTTPException, ValueError, KeyError, TypeError):
         db.rollback()
         flow = db.scalar(select(OAuthLoginFlow).where(OAuthLoginFlow.state == state))
-        if flow and flow.status == "pending":
+        if flow and flow.status in ("pending", "processing"):
             flow.status, flow.failure = "failed", "Identity verification failed"
             db.commit()
         return completion_page(False)
@@ -249,7 +253,7 @@ def complete_login(payload: CompleteLogin, db: Db):
         db.delete(flow)
         db.commit()
         raise HTTPException(410, detail="Sign-in expired. Please try again")
-    if flow.status == "pending":
+    if flow.status in ("pending", "processing"):
         return JSONResponse({"status": "pending"}, status_code=202, headers={"Cache-Control":"no-store"})
     if flow.status != "completed" or not flow.user_id:
         db.delete(flow)
