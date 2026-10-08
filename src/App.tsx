@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
-  Activity, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronRight,
-  Clock3, Compass, ExternalLink, Globe2, Heart, LayoutDashboard, Layers3,
+  ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronRight,
+  Clock3, ExternalLink, Globe2, Heart, LayoutDashboard, Layers3,
   Link2, LockKeyhole, Monitor, Plus, Radio, Search, Settings2, ShieldCheck,
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
@@ -101,7 +101,7 @@ function ProviderMark({ provider, small = false }: { provider: Provider; small?:
 }
 
 function SectionHeading({ eyebrow, title, description, action }: {
-  eyebrow: string; title: string; description?: string; action?: React.ReactNode;
+  eyebrow: string; title: string; description?: string; action?: ReactNode;
 }) {
   return (
     <div className="section-heading">
@@ -126,7 +126,6 @@ function App() {
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("cityline");
   const desktop = Boolean(window.tixbam);
 
   useEffect(() => {
