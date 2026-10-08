@@ -209,6 +209,23 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!account || !window.tixbam) return;
+    let active = true;
+    const refresh = async () => {
+      if (cloudBusy || !window.tixbam) return;
+      try {
+        const snapshot = await window.tixbam.accountStatus();
+        if (active && snapshot && snapshot.user.id === account.id) applySnapshot(snapshot);
+      } catch {
+        // The current cloud view stays visible until the user chooses to retry.
+      }
+    };
+    const timer = window.setInterval(() => { void refresh(); }, 180000);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [account?.id, cloudBusy]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
@@ -763,6 +780,16 @@ function App() {
            {section === "watchlist" && <>
             <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="My events" description="Your personal calendar of tickets worth chasing."
               action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
+            {favoriteEventIds.length > 0 && <section className="saved-favorites">
+              <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteEventIds.length})</span></h3>
+              <div className="favorite-events-grid">{remoteEvents.filter(event => favoriteEventIds.includes(event.id)).map(event => (
+                <article key={event.id} className="favorite-event-card">
+                  <div><strong>{event.artist}</strong><span>{event.title} · {event.city || "City TBD"}</span></div>
+                  <button className="button button-outline" onClick={() => { setSearch(event.title); setSection("discover"); }}>Find tickets <ArrowRight size={14}/></button>
+                  <button className="icon-button" aria-label={"Unfavorite " + event.title} disabled={cloudBusy} onClick={() => void toggleFavorite("events", event.id)}><Heart fill="currentColor" size={16}/></button>
+                </article>
+              ))}</div>
+            </section>}
             <div className="content-toolbar">
               <label className="search-field"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search artist, event or city..." /></label>
               <span className="results-label">{filteredEvents.length} SAVED EVENT{filteredEvents.length === 1 ? "" : "S"}</span>
