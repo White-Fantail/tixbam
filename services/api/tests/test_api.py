@@ -47,3 +47,50 @@ def test_api_end_to_end():
             assert client.post("/v1/admin/sales", headers=headers,
                                json={"event_id":event_id, "provider_id":"cityline",
                                      "booking_url":"http://unsafe.example"}).status_code == 422
+
+def test_admin_updates_and_location_time_zones():
+    from app.main import app
+    with TestClient(app) as client:
+        headers = {"X-Admin-Key": "test-only-private-key"}
+        artist = client.post("/v1/admin/artists", headers=headers, json={"name": "Schedules Test"}).json()
+        aid = artist["id"]
+        assert client.put(f"/v1/admin/artists/{aid}", json={"name": "Edited Schedules"}).status_code == 401
+        changed_artist = client.put(f"/v1/admin/artists/{aid}", headers=headers, json={"name": "Edited Schedules", "country": "KR"})
+        assert changed_artist.status_code == 200
+        assert changed_artist.json()["name"] == "Edited Schedules"
+        assert client.put("/v1/admin/artists/missing", headers=headers, json={"name": "Other"}).status_code == 404
+        event = client.post("/v1/admin/events", headers=headers, json={
+            "artist_id": aid, "title": "Hong Kong Show", "city": "Hong Kong", "country": "HK",
+            "timezone": "Asia/Hong_Kong", "starts_at_local": "2027-01-15T20:00"})
+        assert event.status_code == 201, event.text
+        eid = event.json()["id"]
+        assert event.json()["startsAt"] == "2027-01-15T12:00:00Z"
+        assert event.json()["timezone"] == "Asia/Hong_Kong"
+        updated_event = client.put(f"/v1/admin/events/{eid}", headers=headers, json={
+            "artist_id": aid, "title": "HK Encore", "city": "Hong Kong", "country": "HK",
+            "timezone": "Asia/Hong_Kong", "starts_at_local": "2027-01-16T20:00"})
+        assert updated_event.status_code == 200, updated_event.text
+        assert updated_event.json()["startsAt"] == "2027-01-16T12:00:00Z"
+        assert client.put("/v1/admin/events/missing", headers=headers, json={"artist_id": aid, "title": "Missing"}).status_code == 404
+        sale = client.post("/v1/admin/sales", headers=headers, json={
+            "event_id": eid, "provider_id": "cityline", "sale_type": "presale",
+            "city": "Seoul", "country": "KR", "timezone": "Asia/Seoul",
+            "sale_at_local": "2027-01-05T12:00", "booking_url": "https://www.cityline.com.hk/en_US/"})
+        assert sale.status_code == 201, sale.text
+        sid = sale.json()["id"]
+        assert sale.json()["saleAt"] == "2027-01-05T03:00:00Z"
+        assert sale.json()["city"] == "Seoul"
+        changed_sale = client.put(f"/v1/admin/sales/{sid}", headers=headers, json={
+            "event_id": eid, "provider_id": "cityline", "sale_type": "general",
+            "city": "Hong Kong", "country": "HK", "timezone": "Asia/Hong_Kong",
+            "sale_at_local": "2027-01-06T10:00", "booking_url": "https://www.cityline.com.hk/en_US/"})
+        assert changed_sale.status_code == 200, changed_sale.text
+        assert changed_sale.json()["saleAt"] == "2027-01-06T02:00:00Z"
+        assert client.put("/v1/admin/sales/missing", headers=headers, json={
+            "event_id": eid, "provider_id": "cityline", "booking_url": "https://www.cityline.com.hk/"}).status_code == 404
+        assert client.post("/v1/admin/events", headers=headers, json={
+            "artist_id": aid, "title": "DST invalid", "timezone": "America/New_York",
+            "starts_at_local": "2027-03-14T02:30"}).status_code == 422
+        assert client.post("/v1/admin/sales", headers=headers, json={
+            "event_id": eid, "provider_id": "cityline", "timezone": "Invalid/Zone",
+            "sale_at_local": "2027-01-06T10:00", "booking_url": "https://www.cityline.com.hk/"}).status_code == 422
