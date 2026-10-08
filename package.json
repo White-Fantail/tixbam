@@ -9,7 +9,7 @@
     "dev:web": "vite",
     "desktop": "electron .",
     "check": "tsc --noEmit",
-    "test": "node --test electron/security.test.cjs",
+    "test": "node --test electron/*.test.cjs",
     "build": "npm run check && vite build",
     "preview": "vite preview"
   },
