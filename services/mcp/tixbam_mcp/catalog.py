@@ -88,6 +88,12 @@ class Catalog:
                 Event.artist_id == artist_id, Event.title == title,
                 Event.city == city, Event.country == country, Event.venue == venue
             ))
+            if existing is None and not (city or country or venue):
+                # Older MCP callers identify an event by official URL and title
+                # without supplying a location. Do not duplicate those records.
+                existing = db.scalar(select(Event).where(
+                    Event.artist_id == artist_id, Event.title == title,
+                    Event.source_url == source_url))
             if existing:
                 return {"created": False, "event": event_data(existing)}
             item = Event(**payload.model_dump(exclude={"starts_at_local"}))
@@ -143,7 +149,9 @@ class Catalog:
                 TicketSale.booking_url == booking_url,
             ))
             for existing in candidates:
-                if iso_utc(existing.sale_at) == iso_utc(payload.sale_at):
+                if (iso_utc(existing.sale_at) == iso_utc(payload.sale_at)
+                    and existing.applies_to_all == payload.applies_to_all
+                    and set(link.performance_id for link in existing.performance_links) == set(payload.performance_ids)):
                     return {"created": False, "sale": sale_data(existing)}
             item = TicketSale(**payload.model_dump(exclude={"sale_at_local", "performance_ids"}))
             db.add(item)
@@ -168,7 +176,9 @@ class Catalog:
                 sale_at_local=sale_at_local,
                 sale_at=None if sale_at_local is not None else item.sale_at,
                 applies_to_all=applies_to_all if applies_to_all is not None else (not bool(performance_ids) if performance_ids is not None else item.applies_to_all),
-                performance_ids=performance_ids if performance_ids is not None else [link.performance_id for link in item.performance_links],
+                performance_ids=([] if applies_to_all is True else
+                                 (performance_ids if performance_ids is not None else
+                                  [link.performance_id for link in item.performance_links])),
             )
             if payload.applies_to_all:
                 payload.performance_ids = []
