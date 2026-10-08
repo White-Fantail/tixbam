@@ -2,101 +2,130 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const str = (f: FormData, k: string) => String(f.get(k) || "").trim();
+const val = (f: FormData, name: string) => String(f.get(name) || "").trim();
+const opt = (f: FormData, name: string) => val(f, name) || null;
+const id = (f: FormData) => encodeURIComponent(val(f, "id"));
+const bool = (f: FormData, name: string) => f.get(name) === "on";
+const split = (f: FormData, name: string) => val(f, name).split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
 
-async function submit(path: string, body: object, method = "POST") {
+async function submit(apiPath: string, payload: object, method: string,
+                      resource: string, back: string, fallbackId?: string) {
   const base = process.env.TIXBAM_API_URL;
   const token = process.env.TIXBAM_ADMIN_API_KEY;
-  if (!base || !token) redirect("/?error=API+is+not+configured");
   let error = "";
-  try {
-    const result = await fetch(base.replace(/\/$/, "") + path, {
-      method, cache: "no-store",
-      headers: { "Content-Type": "application/json", "X-Admin-Key": token },
-      body: JSON.stringify(body)
-    });
-    if (!result.ok) {
-      const data = await result.json().catch(() => null);
-      const detail = data?.detail;
-      error = Array.isArray(detail)
-        ? detail.map((item: { msg?: string }) => item.msg || "Invalid field").join("; ")
-        : String(detail || "HTTP " + result.status);
+  let itemId = fallbackId;
+  if (!base || !token) {
+    error = "API is not configured";
+  } else {
+    try {
+      const response = await fetch(base.replace(/\/$/, "") + apiPath, {
+        method, cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": token },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = body.detail;
+        error = Array.isArray(detail) ? detail.map((d: {msg?: string}) => d.msg || "Invalid field").join("; ")
+              : String(detail || "HTTP " + response.status);
+      } else {
+        itemId = body.id || itemId;
+      }
+    } catch {
+      error = "Could not reach the API";
     }
-  } catch {
-    error = "Could not reach the API";
   }
-  revalidatePath("/");
-  redirect(error ? "/?error=" + encodeURIComponent(error) : "/?ok=Saved");
+  if (error) redirect(back + (back.includes("?") ? "&" : "?") + "error=" + encodeURIComponent(error));
+  revalidatePath("/" + resource);
+  if (itemId) revalidatePath("/" + resource + "/" + encodeURIComponent(itemId));
+  redirect(itemId ? "/" + resource + "/" + encodeURIComponent(itemId) + "?ok=Saved"
+                  : "/" + resource + "?ok=Saved");
 }
 
 export async function addArtist(f: FormData) {
-  await submit("/v1/admin/artists", { name: str(f,"name"), country: str(f,"country") || null, image_url: str(f,"image_url") || null });
+  await submit("/v1/admin/artists", {name:val(f,"name"),country:opt(f,"country"),image_url:opt(f,"image_url")},
+               "POST","artists","/artists/new");
 }
 export async function updateArtist(f: FormData) {
-  await submit("/v1/admin/artists/" + encodeURIComponent(str(f,"id")), {
-    name: str(f,"name"), country: str(f,"country") || null,
-    image_url: str(f,"image_url") || null
-  }, "PUT");
+  await submit("/v1/admin/artists/"+id(f),{name:val(f,"name"),country:opt(f,"country"),image_url:opt(f,"image_url")},
+               "PUT","artists","/artists/"+id(f)+"/edit",val(f,"id"));
+}
+
+function eventPayload(f: FormData) {
+  return {artist_id: val(f,"artist_id"),title:val(f,"title"),city:val(f,"city"),
+    country:val(f,"country"),venue:opt(f,"venue"),timezone:opt(f,"timezone"),
+    starts_at_local:opt(f,"starts_at_local"),source_url:opt(f,"source_url")};
 }
 export async function addEvent(f: FormData) {
-  await submit("/v1/admin/events", {
-    artist_id: str(f,"artist_id"), title: str(f,"title"), city: str(f,"city"),
-    country: str(f,"country"), starts_at_local: str(f,"starts_at_local") || null,
-    timezone: str(f,"timezone") || null, venue: str(f,"venue") || null,
-    source_url: str(f,"source_url") || null
-  });
+  await submit("/v1/admin/events",eventPayload(f),"POST","events","/events/new");
 }
 export async function updateEvent(f: FormData) {
-  await submit("/v1/admin/events/" + encodeURIComponent(str(f,"id")), {
-    artist_id: str(f,"artist_id"), title: str(f,"title"), city: str(f,"city"),
-    country: str(f,"country"), venue: str(f,"venue") || null,
-    timezone: str(f,"timezone") || null, starts_at_local: str(f,"starts_at_local") || null,
-    source_url: str(f,"source_url") || null
-  }, "PUT");
+  await submit("/v1/admin/events/"+id(f),eventPayload(f),"PUT","events","/events/"+id(f)+"/edit",val(f,"id"));
 }
-export async function addPerformance(f: FormData) {
-  await submit("/v1/admin/performances", {
-    event_id: str(f,"event_id"), session_key: str(f,"session_key"),
-    label: str(f,"label"), starts_at_local: str(f,"starts_at_local") || null,
-    timezone: str(f,"timezone") || null, status: str(f,"status") || "scheduled"
-  });
+function performancePayload(f:FormData) {
+  return {event_id:val(f,"event_id"),session_key:val(f,"session_key"),label:val(f,"label"),
+    starts_at_local:opt(f,"starts_at_local"),timezone:opt(f,"timezone"),status:val(f,"status")||"scheduled"};
 }
-export async function updatePerformance(f: FormData) {
-  await submit("/v1/admin/performances/" + encodeURIComponent(str(f,"id")), {
-    event_id: str(f,"event_id"), session_key: str(f,"session_key"),
-    label: str(f,"label"), starts_at_local: str(f,"starts_at_local") || null,
-    timezone: str(f,"timezone") || null, status: str(f,"status") || "scheduled"
-  }, "PUT");
+export async function addPerformance(f:FormData) {
+  await submit("/v1/admin/performances",performancePayload(f),"POST","performances",
+               "/performances/new"+(val(f,"event_id")?"?eventId="+encodeURIComponent(val(f,"event_id")):""));
 }
-export async function deletePerformance(f: FormData) {
-  await submit("/v1/admin/performances/" + encodeURIComponent(str(f,"id")), {}, "DELETE");
+export async function updatePerformance(f:FormData) {
+  await submit("/v1/admin/performances/"+id(f),performancePayload(f),"PUT","performances",
+               "/performances/"+id(f)+"/edit",val(f,"id"));
 }
-export async function addSale(f: FormData) {
-  await submit("/v1/admin/sales", {
-    event_id: str(f,"event_id"), provider_id: str(f,"provider_id"), sale_type: str(f,"sale_type"),
-    sale_at_local: str(f,"sale_at_local") || null, timezone: str(f,"timezone") || null,
-    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url"),
-    applies_to_all: f.get("applies_to_all") === "on",
-    performance_ids: f.get("applies_to_all") === "on" ? [] : f.getAll("performance_ids").map(String)
-  });
+export async function deletePerformance(f:FormData) {
+  await submit("/v1/admin/performances/"+id(f),{},"DELETE","performances",
+               "/performances/"+id(f));
 }
-export async function updateSale(f: FormData) {
-  await submit("/v1/admin/sales/" + encodeURIComponent(str(f,"id")), {
-    event_id: str(f,"event_id"), provider_id: str(f,"provider_id"), sale_type: str(f,"sale_type"),
-    sale_at_local: str(f,"sale_at_local") || null, timezone: str(f,"timezone") || null,
-    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url"),
-    applies_to_all: f.get("applies_to_all") === "on",
-    performance_ids: f.get("applies_to_all") === "on" ? [] : f.getAll("performance_ids").map(String)
-  }, "PUT");
+function salePayload(f:FormData) {
+  return {event_id:val(f,"event_id"),provider_id:val(f,"provider_id"),sale_type:val(f,"sale_type"),
+    sale_at_local:opt(f,"sale_at_local"),timezone:opt(f,"timezone"),city:opt(f,"city"),
+    country:opt(f,"country"),booking_url:val(f,"booking_url"),applies_to_all:bool(f,"applies_to_all"),
+    performance_ids:bool(f,"applies_to_all")?[]:f.getAll("performance_ids").map(String)};
 }
-export async function addSource(f: FormData) {
-  await submit("/v1/admin/sources", { name: str(f,"name"), url: str(f,"url"),
-    interval_minutes: Number(str(f,"interval_minutes") || "360"), enabled: true });
+export async function addSale(f:FormData) {
+  await submit("/v1/admin/sales",salePayload(f),"POST","sales",
+               "/sales/new"+(val(f,"event_id")?"?eventId="+encodeURIComponent(val(f,"event_id")):""));
 }
-export async function editAddon(f: FormData) {
-  await submit("/v1/admin/addons/" + encodeURIComponent(str(f,"id")), {
-    version: str(f,"version"), published: f.get("published") === "on",
-    description: str(f,"description"), artifact_url: str(f,"artifact_url") || null,
-    artifact_sha256: str(f,"artifact_sha256") || null
-  }, "PUT");
+export async function updateSale(f:FormData) {
+  await submit("/v1/admin/sales/"+id(f),salePayload(f),"PUT","sales",
+               "/sales/"+id(f)+"/edit",val(f,"id"));
+}
+
+function providerPayload(f: FormData) {
+  return {id:val(f,"id"), name:val(f,"name"), url:val(f,"url"),region:val(f,"region")||"Global",
+    country:val(f,"country")||"GL",allowed_hosts:split(f,"allowed_hosts"),
+    capabilities:split(f,"capabilities"),automation: JSON.parse(val(f,"automation")||"{}"),
+    version:val(f,"version")||"1.0.0",description:val(f,"description"),
+    published:bool(f,"published"),artifact_url:opt(f,"artifact_url"),
+    artifact_sha256:opt(f,"artifact_sha256")};
+}
+async function providerSubmit(f:FormData,method:"POST"|"PUT") {
+  let payload;
+  const back=method==="POST"?"/providers/new":"/providers/"+id(f)+"/edit";
+  try { payload=providerPayload(f); }
+  catch { redirect(back+"?error=Invalid+automation+JSON"); }
+  await submit(method==="POST"?"/v1/admin/directory/providers":"/v1/admin/directory/providers/"+id(f),
+               payload,method,"providers",back,method==="PUT"?val(f,"id"):undefined);
+}
+export async function addProvider(f:FormData) { await providerSubmit(f,"POST"); }
+export async function updateProvider(f:FormData) { await providerSubmit(f,"PUT"); }
+
+function sourcePayload(f:FormData) {
+  return {name:val(f,"name"),url:val(f,"url"),interval_minutes:Number(val(f,"interval_minutes")||360),
+    enabled:bool(f,"enabled")};
+}
+export async function addSource(f:FormData) {
+  await submit("/v1/admin/sources",sourcePayload(f),"POST","crawlers","/crawlers/new");
+}
+export async function updateSource(f:FormData) {
+  await submit("/v1/admin/sources/"+id(f),sourcePayload(f),"PUT","crawlers",
+               "/crawlers/"+id(f)+"/edit",val(f,"id"));
+}
+export async function editAddon(f:FormData) {
+  await submit("/v1/admin/addons/"+id(f),
+    {version:val(f,"version"),published:bool(f,"published"),description:val(f,"description"),
+     artifact_url:opt(f,"artifact_url"),artifact_sha256:opt(f,"artifact_sha256")},
+    "PUT","addons","/addons/"+id(f)+"/edit",val(f,"id"));
 }
