@@ -1,4 +1,5 @@
 """Mountable, OAuth-protected TixBam Streamable HTTP MCP server."""
+import json
 from typing import Any
 from urllib.parse import urlparse
 
@@ -44,6 +45,73 @@ class TixBamMCPServer(MCPServer):
                 securitySchemes=[{"type": "oauth2", "scopes": scopes}],
             ))
         return secured
+
+
+
+class ToolSchemeWireAdapter:
+    """Serialize the ChatGPT securitySchemes extension on MCP tool-list replies.
+
+    MCP SDK 2.3 serializes JSON-RPC results through a base model that strips
+    subclass-only fields. This adapter touches successful, finite JSON HTTP
+    responses only, after the SDK's own authentication and execution.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        response_start = None
+        chunks = []
+        buffered = False
+
+        async def send_with_schemes(message):
+            nonlocal response_start, buffered
+            if message["type"] == "http.response.start":
+                content_type = next(
+                    (value for name, value in message.get("headers", [])
+                     if name.lower() == b"content-type"),
+                    b"",
+                )
+                buffered = message["status"] == 200 and b"application/json" in content_type
+                if buffered:
+                    response_start = message
+                else:
+                    await send(message)
+                return
+
+            if message["type"] != "http.response.body" or not buffered:
+                await send(message)
+                return
+
+            chunks.append(message.get("body", b""))
+            if message.get("more_body", False) and sum(map(len, chunks)) < 4_194_304:
+                return
+
+            body = b"".join(chunks)
+            try:
+                data = json.loads(body)
+                tools = data.get("result", {}).get("tools")
+                if isinstance(tools, list):
+                    for tool in tools:
+                        if not isinstance(tool, dict) or not isinstance(tool.get("name"), str):
+                            continue
+                        scope_names = [READ_SCOPE, WRITE_SCOPE] if tool["name"] in WRITE_TOOLS else [READ_SCOPE]
+                        tool["securitySchemes"] = [{"type": "oauth2", "scopes": scope_names}]
+                    body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
+            except (ValueError, TypeError, AttributeError):
+                pass
+
+            headers = [(name, value) for name, value in response_start["headers"]
+                       if name.lower() != b"content-length"]
+            headers.append((b"content-length", str(len(body)).encode()))
+            await send({**response_start, "headers": headers})
+            await send({"type": "http.response.body", "body": body, "more_body": False})
+            buffered = False
+
+        await self.app(scope, receive, send_with_schemes)
 
 
 def build_mcp(config: MCPConfig):
@@ -94,4 +162,4 @@ def build_mcp(config: MCPConfig):
         asgi_app.routes.insert(
             0, Route(metadata_path, endpoint=protected_resource_metadata, methods=["GET"])
         )
-    return mcp, asgi_app
+    return mcp, ToolSchemeWireAdapter(asgi_app)
