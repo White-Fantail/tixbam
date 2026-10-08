@@ -155,6 +155,15 @@ def verify_performance_workflows(client, headers, artist_id, source_id):
     assert not sale.json()["appliesToAll"]
     sid = sale.json()["id"]
 
+    # Old REST clients do not send the new selectors on updates.
+    legacy_update = client.put(f"/v1/admin/sales/{sid}", headers=headers, json={
+        "event_id": event_id, "provider_id": "cityline",
+        "booking_url": "https://www.cityline.com.hk/"
+    })
+    assert legacy_update.status_code == 200, legacy_update.text
+    assert legacy_update.json()["performanceIds"] == [second_id]
+    assert legacy_update.json()["appliesToAll"] is False
+
     changed = client.put(f"/v1/admin/performances/{second_id}", headers=headers, json={
         "event_id": event_id, "session_key": "2026-11-07-20:00",
         "label": "Updated second show", "status": "postponed",
