@@ -31,13 +31,32 @@ const aliases: Record<string, string> = {
   "TAIWAN": "TW", "JAPAN": "JP", "SINGAPORE": "SG",
   "NEW ZEALAND": "NZ", "UNITED KINGDOM": "GB", "UK": "GB",
   "FRANCE": "FR", "GERMANY": "DE", "CHINA": "CN", "INDIA": "IN",
-  "THAILAND": "TH", "MALAYSIA": "MY", "PHILIPPINES": "PH"
+  "THAILAND": "TH", "MALAYSIA": "MY", "PHILIPPINES": "PH",
+  "UNITED STATES": "US", "USA": "US", "AUSTRALIA": "AU",
+  "CANADA": "CA"
+};
+const zoneCountries: Record<string, string> = {
+  "Asia/Hong_Kong": "HK", "Asia/Seoul": "KR", "Asia/Taipei": "TW",
+  "Asia/Tokyo": "JP", "Asia/Singapore": "SG", "Pacific/Auckland": "NZ",
+  "Pacific/Chatham": "NZ", "Australia/Sydney": "AU",
+  "Australia/Melbourne": "AU", "Australia/Brisbane": "AU",
+  "Australia/Adelaide": "AU", "Australia/Perth": "AU",
+  "Australia/Darwin": "AU", "Australia/Hobart": "AU",
+  "America/New_York": "US", "America/Los_Angeles": "US",
+  "America/Chicago": "US", "America/Denver": "US",
+  "America/Vancouver": "CA", "America/Toronto": "CA",
+  "Europe/London": "GB", "Europe/Paris": "FR", "Europe/Berlin": "DE",
+  "Asia/Bangkok": "TH", "Asia/Jakarta": "ID", "Asia/Kuala_Lumpur": "MY",
+  "Asia/Manila": "PH", "Asia/Shanghai": "CN", "Asia/Kolkata": "IN"
 };
 export function guessZone(city: string | null | undefined, country: string | null | undefined): string {
   const place = (city || "").trim().toLowerCase();
-  if (place in cityZones) return cityZones[place];
-  const code = (country || "").trim().toUpperCase();
-  return countryZones[aliases[code] || code] || "";
+  const rawCode = (country || "").trim().toUpperCase();
+  const code = aliases[rawCode] || rawCode;
+  const cityZone = cityZones[place];
+  // "London, CA" and "Paris, US" must never silently use UK/France time.
+  if (cityZone && (!code || zoneCountries[cityZone] === code)) return cityZone;
+  return countryZones[code] || "";
 }
 
 export const priorityZones = [
