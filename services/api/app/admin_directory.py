@@ -55,9 +55,11 @@ def artist(item_id: str, db: Db):
 
 
 @router.get("/events")
-def events(db: Db, q: str = "", limit: int = Query(25, ge=1, le=100),
-           offset: int = Query(0, ge=0)):
+def events(db: Db, q: str = "", artist_id: str | None = None,
+           limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0)):
     stmt = select(Event).join(Artist).order_by(Event.starts_at.asc().nulls_last(), Event.id)
+    if artist_id:
+        stmt = stmt.where(Event.artist_id == artist_id)
     if q:
         like = f"%{q[:100]}%"
         stmt = stmt.where(or_(Event.title.ilike(like), Artist.name.ilike(like),
