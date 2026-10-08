@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from mcp.server import MCPServer
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import Tool as MCPTool
+from mcp.types import Tool as MCPTool, ListToolsResult
 from pydantic import AnyHttpUrl, Field
 from starlette.responses import JSONResponse
 from starlette.routing import Route
@@ -25,7 +25,15 @@ class SecuredTool(MCPTool):
     security_schemes: list[dict[str, Any]] = Field(alias="securitySchemes")
 
 
+class SecuredListToolsResult(ListToolsResult):
+    tools: list[SecuredTool]
+
+
 class TixBamMCPServer(MCPServer):
+    async def _handle_list_tools(self, ctx, params) -> ListToolsResult:
+        # Preserve securitySchemes when Pydantic serializes ListToolsResult.
+        return SecuredListToolsResult(tools=await self.list_tools())
+
     async def list_tools(self) -> list[MCPTool]:
         tools = await super().list_tools()
         secured: list[MCPTool] = []
