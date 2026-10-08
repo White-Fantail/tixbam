@@ -180,7 +180,7 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
 }
 
 export type SourceRecord = { id: string; name: string; url: string; enabled: boolean; intervalMinutes: number; lastCheckedAt: string | null };
-export type ProviderRecord = { id: string; name: string; url: string; region: string; country: string;
+export type ProviderRecord = { id: string; name: string; kind?: "ticketing" | "event-presale"; url: string; region: string; country: string;
   allowedHosts: string[]; capabilities: string[]; automation: Record<string, unknown>;
   version: string; description: string; published: boolean; artifactUrl: string | null; artifactSha256: string | null };
 
