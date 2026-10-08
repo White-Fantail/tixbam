@@ -89,15 +89,15 @@ test('concurrent ticks serialize payment and no success is inferred from an arbi
   const r=runner(adapter,{preferences:{...prefs,checkout:'automatic'}});await Promise.all([r.step(),r.step(),r.step()]);assert.equal(paid,1);
   const foreign=runner({read:async()=>({eventKey:'event1',stage:'confirmation',order:offer,receipt:'foreign'})});await foreign.step();assert.notEqual(foreign.state.status,'completed');
 });
-test('observed Cityline controls are read and selected without touching payment or CAPTCHA',()=> {
+test('observed Cityline controls are read and selected without touching payment or CAPTCHA',async()=> {
   const clicked=[];
   const el=(label,attrs={})=>({textContent:label,disabled:false,getClientRects:()=>[1],getAttribute:k=>attrs[k],click:()=>clicked.push(label)});
   const performances=[el('21 Nov Saturday',{'data-perf-id':'p1'})],prices=[el('800'),el('500')],next=[el('Proceed')];
   const document={title:'Cityline - Test Event',querySelectorAll:s=>s.startsWith('button.date')?performances:s==='button.price-btn'?prices:s==='button.purchase-btn'?next:[]};
-  const context={document,location:{href:'https://venue.cityline.com.hk/utsvInternet/internet/eventDetail?event=123'},URL,getComputedStyle:()=>({visibility:'visible'})};
+  const context={document,location:{href:'https://venue.cityline.com.hk/utsvInternet/internet/eventDetail?event=123'},URL,setTimeout,getComputedStyle:()=>({visibility:'visible'})};
   const page=vm.runInNewContext('('+inspectCityline.toString()+')()',context);assert.equal(page.stage,'options');assert.equal(page.providerEventId,'123');assert.equal(page.options.priceTier[0].id,'800');
-  assert.equal(vm.runInNewContext('('+selectCityline.toString()+')('+JSON.stringify({eventId:'123',performance:'p1',prices:['800'],fallback:false})+')',context),true);assert.deepEqual(clicked,['21 Nov Saturday','800','Proceed']);
-  clicked.length=0;assert.equal(vm.runInNewContext('('+selectCityline.toString()+')('+JSON.stringify({eventId:'other',performance:'p1',prices:['800']})+')',context),false);assert.equal(clicked.length,0);
+  assert.equal(await vm.runInNewContext('('+selectCityline.toString()+')('+JSON.stringify({eventId:'123',performance:'p1',prices:['800'],fallback:false})+')',context),true);assert.deepEqual(clicked,['21 Nov Saturday','800','Proceed']);
+  clicked.length=0;assert.equal(await vm.runInNewContext('('+selectCityline.toString()+')('+JSON.stringify({eventId:'other',performance:'p1',prices:['800']})+')',context),false);assert.equal(clicked.length,0);
 });
 
 test('missing or expired preparation fails before marking payment as submitted',async()=> {

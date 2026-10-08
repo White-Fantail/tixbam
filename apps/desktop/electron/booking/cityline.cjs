@@ -19,7 +19,7 @@ function inspectCityline(expectedEvent) {
   return { stage: performances.length && prices.length ? 'options' : 'unknown', challenge, providerEventId: eventId || expectedEvent,
     providerTitle: document.title.slice(0,200), options: { performance: performances, priceTier: prices } };
 }
-function selectCityline(values) {
+async function selectCityline(values) {
   const visible = e => Boolean(e && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
   const text = e => e.textContent.replace(/\s+/g, ' ').trim();
   const url = new URL(location.href);
@@ -32,7 +32,18 @@ function selectCityline(values) {
   const next = Array.from(document.querySelectorAll('button.purchase-btn')).filter(e => visible(e) && !e.disabled);
   if (!performance || !price || next.length !== 1) return false;
   // Do not click seats, agreements or payment controls without a verified page profile.
-  performance.click(); price.click(); next[0].click(); return true;
+  performance.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  if (location.href !== url.href) return false;
+  const refreshedPrices = Array.from(document.querySelectorAll('button.price-btn')).filter(visible);
+  const refreshedPrice = permitted.map(id => refreshedPrices.find(e => text(e).replace(/,/g, '') === id && !e.disabled)).find(Boolean);
+  if (!refreshedPrice) return false;
+  refreshedPrice.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  if (location.href !== url.href) return false;
+  const refreshedNext = Array.from(document.querySelectorAll('button.purchase-btn')).filter(e => visible(e) && !e.disabled);
+  if (refreshedNext.length !== 1) return false;
+  refreshedNext[0].click(); return true;
 }
 function bounded(promise) {
   let timer;
