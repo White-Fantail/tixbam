@@ -8,6 +8,7 @@ from .seed import seed_providers
 from .migrations import migrate_schedule_columns
 from .routes import router
 from .admin import router as admin_router
+from .admin_directory import router as directory_router
 from .ingest import router as ingest_router
 
 # Local monorepo execution (cd services/api && uvicorn app.main:app) still works.
@@ -44,6 +45,7 @@ app = FastAPI(title="TIXBAM API", version="0.3.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 app.include_router(router)
 app.include_router(admin_router)
+app.include_router(directory_router)
 app.include_router(ingest_router)
 
 
