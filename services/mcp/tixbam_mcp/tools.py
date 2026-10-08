@@ -109,7 +109,16 @@ def register_tools(server, config: MCPConfig):
     @server.tool(annotations=write)
     def update_ticket_sale(sale_id: str, booking_url: str | None = None,
                            sale_type: str | None = None, sale_at_local: str | None = None,
-                           timezone: str | None = None) -> dict:
-        """Correct a registered ticket sale's verified URL, type or start time."""
+                           timezone: str | None = None,
+                           performance_ids: list[str] | None = None,
+                           applies_to_all: bool | None = None) -> dict:
+        """Update a verified ticket sale or change which performances it covers.
+
+        Omit both performance_ids and applies_to_all to preserve its existing
+        scope. Set applies_to_all=True to cover every performance. Set
+        applies_to_all=False and provide nonempty performance_ids for a subset.
+        Each performance must belong to this ticket sale's event.
+        """
         require_write()
-        return catalog.update_sale(sale_id, booking_url, sale_type, sale_at_local, timezone, performance_ids, applies_to_all)
+        return catalog.update_sale(sale_id, booking_url, sale_type, sale_at_local,
+                                   timezone, performance_ids, applies_to_all)
