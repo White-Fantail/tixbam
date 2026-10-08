@@ -122,7 +122,23 @@ async function listPage(resource:string,query:Query) {
   </div>;
 }
 
-function relations(resource:string,item:RecordItem) {
+async function relations(resource:string,item:RecordItem) {
+  if(resource==="artists") {
+    const data=await apiRead("/v1/events?artist_id="+encodeURIComponent(item.id)+"&limit=500");
+    const events:Event[]=data.items||[];
+    return <section className="detail-section">
+      <div className="section-heading"><h2>Events ({events.length})</h2>
+        <Link className="button-subtle" href="/events/new">+ Add event</Link></div>
+      <div className="related-list">
+        {events.map(event=><Link className="related-item" key={event.id} href={"/events/"+encodeURIComponent(event.id)}>
+          <span><strong>{event.title}</strong><small>{event.city||"Location TBA"}</small></span>
+          {time(event.startsAt,event.timezone,event.city,event.country)}
+          <span aria-hidden="true">→</span>
+        </Link>)}
+        {!events.length && <p className="muted">No events registered.</p>}
+      </div>
+    </section>;
+  }
   if(resource==="events") return <>
     <section className="detail-section">
       <div className="section-heading"><h2>Performances ({item.performances?.length||0})</h2>
@@ -219,7 +235,7 @@ async function detailPage(resource:string,id:string,query:Query) {
         <Field name="Record ID"><code>{item.id}</code></Field>
       </dl>
     </section>
-    {relations(resource,item)}
+    {await relations(resource,item)}
     {resource==="performances" && <section className="detail-section">
       <h2>Danger zone</h2><DeletePerformance id={item.id}/>
     </section>}
