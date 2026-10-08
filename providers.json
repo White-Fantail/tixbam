@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cityline",
+    "name": "Cityline",
+    "region": "Hong Kong",
+    "country": "HK",
+    "url": "https://www.cityline.com.hk/en_US/",
+    "allowedHosts": ["cityline.com.hk", "cityline.com"],
+    "color": "#bba9fc",
+    "initials": "CL"
+  },
+  {
+    "id": "nol",
+    "name": "NOL World",
+    "region": "South Korea",
+    "country": "KR",
+    "url": "https://world.nol.com/en",
+    "allowedHosts": ["world.nol.com"],
+    "color": "#8decd6",
+    "initials": "NW"
+  },
+  {
+    "id": "yes24",
+    "name": "YES24 Ticket",
+    "region": "South Korea",
+    "country": "KR",
+    "url": "https://ticket.yes24.com/English",
+    "allowedHosts": ["ticket.yes24.com"],
+    "color": "#76b3ff",
+    "initials": "Y4"
+  },
+  {
+    "id": "ticketmaster",
+    "name": "Ticketmaster",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.ticketmaster.com/",
+    "allowedHosts": ["ticketmaster.com"],
+    "color": "#77b8ff",
+    "initials": "TM"
+  },
+  {
+    "id": "axs",
+    "name": "AXS",
+    "region": "Global",
+    "country": "GL",
+    "url": "https://www.axs.com/",
+    "allowedHosts": ["axs.com"],
+    "color": "#ff9ac5",
+    "initials": "AX"
+  },
+  {
+    "id": "kktix",
+    "name": "KKTIX",
+    "region": "Taiwan",
+    "country": "TW",
+    "url": "https://kktix.com/",
+    "allowedHosts": ["kktix.com"],
+    "color": "#f2c77a",
+    "initials": "KK"
+  }
+]

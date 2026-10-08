@@ -1,5 +1,58 @@
 # TIXBAM
 
-Multi-provider concert and fan-meeting ticketing workspace.
+**Your ticketing command center.** A desktop prototype for fans who use several official concert and fan-meeting ticket providers.
 
-The prototype is developed on the [`dev`](../../tree/dev) branch.
+> Prototype only. TIXBAM does not sell tickets, guarantee successful purchases, scrape inventory, bypass queues, or solve CAPTCHA. All logins, verification steps, seat selection and payments are completed manually on the provider's site.
+
+## Get started
+
+Requires **Node.js 22+**, npm and a desktop computer (macOS, Windows or Linux).
+
+```bash
+npm install
+npm run dev
+```
+
+The command starts the Vite UI and the Electron application. To preview the dashboard in a regular browser (ticketing windows unavailable), use `npm run dev:web`.
+
+```bash
+npm test       # domain / navigation safety tests
+npm run check  # TypeScript typecheck
+npm run build  # production Vite renderer
+npm run desktop # opens production renderer after npm run build
+```
+
+## What works in v0.1
+
+- **Six ticketing providers:** Cityline, NOL World (formerly Interpark Global), YES24 Ticket, Ticketmaster, AXS, and KKTIX.
+- **Real provider browser windows:** opens official HTTPS sites inside sandboxed Electron BrowserWindows.
+- **Per-provider persistent sessions:** windows for the same provider share cookies and storage across app launches; different providers have separate storage partitions.
+- **Multiple windows:** up to six provider windows concurrently, with window focus, close and clear-storage controls.
+- **Manual ticketing workflow:** log in yourself, complete CAPTCHA yourself, and follow each provider's queue / transaction rules.
+- **Event watchlist:** add your own events with provider, city, on-sale date and deep link, saved locally in the dashboard.
+- **Responsive dashboard:** overview, events, sessions, provider directory and settings, plus demo events clearly marked as fictional.
+
+## Security and limitations
+
+- The **main dashboard** uses an isolated preload bridge and only exposes narrowly scoped IPC operations.
+- **Ticket pages** run with Node integration disabled, sandbox enabled and an isolated provider-specific persistent storage partition.
+- Opening a new provider window validates its first URL against an explicit HTTPS provider domain list. No general arbitrary-URL navigation is exposed through the dashboard.
+- Once a real provider page has opened, user-driven cross-domain HTTPS navigation can occur (necessary for identity and payment redirects). Provider pages do not receive the dashboard preload.
+- Authentication state is **not detected or promised** by TIXBAM; a window being open is not evidence of login.
+- Opening multiple windows **does not create independent queue positions** when they share a session. Some providers may invalidate sessions, block Electron browsers, disallow simultaneous windows, or prohibit certain uses. Always follow official rules.
+- Event details in demo cards are **fictional**, not current sale announcements or live availability.
+- No cloud accounts, checkout integration, payment card collection, bot automation, or CAPTCHA bypass are included.
+- The initial watchlist is kept in the renderer's local storage, so it is device-local, not synced.
+
+## Project layout
+
+```
+electron/            Electron main process, limited IPC, isolated browser sessions, safety tests
+src/                 React + TypeScript dashboard
+providers.json       Single provider registry shared by desktop and renderer
+.github/workflows/   CI for tests, typecheck and renderer build
+```
+
+## Next milestones
+
+Provider-specific launch / login compatibility testing, dedicated multi-pane WebContentsView workspace, event notifications, secure preference storage and macOS/Windows packaging. Provider support should be validated against site terms and security constraints before release.
