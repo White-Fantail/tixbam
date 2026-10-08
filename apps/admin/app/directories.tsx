@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArtistForm, EventForm, SaleForm } from "./forms";
-import type { Artist, Event, Provider, Sale } from "./catalog-types";
+import { ArtistForm, EventForm, PerformanceForm, SaleForm } from "./forms";
+import { deletePerformance } from "./actions";
+import type { Artist, Event, Performance, Provider, Sale } from "./catalog-types";
 import { formattedTime, guessZone } from "./time-zones";
 
 function DualTime({ utc, timezone, city, country, label }: {
@@ -49,14 +50,41 @@ export function EventsManager({ artists, events }: { artists: Artist[]; events: 
       <EventForm key={selected?.id || "create-event"} artists={artists} event={selected || undefined} />
     </div>
     <div className="panel tablewrap"><h3>Event directory</h3><table>
-      <thead><tr><th>Artist / title</th><th>Location</th><th>Performance time</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Artist / title</th><th>Location</th><th>Sessions / earliest show</th><th>Actions</th></tr></thead>
       <tbody>{events.map(event => <tr key={event.id} className={selected?.id === event.id ? "selected-row" : ""}>
         <td><strong>{event.artist}</strong><div>{event.title}</div></td>
         <td>{event.city || "—"}{event.country ? ", " + event.country : ""}{event.venue && <small className="table-secondary">{event.venue}</small>}</td>
-        <td><DualTime utc={event.startsAt} timezone={event.timezone} city={event.city} country={event.country} label="Venue" /></td>
+        <td><span className="pill">{event.performances.length} performance{event.performances.length === 1 ? "" : "s"}</span><DualTime utc={event.startsAt} timezone={event.timezone} city={event.city} country={event.country} label="Venue" /></td>
         <td><button className="table-edit" type="button" onClick={() => setSelected(event)}>Edit</button></td>
       </tr>)}</tbody>
     </table>{!events.length && <p className="muted">Add an event or configure a permitted crawler feed.</p>}</div>
+  </div>;
+}
+
+
+export function PerformancesManager({ events }: { events: Event[] }) {
+  const [selected, setSelected] = useState<Performance | null>(null);
+  const rows = events.flatMap(event => event.performances.map(performance => ({ event, performance })));
+  return <div className="columns">
+    <div className="panel">
+      {selected && <button className="button-subtle" type="button" onClick={() => setSelected(null)}>+ New session</button>}
+      <PerformanceForm key={selected?.id || "create-session"} events={events} performance={selected || undefined} />
+    </div>
+    <div className="panel tablewrap"><h3>Concert performances</h3><table>
+      <thead><tr><th>Event / session</th><th>Show time</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>{rows.map(({event,performance}) => <tr key={performance.id} className={selected?.id === performance.id ? "selected-row" : ""}>
+        <td>{event.artist} — {event.title}<small className="table-secondary">{performance.label || performance.sessionKey}</small></td>
+        <td><DualTime utc={performance.startsAt} timezone={performance.timezone || event.timezone}
+          city={event.city} country={event.country} label="Venue" /></td>
+        <td>{performance.status}</td>
+        <td><button className="table-edit" type="button" onClick={() => setSelected(performance)}>Edit</button>
+          <form action={deletePerformance} onSubmit={e => { if (!confirm("Delete this performance? Sales linked to it must be unlinked first.")) e.preventDefault(); }}>
+            <input type="hidden" name="id" value={performance.id}/>
+            <button className="table-edit" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>)}</tbody>
+    </table>{!rows.length && <p className="muted">Create a concert event to add performances.</p>}</div>
   </div>;
 }
 
@@ -72,7 +100,7 @@ export function SalesManager({ events, providers }: { events: Event[]; providers
       <thead><tr><th>Event / provider</th><th>Sale type</th><th>Sale time</th><th>Actions</th></tr></thead>
       <tbody>{sales.map(({sale,event}) => <tr key={sale.id} className={selected?.id === sale.id ? "selected-row" : ""}>
         <td>{event.title}<small className="table-secondary">{providers.find(p => p.id === sale.providerId)?.name || sale.providerId}</small></td>
-        <td>{sale.saleType}</td>
+        <td>{sale.saleType}<small className="table-secondary">{sale.appliesToAll ? "All performances" : sale.performanceIds.length + " selected sessions"}</small></td>
         <td><DualTime utc={sale.saleAt}
           timezone={sale.timezone || ((sale.city || sale.country) ? guessZone(sale.city, sale.country) : event.timezone)}
           city={sale.city || event.city} country={sale.country || event.country} label="Sale region" /></td>

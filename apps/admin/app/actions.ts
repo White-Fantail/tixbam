@@ -54,18 +54,39 @@ export async function updateEvent(f: FormData) {
     source_url: str(f,"source_url") || null
   }, "PUT");
 }
+export async function addPerformance(f: FormData) {
+  await submit("/v1/admin/performances", {
+    event_id: str(f,"event_id"), session_key: str(f,"session_key"),
+    label: str(f,"label"), starts_at_local: str(f,"starts_at_local") || null,
+    timezone: str(f,"timezone") || null, status: str(f,"status") || "scheduled"
+  });
+}
+export async function updatePerformance(f: FormData) {
+  await submit("/v1/admin/performances/" + encodeURIComponent(str(f,"id")), {
+    event_id: str(f,"event_id"), session_key: str(f,"session_key"),
+    label: str(f,"label"), starts_at_local: str(f,"starts_at_local") || null,
+    timezone: str(f,"timezone") || null, status: str(f,"status") || "scheduled"
+  }, "PUT");
+}
+export async function deletePerformance(f: FormData) {
+  await submit("/v1/admin/performances/" + encodeURIComponent(str(f,"id")), {}, "DELETE");
+}
 export async function addSale(f: FormData) {
   await submit("/v1/admin/sales", {
     event_id: str(f,"event_id"), provider_id: str(f,"provider_id"), sale_type: str(f,"sale_type"),
     sale_at_local: str(f,"sale_at_local") || null, timezone: str(f,"timezone") || null,
-    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url")
+    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url"),
+    applies_to_all: f.get("applies_to_all") === "on",
+    performance_ids: f.get("applies_to_all") === "on" ? [] : f.getAll("performance_ids").map(String)
   });
 }
 export async function updateSale(f: FormData) {
   await submit("/v1/admin/sales/" + encodeURIComponent(str(f,"id")), {
     event_id: str(f,"event_id"), provider_id: str(f,"provider_id"), sale_type: str(f,"sale_type"),
     sale_at_local: str(f,"sale_at_local") || null, timezone: str(f,"timezone") || null,
-    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url")
+    city: str(f,"city") || null, country: str(f,"country") || null, booking_url: str(f,"booking_url"),
+    applies_to_all: f.get("applies_to_all") === "on",
+    performance_ids: f.get("applies_to_all") === "on" ? [] : f.getAll("performance_ids").map(String)
   }, "PUT");
 }
 export async function addSource(f: FormData) {

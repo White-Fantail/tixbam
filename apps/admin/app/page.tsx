@@ -1,6 +1,6 @@
 import { apiRead } from "./lib";
 import { AddonForm, SourceForm } from "./forms";
-import { ArtistsManager, EventsManager, SalesManager } from "./directories";
+import { ArtistsManager, EventsManager, PerformancesManager, SalesManager } from "./directories";
 
 export const dynamic = "force-dynamic";
 type Collection = { items: any[] };
@@ -26,7 +26,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <div className="logo">TIXBAM <span className="kicker">ADMIN</span></div>
       <span className="pill">{connected ? "API connected" : "API unavailable"}</span>
     </header>
-    <nav><a href="#artists">Artists</a><a href="#events">Events</a><a href="#sales">Ticket sales</a><a href="#addons">Add-ons</a><a href="#sources">Crawlers</a></nav>
+    <nav><a href="#artists">Artists</a><a href="#events">Events</a><a href="#performances">Performances</a><a href="#sales">Ticket sales</a><a href="#addons">Add-ons</a><a href="#sources">Crawlers</a></nav>
     <div className="intro"><div className="kicker">CONTROL CENTER</div><h1>Ticketing platform operations</h1>
       <p>Manage real event information, providers, versioned add-on metadata and crawler health. All ticket purchases happen on the provider's official website.</p>
     </div>
@@ -36,11 +36,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <section className="stats">
       <div className="stat"><span className="kicker">Artists</span><strong>{artists.length}</strong></div>
       <div className="stat"><span className="kicker">Events</span><strong>{events.length}</strong></div>
+      <div className="stat"><span className="kicker">Performances</span><strong>{events.reduce((total, e) => total + (e.performances?.length || 0), 0)}</strong></div>
       <div className="stat"><span className="kicker">Providers</span><strong>{providers.length}</strong></div>
       <div className="stat"><span className="kicker">Crawl sources</span><strong>{sources.length}</strong></div>
     </section>
     <section className="section" id="artists"><h2>Artists</h2><ArtistsManager artists={artists} /></section>
     <section className="section" id="events"><h2>Concerts & fan meetings</h2><EventsManager artists={artists} events={events} /></section>
+    <section className="section" id="performances"><h2>Performances & sessions</h2><p className="muted">One event may have multiple dated shows. The session's IANA timezone controls local clock times.</p><PerformancesManager events={events} /></section>
     <section className="section" id="sales"><h2>Ticket sales</h2><SalesManager events={events} providers={providers} /></section>
     <section className="section" id="addons"><h2>Add-on registry</h2><p className="muted">Version and publication metadata only. Remote execution and unsigned ZIP installation are deliberately disabled until the signed-package loader is implemented.</p>
       <div className="columns">{providers.map(p=><div className="panel" key={p.id}><h3>{p.name} <span className="pill">{p.id}</span></h3><AddonForm provider={p}/></div>)}</div>

@@ -2,10 +2,11 @@
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.db import SessionLocal
-from app.models import Artist, Event, Provider, TicketSale
-from app.schemas import ArtistInput, EventInput, SaleInput
-from app.serializers import artist_data, event_data, provider_data, sale_data
+from app.models import Artist, Event, Performance, Provider, TicketSale
+from app.schemas import ArtistInput, EventInput, PerformanceInput, SaleInput
+from app.serializers import artist_data, event_data, performance_data, provider_data, sale_data, refresh_legacy_event_start
 from app.schedule import iso_utc
+from app.performances import ensure_initial_performance, update_legacy_performance, add_performance, edit_performance, assign_sale_performances
 
 
 class Catalog:
@@ -83,21 +84,17 @@ class Catalog:
         with SessionLocal() as db:
             if db.get(Artist, payload.artist_id) is None:
                 raise ValueError("Artist not found")
-            existing = db.scalar(select(Event).where(Event.source_url == payload.source_url))
+            existing = db.scalar(select(Event).where(
+                Event.artist_id == artist_id, Event.title == title,
+                Event.city == city, Event.country == country, Event.venue == venue
+            ))
             if existing:
-                if existing.artist_id != artist_id or existing.title != title:
-                    raise ValueError(
-                        "This source URL is already assigned to another event. "
-                        "Review the existing event; one source URL can identify only one event."
-                    )
                 return {"created": False, "event": event_data(existing)}
             item = Event(**payload.model_dump(exclude={"starts_at_local"}))
             db.add(item)
-            try:
-                db.commit()
-            except IntegrityError:
-                db.rollback()
-                raise ValueError("An event with this source URL already exists") from None
+            db.flush()
+            ensure_initial_performance(db, item, payload.starts_at, payload.timezone)
+            db.commit()
             return {"created": True, "event": event_data(item)}
 
     def update_event(self, event_id: str, title: str | None = None,
@@ -119,28 +116,22 @@ class Catalog:
                 starts_at_local=starts_at_local,
                 starts_at=None if starts_at_local is not None else item.starts_at,
             )
-            if payload.source_url:
-                other = db.scalar(select(Event).where(
-                    Event.source_url == payload.source_url, Event.id != event_id))
-                if other:
-                    raise ValueError("Source URL already belongs to another event")
-            for key, value in payload.model_dump(exclude={"starts_at_local"}).items():
+            for key, value in payload.model_dump(exclude={"starts_at_local", "starts_at"}).items():
                 setattr(item, key, value)
-            try:
-                db.commit()
-            except IntegrityError:
-                db.rollback()
-                raise ValueError("Event source URL already exists") from None
+            if starts_at_local is not None:
+                update_legacy_performance(db, item, payload.starts_at, payload.timezone)
+            db.commit()
             return event_data(item)
 
     def create_sale(self, event_id: str, provider_id: str, booking_url: str,
                     sale_type: str = "general", sale_at_local: str | None = None,
                     timezone: str | None = None, city: str | None = None,
-                    country: str | None = None):
+                    country: str | None = None, performance_ids: list[str] | None = None):
         payload = SaleInput(
             event_id=event_id, provider_id=provider_id, booking_url=booking_url,
             sale_type=sale_type, sale_at_local=sale_at_local, timezone=timezone,
             city=city, country=country,
+            applies_to_all=not bool(performance_ids), performance_ids=performance_ids or [],
         )
         with SessionLocal() as db:
             if not db.get(Event, event_id) or not db.get(Provider, provider_id):
@@ -154,14 +145,16 @@ class Catalog:
             for existing in candidates:
                 if iso_utc(existing.sale_at) == iso_utc(payload.sale_at):
                     return {"created": False, "sale": sale_data(existing)}
-            item = TicketSale(**payload.model_dump(exclude={"sale_at_local"}))
+            item = TicketSale(**payload.model_dump(exclude={"sale_at_local", "performance_ids"}))
             db.add(item)
+            assign_sale_performances(db, item, payload)
             db.commit()
             return {"created": True, "sale": sale_data(item)}
 
     def update_sale(self, sale_id: str, booking_url: str | None = None,
                     sale_type: str | None = None, sale_at_local: str | None = None,
-                    timezone: str | None = None):
+                    timezone: str | None = None,
+                    performance_ids: list[str] | None = None, applies_to_all: bool | None = None):
         with SessionLocal() as db:
             item = db.get(TicketSale, sale_id)
             if item is None:
@@ -174,8 +167,48 @@ class Catalog:
                 timezone=timezone if timezone is not None else item.timezone,
                 sale_at_local=sale_at_local,
                 sale_at=None if sale_at_local is not None else item.sale_at,
+                applies_to_all=applies_to_all if applies_to_all is not None else (not bool(performance_ids) if performance_ids is not None else item.applies_to_all),
+                performance_ids=performance_ids if performance_ids is not None else [link.performance_id for link in item.performance_links],
             )
-            for key, value in payload.model_dump(exclude={"sale_at_local"}).items():
+            if payload.applies_to_all:
+                payload.performance_ids = []
+            for key, value in payload.model_dump(exclude={"sale_at_local", "performance_ids"}).items():
                 setattr(item, key, value)
+            assign_sale_performances(db, item, payload)
             db.commit()
             return sale_data(item)
+
+    def performances(self, event_id: str):
+        with SessionLocal() as db:
+            event = db.get(Event, event_id)
+            if event is None:
+                raise ValueError("Event not found")
+            return {"items": [performance_data(p) for p in event.performances]}
+
+    def create_performance(self, event_id: str, session_key: str, label: str = "",
+                           starts_at_local: str | None = None, timezone: str | None = None,
+                           status: str = "scheduled"):
+        payload = PerformanceInput(event_id=event_id, session_key=session_key,
+                                   label=label, starts_at_local=starts_at_local,
+                                   timezone=timezone, status=status)
+        with SessionLocal() as db:
+            event = db.get(Event, event_id)
+            if event is None:
+                raise ValueError("Event not found")
+            item = add_performance(db, event, payload)
+            db.commit()
+            return performance_data(item)
+
+    def update_performance(self, performance_id: str, session_key: str,
+                           label: str = "", starts_at_local: str | None = None,
+                           timezone: str | None = None, status: str = "scheduled"):
+        with SessionLocal() as db:
+            item = db.get(Performance, performance_id)
+            if item is None:
+                raise ValueError("Performance not found")
+            payload = PerformanceInput(event_id=item.event_id, session_key=session_key,
+                                       label=label, starts_at_local=starts_at_local,
+                                       timezone=timezone, status=status)
+            edit_performance(db, item, payload)
+            db.commit()
+            return performance_data(item)

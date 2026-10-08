@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addArtist, addEvent, addSale, addSource, editAddon, updateArtist, updateEvent, updateSale } from "./actions";
-import type { Artist, Event, Provider, Sale } from "./catalog-types";
+import { addArtist, addEvent, addPerformance, updatePerformance, addSale, addSource, editAddon, updateArtist, updateEvent, updateSale } from "./actions";
+import type { Artist, Event, Performance, Provider, Sale } from "./catalog-types";
 import { guessZone, priorityZones, toLocalInput } from "./time-zones";
 
 function TimeZonePicker({ value, onChange, required }: {
@@ -63,12 +63,51 @@ export function EventForm({ artists, event }: { artists: Artist[]; event?: Event
     <label>Country code<input name="country" value={country} maxLength={8} onChange={e => changeLocation(city, e.target.value)} placeholder="HK" /></label>
     <label>Venue<input name="venue" defaultValue={event?.venue || ""} /></label>
     <TimeZonePicker value={zone} onChange={setZone} required={Boolean(localTime)} />
-    <label>Performance date/time (at venue)
+    <label>Initial session time (at venue; for new events)
       <input name="starts_at_local" type="datetime-local" value={localTime} onChange={e => setLocalTime(e.target.value)} />
-      <span className="field-help">Enter the clock time printed on the official event listing, not UTC. Leave empty if TBA.</span>
+      <span className="field-help">For multiple shows, manage each date/time separately in Performances below. The event's displayed time is the earliest session.</span>
     </label>
     <label>Official event source URL (optional)<input name="source_url" type="url" defaultValue={event?.sourceUrl || ""} placeholder="https://..." /></label>
     <button type="submit" disabled={!artists.length}>{event ? "Save event" : "Create event"}</button>
+  </form>;
+}
+
+
+export function PerformanceForm({ events, performance }: { events: Event[]; performance?: Performance }) {
+  const originalEvent = events.find(e => e.id === performance?.eventId) || events[0];
+  const [eventId, setEventId] = useState(originalEvent?.id || "");
+  const selected = events.find(e => e.id === eventId);
+  const [zone, setZone] = useState(performance?.timezone || selected?.timezone || guessZone(selected?.city, selected?.country));
+  const [localTime, setLocalTime] = useState(toLocalInput(performance?.startsAt, zone || "UTC"));
+  function chooseEvent(id: string) {
+    setEventId(id);
+    const event = events.find(e => e.id === id);
+    setZone(event?.timezone || guessZone(event?.city, event?.country));
+    if (!performance) setLocalTime("");
+  }
+  return <form action={performance ? updatePerformance : addPerformance}>
+    <h3>{performance ? "Edit performance" : "Add performance"}</h3>
+    {performance && <input name="id" type="hidden" value={performance.id} />}
+    <label>Event<select name="event_id" required value={eventId} onChange={e => chooseEvent(e.target.value)}
+      disabled={Boolean(performance)}>
+      {events.map(e => <option key={e.id} value={e.id}>{e.artist} — {e.title} ({e.city})</option>)}
+    </select></label>
+    {performance && <input type="hidden" name="event_id" value={eventId} />}
+    <label>Session key (stable unique identifier)<input name="session_key" required maxLength={160}
+      defaultValue={performance?.sessionKey || ""} placeholder="2026-11-07-17:00 or show-2" />
+      <span className="field-help">Unique within this event. Never use the source URL as a session ID.</span>
+    </label>
+    <label>Session label<input name="label" maxLength={160} defaultValue={performance?.label || ""}
+      placeholder="Saturday evening / Show 2" /></label>
+    <TimeZonePicker value={zone} onChange={setZone} required={Boolean(localTime)} />
+    <label>Show time (venue local time)<input type="datetime-local" name="starts_at_local"
+      value={localTime} onChange={e => setLocalTime(e.target.value)} />
+      <span className="field-help">Leave blank if TBA. Multiple shows on the same day must have different session keys.</span>
+    </label>
+    <label>Status<select name="status" defaultValue={performance?.status || "scheduled"}>
+      {["scheduled", "postponed", "cancelled", "sold_out"].map(x=><option key={x} value={x}>{x.replaceAll("_", " ")}</option>)}
+    </select></label>
+    <button type="submit" disabled={!events.length}>{performance ? "Save performance" : "Add performance"}</button>
   </form>;
 }
 
@@ -81,6 +120,8 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
     || startEvent?.timezone || guessZone(startEvent?.city, startEvent?.country);
   const [zone, setZone] = useState(initialZone);
   const [localTime, setLocalTime] = useState(toLocalInput(sale?.saleAt, initialZone || "UTC"));
+  const [allPerformances, setAllPerformances] = useState(sale?.appliesToAll !== false);
+  const [selectedPerformances, setSelectedPerformances] = useState<string[]>(sale?.performanceIds || []);
 
   function changeLocation(nextCity: string, nextCountry: string) {
     setZone(old => applyLocationZone(old, city, country, nextCity, nextCountry));
@@ -92,6 +133,8 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
     const nextCity = event?.city || "", nextCountry = event?.country || "";
     setCity(nextCity); setCountry(nextCountry);
     setZone(event?.timezone || guessZone(nextCity, nextCountry));
+    setAllPerformances(true);
+    setSelectedPerformances([]);
   }
 
   return <form action={sale ? updateSale : addSale}>
@@ -116,8 +159,23 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
       <input name="sale_at_local" type="datetime-local" value={localTime} onChange={e => setLocalTime(e.target.value)} />
       <span className="field-help">For example, an advertised 1 PM Hong Kong sale is entered as 13:00 with Asia/Hong_Kong.</span>
     </label>
+    <div className="scope-picker">
+      <label className="inline"><input type="checkbox" name="applies_to_all" checked={allPerformances}
+        onChange={e => setAllPerformances(e.target.checked)} /> Sale applies to all performances</label>
+      {!allPerformances && <div className="scope-options">
+        {(events.find(e => e.id === eventId)?.performances || []).map(p =>
+          <label className="inline" key={p.id}>
+            <input type="checkbox" name="performance_ids" value={p.id}
+              checked={selectedPerformances.includes(p.id)}
+              onChange={e => setSelectedPerformances(prev =>
+                e.target.checked ? [...prev, p.id] : prev.filter(x => x !== p.id))} />
+            {p.label || p.sessionKey} — {p.startsAt ? toLocalInput(p.startsAt, p.timezone || zone || "UTC").replace("T", " ") : "TBA"}
+          </label>)}
+        {!events.find(e => e.id === eventId)?.performances.length && <p className="muted">Add sessions first.</p>}
+      </div>}
+    </div>
     <label>Official booking URL<input name="booking_url" type="url" required defaultValue={sale?.bookingUrl || ""} placeholder="https://..." /></label>
-    <button type="submit" disabled={!events.length || !providers.length}>{sale ? "Save ticket sale" : "Add sale"}</button>
+    <button type="submit" disabled={!events.length || !providers.length || (!allPerformances && !selectedPerformances.length)}>{sale ? "Save ticket sale" : "Add sale"}</button>
   </form>;
 }
 

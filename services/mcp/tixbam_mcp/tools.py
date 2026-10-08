@@ -30,6 +30,12 @@ def register_tools(server, config: MCPConfig):
         """Fetch a registered event and its ticket-sale schedules."""
         return catalog.event(event_id)
 
+
+    @server.tool(annotations=read)
+    def list_performances(event_id: str) -> dict:
+        """Show every session for an event, with local IANA time zone and status."""
+        return catalog.performances(event_id)
+
     @server.tool(annotations=read)
     def list_providers() -> dict:
         """List supported ticket providers and their provider IDs."""
@@ -70,17 +76,35 @@ def register_tools(server, config: MCPConfig):
         return catalog.update_event(event_id, title, city, country, venue,
                                     starts_at_local, timezone, source_url)
 
+
+    @server.tool(annotations=write)
+    def create_performance(event_id: str, session_key: str, label: str = "",
+                           starts_at_local: str | None = None, timezone: str | None = None,
+                           status: str = "scheduled") -> dict:
+        """Add one verified show session to an event. session_key must be stable within the event."""
+        require_write()
+        return catalog.create_performance(event_id, session_key, label, starts_at_local, timezone, status)
+
+    @server.tool(annotations=write)
+    def update_performance(performance_id: str, session_key: str, label: str = "",
+                           starts_at_local: str | None = None, timezone: str | None = None,
+                           status: str = "scheduled") -> dict:
+        """Correct an existing show session, including its time or cancellation status."""
+        require_write()
+        return catalog.update_performance(performance_id, session_key, label, starts_at_local, timezone, status)
+
     @server.tool(annotations=write)
     def create_ticket_sale(event_id: str, provider_id: str, booking_url: str,
                            sale_type: str = "general", sale_at_local: str | None = None,
                            timezone: str | None = None, city: str | None = None,
-                           country: str | None = None) -> dict:
+                           country: str | None = None,
+                           performance_ids: list[str] | None = None) -> dict:
         """Record a verified on-sale/presale with official HTTPS booking URL.
         sale_at_local uses YYYY-MM-DDTHH:MM and the sale's IANA timezone.
         """
         require_write()
         return catalog.create_sale(event_id, provider_id, booking_url, sale_type,
-                                   sale_at_local, timezone, city, country)
+                                   sale_at_local, timezone, city, country, performance_ids)
 
     @server.tool(annotations=write)
     def update_ticket_sale(sale_id: str, booking_url: str | None = None,
@@ -88,4 +112,4 @@ def register_tools(server, config: MCPConfig):
                            timezone: str | None = None) -> dict:
         """Correct a registered ticket sale's verified URL, type or start time."""
         require_write()
-        return catalog.update_sale(sale_id, booking_url, sale_type, sale_at_local, timezone)
+        return catalog.update_sale(sale_id, booking_url, sale_type, sale_at_local, timezone, performance_ids, applies_to_all)
