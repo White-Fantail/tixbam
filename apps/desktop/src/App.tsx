@@ -6,6 +6,7 @@ import {
   Sparkles, Ticket, Trash2, X, Zap
 } from "lucide-react";
 import providerData from "../addons/catalog.json";
+import { getPublicData, initialApiUrl, validApiUrl, type RemoteEvent, type RemoteAddon } from "./api";
 import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
@@ -21,6 +22,7 @@ const demos = [
 
 const navItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "discover", label: "Discover events", icon: CalendarDays },
   { id: "watchlist", label: "My events", icon: Heart },
   { id: "sessions", label: "Live windows", icon: Layers3 },
   { id: "providers", label: "Ticket providers", icon: Globe2 },
@@ -161,6 +163,11 @@ function App() {
   const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
+  const [apiUrl, setApiUrl] = useState(initialApiUrl);
+  const [apiInput, setApiInput] = useState(initialApiUrl);
+  const [remoteEvents, setRemoteEvents] = useState<RemoteEvent[]>([]);
+  const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
+  const [apiStatus, setApiStatus] = useState("Not configured");
   const [now, setNow] = useState(() => Date.now());
   const [eventModal, setEventModal] = useState(false);
   const [form, setForm] = useState<EventFormState>(emptyEvent);
@@ -198,6 +205,34 @@ function App() {
     });
     return () => { mounted = false; unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!apiUrl) {
+      setApiStatus("Not configured");
+      setRemoteEvents([]);
+      setRemoteAddons([]);
+      return;
+    }
+    let mounted = true;
+    const refresh = async () => {
+      try {
+        const [events, registry] = await Promise.all([
+          getPublicData<{ items: RemoteEvent[] }>(apiUrl, "/v1/events"),
+          getPublicData<{ items: RemoteAddon[] }>(apiUrl, "/v1/addons")
+        ]);
+        if (mounted) {
+          setRemoteEvents(events.items);
+          setRemoteAddons(registry.items);
+          setApiStatus("Connected");
+        }
+      } catch {
+        if (mounted) setApiStatus("Offline – local ticketing still works");
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 300000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, [apiUrl]);
 
   useEffect(() => {
     if (!toast) return;
@@ -320,6 +355,36 @@ function App() {
     setSection("watchlist");
     setSearch("");
     inform("Event added to your watchlist.");
+  }
+
+  function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number]) {
+    if (!providerFor(sale.providerId)) {
+      inform("This ticket provider is not installed in the current app.", true);
+      return;
+    }
+    if (watchlist.some(item => item.url === sale.bookingUrl && item.title === event.title)) {
+      inform("This event is already in your watchlist.");
+      return;
+    }
+    setWatchlist(items => [{
+      id: crypto.randomUUID(), artist: event.artist, title: event.title,
+      city: event.city, providerId: sale.providerId,
+      saleAt: sale.saleAt || "", url: sale.bookingUrl,
+      addedAt: new Date().toISOString()
+    }, ...items]);
+    inform("Added to your local watchlist.");
+  }
+
+  function saveApiSettings() {
+    const value = apiInput.trim().replace(/\/$/, "");
+    if (value && !validApiUrl(value)) {
+      inform("Use HTTPS or localhost for local development.", true);
+      return;
+    }
+    if (value) localStorage.setItem("tixbam.api.url", value);
+    else localStorage.removeItem("tixbam.api.url");
+    setApiUrl(value);
+    inform("API connection setting saved.");
   }
 
   function removeEvent(id: string) {
