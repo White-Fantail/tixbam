@@ -22,7 +22,9 @@ def performance_row(p):
 
 def sale_row(s):
     return {**sale_data(s), "eventTitle": s.event.title,
-            "artist": s.event.artist.name, "providerName": s.provider_id}
+            "artist": s.event.artist.name, "providerName": s.provider.name,
+            "eventCity": s.event.city, "eventCountry": s.event.country,
+            "eventTimezone": s.event.timezone}
 
 
 def page(db, statement, serializer, limit, offset):
