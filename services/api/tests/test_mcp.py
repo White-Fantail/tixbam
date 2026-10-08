@@ -130,6 +130,7 @@ def test_provider_mcp_registration_and_updates(catalog):
     )
     assert registered["created"] is True
     assert registered["provider"]["published"] is False
+    assert catalog.provider("fresh-agent")["name"] == "Fresh Agent"
     assert not any(p["id"] == "fresh-agent" for p in catalog.providers()["items"])
     assert any(p["id"] == "fresh-agent" for p in catalog.providers(True)["items"])
     with pytest.raises(ValueError, match="already exists"):
@@ -246,6 +247,9 @@ def test_mcp_discovery_and_tool_scopes():
         assert wire_tools[tool_name]["securitySchemes"] == [
             {"type": "oauth2", "scopes": [READ_SCOPE, WRITE_SCOPE]}
         ]
+    assert wire_tools["get_provider"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": [READ_SCOPE]}
+    ]
     assert wire_tools["list_providers"]["securitySchemes"] == [
         {"type": "oauth2", "scopes": [READ_SCOPE]}
     ]
