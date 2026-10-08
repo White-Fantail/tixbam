@@ -22,7 +22,9 @@ def sorted_performances(event: Event):
 
 def event_start(event: Event):
     known = [p.starts_at for p in event.performances if p.starts_at is not None]
-    return min(known) if known else None
+    # SQLite loads timestamps as naive UTC, while newly supplied timestamps are aware.
+    # ISO conversion normalizes both before comparing without changing the instant.
+    return min(known, key=iso_utc) if known else None
 
 
 def refresh_legacy_event_start(event: Event):
