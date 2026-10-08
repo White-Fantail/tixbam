@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const catalog = require("../addons/catalog.json");
 
 test("all built-in add-ons have explicit, reviewed automation support levels", () => {
-  const valid = new Set(["available", "restricted", "unverified"]);
-  assert.equal(catalog.length, 6);
+  const valid = new Set(["available", "restricted", "unverified", "delegated"]);
+  assert.equal(catalog.length, 7);
   for (const addon of catalog) {
     assert.match(addon.automation.reviewedAt, /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
     for (const level of ["level1", "level2", "level3"]) {

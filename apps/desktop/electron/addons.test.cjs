@@ -9,7 +9,9 @@ test("bundled add-ons have unique, valid manifests", () => {
     assert.match(addon.id, /^[a-z][a-z0-9-]*$/);
     assert.match(addon.version, /^\d+\.\d+\.\d+$/);
     assert.ok(addon.name && addon.region && addon.description);
-    assert.deepEqual(addon.capabilities, ["browser", "persistent-session"]);
+    assert.ok(addon.capabilities.includes("browser"));
+    assert.ok(addon.capabilities.includes("persistent-session"));
+    assert.ok(["ticketing", "event-presale"].includes(addon.kind));
     assert.ok(Array.isArray(addon.allowedHosts) && addon.allowedHosts.length > 0);
     assert.equal(resolveStartUrl(addon.id).url, new URL(addon.url).toString());
     assert.ok(isHostAllowed(new URL(addon.url).hostname, addon.allowedHosts));
