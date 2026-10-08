@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addArtist, addEvent, addPerformance, updatePerformance, addSale, addSource, editAddon, updateArtist, updateEvent, updateSale } from "./actions";
+import { addArtist, addEvent, addPerformance, updatePerformance, addSale, addSource, updateSource, addProvider, updateProvider, editAddon, updateArtist, updateEvent, updateSale } from "./actions";
 import type { Artist, Event, Performance, Provider, Sale } from "./catalog-types";
 import { guessZone, priorityZones, toLocalInput } from "./time-zones";
 
@@ -179,13 +179,47 @@ export function SaleForm({ events, providers, sale }: { events: Event[]; provide
   </form>;
 }
 
-export function SourceForm() {
-  return <form action={addSource}>
-    <h3>Add crawl source</h3>
-    <label>Source name<input name="name" required placeholder="Official event calendar" /></label>
-    <label>Approved source URL<input name="url" type="url" required placeholder="https://..." /></label>
-    <label>Refresh interval (minutes)<input name="interval_minutes" type="number" min={15} max={43200} defaultValue={360} /></label>
-    <button type="submit">Add source</button>
+export type SourceRecord = { id: string; name: string; url: string; enabled: boolean; intervalMinutes: number; lastCheckedAt: string | null };
+export type ProviderRecord = { id: string; name: string; url: string; region: string; country: string;
+  allowedHosts: string[]; capabilities: string[]; automation: Record<string, unknown>;
+  version: string; description: string; published: boolean; artifactUrl: string | null; artifactSha256: string | null };
+
+export function SourceForm({ source }: { source?: SourceRecord }) {
+  return <form action={source ? updateSource : addSource}>
+    <h3>{source ? "Edit crawler source" : "Add crawler source"}</h3>
+    {source && <input name="id" type="hidden" value={source.id} />}
+    <label>Source name<input name="name" required defaultValue={source?.name || ""} /></label>
+    <label>Approved source URL<input name="url" type="url" required defaultValue={source?.url || ""} placeholder="https://..." /></label>
+    <label>Refresh interval (minutes)<input name="interval_minutes" type="number" min={15} max={43200} defaultValue={source?.intervalMinutes || 360} required /></label>
+    <label className="inline"><input name="enabled" type="checkbox" defaultChecked={source?.enabled ?? true} /> Enabled</label>
+    <button type="submit">{source ? "Save source" : "Add source"}</button>
+  </form>;
+}
+
+export function ProviderForm({ provider }: { provider?: ProviderRecord }) {
+  return <form action={provider ? updateProvider : addProvider}>
+    <h3>{provider ? "Edit provider" : "Register provider"}</h3>
+    <label>Provider ID (permanent slug)<input name="id" required pattern="[a-z0-9][a-z0-9_-]{1,59}"
+      readOnly={Boolean(provider)} defaultValue={provider?.id || ""} placeholder="cityline" /></label>
+    <label>Name<input name="name" required maxLength={160} defaultValue={provider?.name || ""} /></label>
+    <label>Official URL<input name="url" type="url" required pattern="https://.*" defaultValue={provider?.url || ""} /></label>
+    <label>Region<input name="region" defaultValue={provider?.region || "Global"} /></label>
+    <label>Country code<input name="country" defaultValue={provider?.country || "GL"} /></label>
+    <label>Allowed hosts (comma or newline separated)<textarea name="allowed_hosts" rows={2}
+      defaultValue={(provider?.allowedHosts || []).join(", ")} placeholder="tickets.example.com" /></label>
+    <label>Capabilities (comma or newline separated)<input name="capabilities"
+      defaultValue={(provider?.capabilities || []).join(", ")} placeholder="ticketing, event-presale" /></label>
+    <label>Automation metadata JSON<textarea name="automation" rows={3}
+      defaultValue={JSON.stringify(provider?.automation || {}, null, 2)} /></label>
+    <label>Version<input name="version" required defaultValue={provider?.version || "1.0.0"} /></label>
+    <label>Description<textarea name="description" rows={3} defaultValue={provider?.description || ""} /></label>
+    <label>Artifact URL (metadata only)<input name="artifact_url" type="url" defaultValue={provider?.artifactUrl || ""} /></label>
+    <label>Artifact SHA-256<input name="artifact_sha256" minLength={64} maxLength={64}
+      defaultValue={provider?.artifactSha256 || ""} /></label>
+    <label className="inline"><input name="published" type="checkbox"
+      defaultChecked={provider?.published ?? false} /> Published in public catalog</label>
+    <p className="muted">Registration does not install or enable a browser add-on. Publish only verified metadata.</p>
+    <button type="submit">{provider ? "Save provider" : "Register provider"}</button>
   </form>;
 }
 
