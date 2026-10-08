@@ -1,5 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+from .schedule import as_utc, local_to_utc, validate_timezone
 
 def only_https(value: str | None):
     if value is not None and not value.startswith("https://"):
@@ -22,7 +23,20 @@ class EventInput(BaseModel):
     country: str = ""
     venue: str | None = None
     starts_at: datetime | None = None
+    starts_at_local: str | None = None
+    timezone: str | None = Field(None, max_length=100)
     source_url: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_schedule(self):
+        validate_timezone(self.timezone)
+        if self.starts_at_local and self.starts_at is not None:
+            raise ValueError("Use either a UTC timestamp or local date/time, not both.")
+        if self.starts_at_local:
+            self.starts_at = local_to_utc(self.starts_at_local, self.timezone)
+        elif self.starts_at:
+            self.starts_at = as_utc(self.starts_at)
+        return self
 
     @field_validator("source_url")
     @classmethod
@@ -33,7 +47,22 @@ class SaleInput(BaseModel):
     provider_id: str
     sale_type: str = "general"
     sale_at: datetime | None = None
+    sale_at_local: str | None = None
+    city: str | None = Field(None, max_length=160)
+    country: str | None = Field(None, max_length=8)
+    timezone: str | None = Field(None, max_length=100)
     booking_url: str
+
+    @model_validator(mode="after")
+    def normalize_schedule(self):
+        validate_timezone(self.timezone)
+        if self.sale_at_local and self.sale_at is not None:
+            raise ValueError("Use either a UTC timestamp or local date/time, not both.")
+        if self.sale_at_local:
+            self.sale_at = local_to_utc(self.sale_at_local, self.timezone)
+        elif self.sale_at:
+            self.sale_at = as_utc(self.sale_at)
+        return self
 
     @field_validator("booking_url")
     @classmethod

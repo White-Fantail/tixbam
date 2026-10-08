@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, SessionLocal, engine
 from .seed import seed_providers
+from .migrations import migrate_schedule_columns
 from .routes import router
 from .admin import router as admin_router
 from .ingest import router as ingest_router
@@ -10,6 +11,7 @@ from .ingest import router as ingest_router
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    migrate_schedule_columns(engine)
     with SessionLocal() as db:
         seed_providers(db)
     yield

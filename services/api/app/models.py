@@ -49,6 +49,7 @@ class Event(Base):
     country: Mapped[str] = mapped_column(String(8), default="")
     venue: Mapped[str | None] = mapped_column(Text, nullable=True)
     starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source_url: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     artist: Mapped["Artist"] = relationship(back_populates="events")
@@ -62,6 +63,9 @@ class TicketSale(Base):
     provider_id: Mapped[str] = mapped_column(ForeignKey("providers.id"), index=True)
     sale_type: Mapped[str] = mapped_column(String(60), default="general")
     sale_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     booking_url: Mapped[str] = mapped_column(Text)
     event: Mapped["Event"] = relationship(back_populates="sales")
 

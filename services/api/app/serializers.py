@@ -1,4 +1,5 @@
 from .models import Artist, Event, Provider, Source, TicketSale
+from .schedule import iso_utc
 
 def provider_data(p: Provider):
     return {"id": p.id, "name": p.name, "kind": "event-presale" if "event-presale" in p.capabilities else "ticketing", "region": p.region, "country": p.country,
@@ -11,11 +12,12 @@ def artist_data(a: Artist):
 
 def sale_data(s: TicketSale):
     return {"id": s.id, "eventId": s.event_id, "providerId": s.provider_id,
-            "saleType": s.sale_type, "saleAt": s.sale_at, "bookingUrl": s.booking_url}
+            "saleType": s.sale_type, "saleAt": iso_utc(s.sale_at), "bookingUrl": s.booking_url,
+            "city": s.city, "country": s.country, "timezone": s.timezone}
 
 def event_data(e: Event):
     return {"id": e.id, "artistId": e.artist_id, "artist": e.artist.name, "title": e.title,
-            "city": e.city, "country": e.country, "venue": e.venue, "startsAt": e.starts_at,
+            "city": e.city, "country": e.country, "venue": e.venue, "startsAt": iso_utc(e.starts_at), "timezone": e.timezone,
             "sourceUrl": e.source_url, "sales": [sale_data(s) for s in e.sales]}
 
 def source_data(s: Source):
