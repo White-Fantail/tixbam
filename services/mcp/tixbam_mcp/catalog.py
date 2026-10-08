@@ -46,6 +46,13 @@ class Catalog:
                 statement = statement.where(Provider.published.is_(True))
             return {"items": [provider_data(p) for p in db.scalars(statement)]}
 
+    def provider(self, provider_id: str):
+        with SessionLocal() as db:
+            item = db.get(Provider, provider_id)
+            if item is None:
+                raise ValueError("Provider not found")
+            return provider_data(item)
+
     def create_provider(self, provider_id: str, name: str, url: str, region: str = "Global",
                         country: str = "GL", allowed_hosts: list[str] | None = None,
                         capabilities: list[str] | None = None, description: str = "",
