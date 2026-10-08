@@ -55,6 +55,34 @@ Add a Railway PostgreSQL service, configure `DATABASE_URL` on the API (Railway v
 
 For Vercel, import this repo and set **Root Directory** `apps/admin`. Use the Next.js framework, `TIXBAM_API_URL` pointing to the Railway API HTTPS domain, matching `TIXBAM_ADMIN_API_KEY`, and separate `TIXBAM_ADMIN_USER`/`TIXBAM_ADMIN_PASSWORD` for the admin website. Do **not** prefix admin keys with `NEXT_PUBLIC_` or `VITE_`.
 
+## Admin console navigation
+
+The Next.js admin at `apps/admin` uses the built-in App Router, a persistent
+left sidebar and resource-specific URLs:
+
+- `/artists`, `/events`, `/performances`, `/sales`, `/providers`, `/crawlers`
+- `/<resource>/new`, `/<resource>/<id>`, `/<resource>/<id>/edit` (where supported)
+- `/addons` and `/crawl-runs` (crawl runs are read-only; add-on version changes use Edit)
+
+Directory lists support server-side search and pagination (25 rows/page). Clicking
+a row opens the dedicated detail view; edit screens are reached from there.
+Event details link to each performance and ticket sale. Displayed event/show/sale
+times use their own IANA timezone plus the viewer's local timezone.
+
+All management data is loaded on the server through `/v1/admin/directory/*`
+using `TIXBAM_ADMIN_API_KEY`, which is never exposed to the browser.
+Directory requests require the existing Admin API key, including read endpoints.
+Directory provider registration supports `POST /v1/admin/directory/providers`
+and `PUT /v1/admin/directory/providers/{id}`. IDs are immutable. Newly created
+providers default to unpublished; registering a provider does not install an add-on.
+The ordinary public `/v1/providers` and `/v1/addons` still expose only published
+provider entries.
+
+MCP owner-scoped tools now include `get_provider`, `list_providers` with optional
+`include_unpublished`, `create_provider` and `update_provider`. Writes require
+both `tixbam:read` and `tixbam:write` scopes. They register or change metadata
+only; never enable unattended checkout or download unverified code.
+
 ## API
 
 Public GET:
