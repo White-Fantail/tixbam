@@ -200,3 +200,52 @@ def test_no_provider_credentials_fails_closed(monkeypatch):
         assert client.post("/v1/auth/oauth/start", json={
             "provider": "google", "codeChallenge": "a" * 43}).status_code == 503
     engine.dispose()
+
+
+def test_google_and_apple_identity_tokens_require_correct_signature_and_audience(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    import pytest
+
+    from app.accounts import verified_social_claims
+    import app.accounts as accounts
+
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public = private.public_key()
+    monkeypatch.setattr(accounts, "jwks_client", lambda provider: SimpleNamespace(
+        get_signing_key_from_jwt=lambda token: SimpleNamespace(key=public)))
+    monkeypatch.setenv("TIXBAM_GOOGLE_CLIENT_ID", "test-google-client")
+    monkeypatch.setenv("TIXBAM_APPLE_CLIENT_ID", "test-apple-client")
+    now = datetime.now(timezone.utc)
+
+    def signed(issuer, audience, offset=300):
+        return jwt.encode({
+            "iss": issuer, "aud": audience, "sub": "stable-provider-sub",
+            "iat": now, "exp": now + timedelta(seconds=offset),
+            "nonce": "nonce-value", "email": "real@example.org", "email_verified": True,
+        }, private, algorithm="RS256", headers={"kid": "provider-test-key"})
+
+    valid = signed("https://accounts.google.com", "test-google-client")
+    assert verified_social_claims("google", valid)["sub"] == "stable-provider-sub"
+    assert verified_social_claims("apple", signed("https://appleid.apple.com", "test-apple-client"))["nonce"] == "nonce-value"
+
+    for invalid in [
+        signed("https://accounts.google.com", "some-other-client"),
+        signed("https://malicious.example", "test-google-client"),
+        signed("https://accounts.google.com", "test-google-client", -10),
+    ]:
+        with pytest.raises(Exception) as error:
+            verified_social_claims("google", invalid)
+        assert error.value.status_code == 401
+
+    # Modification of any signed payload without a new signature is rejected.
+    header, payload, signature = valid.split(".")
+    import base64
+    import json
+    raw = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    raw["sub"] = "impersonator"
+    tampered = base64.urlsafe_b64encode(json.dumps(raw).encode()).decode().rstrip("=")
+    with pytest.raises(Exception) as error:
+        verified_social_claims("google", header + "." + tampered + "." + signature)
+    assert error.value.status_code == 401
