@@ -8,7 +8,8 @@ import {
 import providerData from "../addons/catalog.json";
 import type { Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
 
-const providers: Provider[] = providerData;
+const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
+const providers: Provider[] = catalog;
 const STORAGE_KEY = "tixbam.watchlist.v1";
 const MAX_WINDOWS = 6;
 
@@ -157,7 +158,7 @@ function App() {
   const [section, setSection] = useState<Section>("overview");
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
-  const [addons, setAddons] = useState<TicketAddon[]>(() => providerData.map(p => ({ ...p, installed: true })));
+  const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
   const [now, setNow] = useState(() => Date.now());
