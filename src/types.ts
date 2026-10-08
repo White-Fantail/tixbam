@@ -1,0 +1,47 @@
+export type Section = "overview" | "watchlist" | "sessions" | "providers" | "settings";
+
+export interface Provider {
+  id: string;
+  name: string;
+  region: string;
+  country: string;
+  url: string;
+  allowedHosts: string[];
+  color: string;
+  initials: string;
+}
+
+export interface WatchEvent {
+  id: string;
+  artist: string;
+  title: string;
+  city: string;
+  providerId: string;
+  saleAt: string;
+  url: string;
+  addedAt: string;
+}
+
+export interface TicketWindow {
+  id: number;
+  providerId: string;
+  title: string;
+  url: string;
+  loading: boolean;
+  openedAt: number;
+}
+
+export interface DesktopBridge {
+  openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
+  listWindows: () => Promise<TicketWindow[]>;
+  focusWindow: (id: number) => Promise<boolean>;
+  closeWindow: (id: number) => Promise<boolean>;
+  clearProviderData: (id: string) => Promise<boolean>;
+  onWindowsChanged: (listener: (windows: TicketWindow[]) => void) => () => void;
+}
+
+declare global {
+  interface Window {
+    tixbam?: DesktopBridge;
+  }
+}
