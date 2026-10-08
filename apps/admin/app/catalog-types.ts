@@ -12,4 +12,4 @@ export type Event = {
   startsAt: string | null; timezone: string | null; sourceUrl: string | null;
   sales: Sale[];
 };
-export type Provider = { id: string; name: string };
+export type Provider = { id: string; name: string; kind?: "ticketing" | "event-presale" };

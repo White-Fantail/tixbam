@@ -1,5 +1,6 @@
 import { apiRead } from "./lib";
-import { AddonForm, ArtistForm, EventForm, SaleForm, SourceForm } from "./forms";
+import { AddonForm, SourceForm } from "./forms";
+import { ArtistsManager, EventsManager, SalesManager } from "./directories";
 
 export const dynamic = "force-dynamic";
 type Collection = { items: any[] };
@@ -38,27 +39,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <div className="stat"><span className="kicker">Providers</span><strong>{providers.length}</strong></div>
       <div className="stat"><span className="kicker">Crawl sources</span><strong>{sources.length}</strong></div>
     </section>
-    <section className="section" id="artists"><h2>Artists</h2>
-      <div className="columns"><div className="panel"><ArtistForm /></div>
-        <div className="panel tablewrap"><h3>Artist directory</h3><table><thead><tr><th>Name</th><th>Country</th></tr></thead><tbody>
-          {artists.map(a => <tr key={a.id}><td>{a.name}</td><td>{a.country || "—"}</td></tr>)}
-        </tbody></table>{!artists.length && <p className="muted">No artists yet.</p>}</div>
-      </div>
-    </section>
-    <section className="section" id="events"><h2>Concerts & fan meetings</h2>
-      <div className="columns"><div className="panel"><EventForm artists={artists} /></div>
-        <div className="panel tablewrap"><h3>Event directory</h3><table><thead><tr><th>Artist</th><th>Title</th><th>City</th><th>Starts</th></tr></thead><tbody>
-          {events.map(e => <tr key={e.id}><td>{e.artist}</td><td>{e.title}</td><td>{e.city}</td><td>{e.startsAt ? new Date(e.startsAt).toLocaleString("en-NZ", {timeZone:"UTC"})+" UTC" : "TBA"}</td></tr>)}
-        </tbody></table>{!events.length && <p className="muted">Add an event or configure a permitted crawler feed.</p>}</div>
-      </div>
-    </section>
-    <section className="section" id="sales"><h2>Ticket sales</h2>
-      <div className="columns"><div className="panel"><SaleForm events={events} providers={providers}/></div>
-        <div className="panel tablewrap"><h3>Sale schedules</h3><table><thead><tr><th>Event</th><th>Provider</th><th>Sale date</th></tr></thead><tbody>
-          {events.flatMap(e => e.sales.map((s: any) => <tr key={s.id}><td>{e.title}</td><td>{providers.find(p=>p.id===s.providerId)?.name || s.providerId}</td><td>{s.saleAt ? new Date(s.saleAt).toLocaleString("en-NZ",{timeZone:"UTC"})+" UTC" : "TBA"}</td></tr>))}
-        </tbody></table></div>
-      </div>
-    </section>
+    <section className="section" id="artists"><h2>Artists</h2><ArtistsManager artists={artists} /></section>
+    <section className="section" id="events"><h2>Concerts & fan meetings</h2><EventsManager artists={artists} events={events} /></section>
+    <section className="section" id="sales"><h2>Ticket sales</h2><SalesManager events={events} providers={providers} /></section>
     <section className="section" id="addons"><h2>Add-on registry</h2><p className="muted">Version and publication metadata only. Remote execution and unsigned ZIP installation are deliberately disabled until the signed-package loader is implemented.</p>
       <div className="columns">{providers.map(p=><div className="panel" key={p.id}><h3>{p.name} <span className="pill">{p.id}</span></h3><AddonForm provider={p}/></div>)}</div>
     </section>
