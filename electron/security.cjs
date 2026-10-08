@@ -1,4 +1,4 @@
-const providers = require("../providers.json");
+const providers = require("../addons/catalog.json");
 
 const MAX_WINDOWS = 6;
 
