@@ -31,6 +31,18 @@ contextBridge.exposeInMainWorld("tixbam", {
   openWindow: (options) => ipcRenderer.invoke("tixbam:open-window", options),
   openSaleWindow: (options) => ipcRenderer.invoke("tixbam:open-sale-window", options),
   openPlanWindow: options => ipcRenderer.invoke("tixbam:open-plan-window", options),
+  openRehearsalWindow: (plan, accountId) => ipcRenderer.invoke("tixbam:open-rehearsal", plan, accountId),
+  ackRehearsalSave: (requestId, success, message) => ipcRenderer.invoke("tixbam:rehearsal-save-ack", requestId, success, message),
+  onRehearsalSaveRequest: listener => {
+    const handler = (_event, request) => listener(request);
+    ipcRenderer.on("tixbam:rehearsal-save-request", handler);
+    return () => ipcRenderer.removeListener("tixbam:rehearsal-save-request", handler);
+  },
+  onRehearsalClosed: listener => {
+    const handler = (_event, planId) => listener(planId);
+    ipcRenderer.on("tixbam:rehearsal-closed", handler);
+    return () => ipcRenderer.removeListener("tixbam:rehearsal-closed", handler);
+  },
   setLivePhase: (windowId, phase) => ipcRenderer.invoke("tixbam:set-live-phase", windowId, phase),
   listLiveHistory: () => ipcRenderer.invoke("tixbam:list-live-history"),
   dismissLiveHistory: planId => ipcRenderer.invoke("tixbam:dismiss-live-history", planId),
