@@ -30,6 +30,10 @@ export const CITYLINE_SCENARIOS = Object.freeze([
     description: "Practice identifying and rejecting obstructed-view tickets before confirming an order.",
     queue: false, presale: false, expressOnly: false, scarcity: true, checkoutUncertain: false, restrictedView: true,
     maxTickets: 4 },
+  { id: "standing", title: "Standing / general admission", difficulty: "Intermediate",
+    description: "Practise an unreserved standing zone with no assigned seat numbers, plus admission restrictions.",
+    queue: true, presale: false, expressOnly: true, scarcity: false, checkoutUncertain: false, restrictedView: false,
+    standing: true, maxTickets: 4 },
   { id: "seatmap", title: "Seat map unavailable", difficulty: "Advanced",
     description: "Practice handling a seat map that does not load, without refreshing or restarting a live queue.",
     queue: false, presale: false, expressOnly: false, scarcity: false, checkoutUncertain: false, restrictedView: false,
@@ -147,17 +151,21 @@ export function citylineOfferCheck({ tierId, quantity, budgetMinor, deliveryId =
   if (offered.soldOut) return { ok: false, reason: "That practice price zone is sold out. Choose another available zone." };
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > scenario.maxTickets)
     return { ok: false, reason: "This practice event allows up to " + scenario.maxTickets + " tickets per order." };
-  if (selectedSeatIds.length !== quantity)
-    return { ok: false, reason: "Select exactly " + quantity + " ticket" + (quantity === 1 ? "" : "s") + "." };
-  if (new Set(selectedSeatIds).size !== selectedSeatIds.length)
-    return { ok: false, reason: "The same seat cannot be selected twice." };
-  const mapped = selectedSeatIds.map(id => seats.find(seat => seat.id === id));
-  if (mapped.some(seat => !seat || seat.sold))
-    return { ok: false, reason: "One or more selected seats are unavailable. Re-select your seats." };
-  if (requireTogether && !areAdjacent(selectedSeatIds))
-    return { ok: false, reason: "These seats are not adjacent. Your Booking Plan requires seats together." };
-  if (!acceptRestrictedView && (offered.restrictedView || mapped.some(seat => seat.restrictedView)))
-    return { ok: false, reason: "Restricted-view seats were not authorized in this practice purchase." };
+  if (!scenario.standing) {
+    if (selectedSeatIds.length !== quantity)
+      return { ok: false, reason: "Select exactly " + quantity + " ticket" + (quantity === 1 ? "" : "s") + "." };
+    if (new Set(selectedSeatIds).size !== selectedSeatIds.length)
+      return { ok: false, reason: "The same seat cannot be selected twice." };
+    const mapped = selectedSeatIds.map(id => seats.find(seat => seat.id === id));
+    if (mapped.some(seat => !seat || seat.sold))
+      return { ok: false, reason: "One or more selected seats are unavailable. Re-select your seats." };
+    if (requireTogether && !areAdjacent(selectedSeatIds))
+      return { ok: false, reason: "These seats are not adjacent. Your Booking Plan requires seats together." };
+    if (!acceptRestrictedView && (offered.restrictedView || mapped.some(seat => seat.restrictedView)))
+      return { ok: false, reason: "Restricted-view seats were not authorized in this practice purchase." };
+  } else if (selectedSeatIds.length > 0) {
+    return { ok: false, reason: "General admission does not allocate individual seat numbers." };
+  }
   const quote = citylineQuote({ tierId, quantity, deliveryId });
   if (!quote) return { ok: false, reason: "A valid ticket and delivery choice is required." };
   if (!Number.isSafeInteger(budgetMinor) || budgetMinor <= 0)
