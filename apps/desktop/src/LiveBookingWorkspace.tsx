@@ -73,15 +73,15 @@ export function LiveBookingWorkspace({
   }, []);
 
   const planSessions = useMemo(() => windows.filter(item => item.planId && !item.popup), [windows]);
-  const first = planSessions.find(item => item.planId === selectedPlanId);
+
   const chosenPlan = plans.find(item => item.id === selectedPlanId) ||
     plans.find(item => planSessions.some(win => win.planId === item.id)) ||
     plans.find(item => item.id === history[0]?.planId) || null;
   const plan = chosenPlan;
-  const primary = planSessions.find(item => item.planId === plan?.id);
+  const matching = planSessions.filter(item => item.planId === plan?.id);
+  const primary = matching[matching.length - 1];
   const extra = windows.filter(item => item.planId === plan?.id && item.popup);
-  const selectedWindow = windows.find(item => item.id === selectedWindowId && item.planId === plan?.id) ||
-    first || primary;
+  const selectedWindow = matching.find(item => item.id === selectedWindowId) || primary;
   const relatedRuns = runs.filter(run => !run.rehearsal && (!selectedWindow
     ? false : run.windowId === selectedWindow.id));
   const orphanRuns = runs.filter(run => !run.rehearsal && (!run.windowId ||
@@ -146,7 +146,7 @@ export function LiveBookingWorkspace({
         const p = plans.find(item => item.id === win.planId);
         return <button key={win.id} className={"live-target" + (plan?.id === win.planId ? " selected" : "")}
           onClick={() => { if (win.planId) { onSelectPlan(win.planId); setSelectedWindowId(win.id); } }}>
-          <TicketCheck size={15}/><span>{p?.artist || "Linked session"}</span><small>#{win.id}</small>
+          <TicketCheck size={15}/><span>{p?.artist || "Linked session"}</span><small>{addons.find(addon => addon.id === win.providerId)?.name || win.providerId} · #{win.id}</small>
         </button>;
       }) : <p>No live Booking Plan window is open. Choose a plan below to launch its official website.</p>}
     </div>
@@ -171,15 +171,15 @@ export function LiveBookingWorkspace({
               <span className="live-state">Not opened</span>}
           </div>
           <div className="live-actions">
-            {primary ? <button className="button button-primary" disabled={busy !== ""}
-                onClick={() => void invoke("focus", () => onFocus(primary.id))}><ExternalLink size={16}/> Focus official site</button> :
+            {selectedWindow ? <button className="button button-primary" disabled={busy !== ""}
+                onClick={() => void invoke("focus", () => onFocus(selectedWindow.id))}><ExternalLink size={16}/> Focus official site</button> :
               <button className="button button-primary" disabled={busy !== "" || !plan.bookingUrl}
                 onClick={() => void invoke("start", () => onStart(plan))}><ExternalLink size={16}/> Open official ticket site</button>}
             {selectedWindow && <button className="button button-outline" disabled={busy !== ""}
               onClick={() => void invoke("close", () => onClose(selectedWindow.id))}><X size={16}/> Close browser…</button>}
-            {primary && addons.find(a => a.id === primary.providerId)?.kind === "event-presale" &&
+            {selectedWindow && addons.find(a => a.id === selectedWindow.providerId)?.kind === "event-presale" &&
               <button className="button button-outline" disabled={busy !== ""}
-                onClick={() => void invoke("agent", () => onTicketAgent(primary.id))}>Open official ticket agent <ArrowRight size={15}/></button>}
+                onClick={() => void invoke("agent", () => onTicketAgent(selectedWindow.id))}>Open official ticket agent <ArrowRight size={15}/></button>}
           </div>
           {extra.length > 0 && <div className="live-popups"><strong>Provider popups ({extra.length})</strong>
             <p>Login and payment verification can open additional windows. They are not extra queue positions.</p>
@@ -217,14 +217,14 @@ export function LiveBookingWorkspace({
         <div className="live-assistant-card">
           <h3>Current step <small>Selected by you</small></h3>
           <p className="live-stage-disclaimer">TIXBAM cannot reliably detect the ticket site's queue, seats or payment status. Choose the stage yourself only to see relevant guidance.</p>
-          {primary ? <>
+          {selectedWindow ? <>
             <label htmlFor="live-step">My current stage</label>
-            <select id="live-step" value={primary.phase || "preparing"} disabled={Boolean(busy)}
-              onChange={e => void invoke("stage", () => onPhase(primary.id, e.target.value as LivePhase))}>
+            <select id="live-step" value={selectedWindow.phase || "preparing"} disabled={Boolean(busy)}
+              onChange={e => void invoke("stage", () => onPhase(selectedWindow.id, e.target.value as LivePhase))}>
               {steps.map(step => <option key={step.id} value={step.id}>{step.name}</option>)}
             </select>
-            <p className="live-next-action">{steps.find(s => s.id === (primary.phase || "preparing"))?.help}</p>
-            {riskStages.has(primary.phase || "preparing") && <p className="live-warning"><AlertTriangle size={15}/> Never retry an uncertain payment automatically.</p>}
+            <p className="live-next-action">{steps.find(s => s.id === (selectedWindow.phase || "preparing"))?.help}</p>
+            {riskStages.has(selectedWindow.phase || "preparing") && <p className="live-warning"><AlertTriangle size={15}/> Never retry an uncertain payment automatically.</p>}
           </> : <p>Open the official browser first. Its exact stage will not be inferred by TIXBAM.</p>}
         </div>
         <div className="live-assistant-card"><h3><LockKeyhole size={18}/> Safety</h3>
