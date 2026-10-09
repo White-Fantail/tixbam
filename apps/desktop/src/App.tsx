@@ -6,7 +6,7 @@ import {
   Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
-import { LANGUAGES, useLanguage, tx } from "./i18n";
+import { LANGUAGES, useLanguage, tx, localDate } from "./i18n";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
@@ -904,7 +904,7 @@ function App() {
                 const sessionTime = (p: RemotePerformance) => {
                   if (!p.startsAt) return "TBA";
                   try {
-                    return new Intl.DateTimeFormat(undefined, {
+                    return new Intl.DateTimeFormat(language === "ko" ? "ko-KR" : "en-NZ", {
                       timeZone: p.timezone || event.timezone || "UTC",
                       dateStyle: "medium", timeStyle: "short"
                     }).format(new Date(p.startsAt));
@@ -1018,7 +1018,7 @@ function App() {
                       onClick={() => void toggleFavorite("artists", a.id)}><Heart size={16} fill="currentColor"/></button></article>)}
                 {remoteEvents.flatMap(e => e.performances.filter(p => favoritePerformanceIds.includes(p.id)).map(p =>
                   <article key={p.id} className="favorite-event-card"><div><strong>{e.artist} · {e.title}</strong>
-                    <span>{p.label || p.sessionKey} · {p.startsAt ? new Date(p.startsAt).toLocaleString() : "Date TBA"}</span></div>
+                    <span>{p.label || p.sessionKey} · {p.startsAt ? localDate(p.startsAt) : "Date TBA"}</span></div>
                     <button className="icon-button" aria-label="Remove saved session" disabled={cloudBusy}
                       onClick={() => void toggleSavedTarget("performance", p.id)}><Heart size={16} fill="currentColor"/></button></article>))}
                 {remoteEvents.flatMap(e => e.sales.filter(sale => favoriteSaleIds.includes(sale.id)).map(sale =>
@@ -1067,7 +1067,7 @@ function App() {
                 const timezone = remoteSale?.timezone || remoteEvent?.timezone;
                 return (
                   <article className="watch-card" key={item.id}>
-                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">SAVED LINK • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
+                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">SAVED LINK • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{localDate(item.performanceAt)}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{formatSaleLocalTime(item.saleAt, timezone)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now}
