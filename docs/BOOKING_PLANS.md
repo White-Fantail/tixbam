@@ -75,3 +75,17 @@ protected session reuse/closure, popup tracking and minimal interruption
 reminders are now implemented. These features do not verify any third-party
 checkout. See [Live Booking Control Room](LIVE_BOOKING_WORKSPACE.md) for
 safety/truth boundaries and hands-on QA scenarios.
+
+## Cityline-specific rehearsal
+
+Cityline plans now open a separate 10-step **offline** training workspace.
+It is based on official Cityline purchasing guidance and supports eight
+synthetic practice scenarios for queue, presale, price zones, Normal/Express
+seat choices, adjacent seats, illustrative fees, delivery, identity/discount
+rules, transaction review, bank verification and uncertain outcomes.
+The old generic five-step price check is not used for Cityline Booking Plans.
+Provider booking settings link back to this same training workspace.
+
+The scenario fixtures are not event inventory and do not reproduce an
+authenticated Cityline checkout. See [Cityline rehearsal design and
+verification](CITYLINE_REHEARSAL.md).
