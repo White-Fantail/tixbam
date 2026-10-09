@@ -29,14 +29,15 @@ function addonFor(addons: TicketAddon[], id: string) {
 function SaleCountdown({ saleAt }: { saleAt: string }) {
   const [clock, setClock] = useState(Date.now);
   const opens = saleTimestamp(saleAt);
+  const fast = opens !== null && opens > clock && opens - clock <= 24 * 60 * 60 * 1000;
   useEffect(() => {
     setClock(Date.now());
     if (opens === null) return;
     // High-frequency updates are isolated to this small component.
-    const frequency = opens - Date.now() <= 24 * 60 * 60 * 1000 ? 1000 : 60000;
+    const frequency = fast ? 1000 : 60000;
     const timer = window.setInterval(() => setClock(Date.now()), frequency);
     return () => window.clearInterval(timer);
-  }, [opens]);
+  }, [opens, fast]);
   if (opens === null) return <span className="plan-countdown">Sale time TBA</span>;
   const remaining = Math.max(0, Math.ceil((opens - clock) / 1000));
   if (!remaining) return <span className="plan-countdown plan-countdown-open">Scheduled opening reached · check the official site</span>;
