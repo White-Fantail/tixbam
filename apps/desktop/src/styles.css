@@ -434,3 +434,8 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .rehearsal-ai-result{margin-top:17px;background:#212d43;border-radius:10px;padding:16px;line-height:1.6}
 .rehearsal-ai-result ul{padding-left:20px;margin:10px 0}
 .rehearsal-ai-result small{color:#b8cce2}
+
+.run-ai-advisor{padding:13px 0;display:grid;justify-items:start;gap:8px}
+.run-ai-disclaimer{font-size:12px!important;display:flex;align-items:center;gap:8px;line-height:1.5;color:#aabbcf!important;margin:0!important}
+.run-ai-advice{background:#202e44;border:1px solid #334868;border-radius:10px;padding:12px 15px;font-size:13px;max-width:100%;line-height:1.6}
+.run-ai-advice ul{padding-left:18px;margin:8px 0 0}

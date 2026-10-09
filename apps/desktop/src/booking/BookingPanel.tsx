@@ -4,6 +4,7 @@ import type { TicketAddon, TicketWindow, WatchEvent } from '../types';
 import type { BookingPlan } from '../booking-plans';
 import { currencyFactor } from '../booking-plans';
 import { tx } from '../i18n';
+import { RunAIAdvisor } from './RunAIAdvisor';
 const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
   return ctx.preferences || { schemaVersion: 1, quantity: 2, maxTotalMinor: 200000, currency: ctx.schema.currency, requireTogether: true, allowFallback: true, checkout: 'review', options: Object.fromEntries(ctx.schema.fields.map(f => [f.id, f.type === 'ranked' ? [] : ''])) };
@@ -136,6 +137,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
       <div className="booking-actions"><button className="button button-outline" disabled={busy || active} onClick={()=>perform(async()=> { await window.tixbam!.saveBookingPreferences(context.contextId,prefs); await onPlanPreferencesSaved?.(prefs); setError('Preferences saved on this device and booking plan updated.'); })}>Save preferences</button><button className="button button-primary" disabled={busy || active || prefs.maxTotalMinor <= 0 || (prefs.checkout==='automatic'&&!consent)} onClick={()=>perform(async()=> { const code=cvv; setCvv(''); setRun(await window.tixbam!.startBooking({contextId:context.contextId,preferences:prefs,cardId:cardId||undefined,cvv:code,paymentConsent:consent})); })}>Start {context.rehearsal?'rehearsal':'booking'}</button></div>
     </>}
     {run&&<div className="booking-run" role="status"><strong>{run.rehearsal?'REHEARSAL · ':''}{run.status.replaceAll('_',' ').toUpperCase()}</strong><p>{run.message}</p>{run.order&&run.status==='review'&&<p>{run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor/currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(', ')}</p>}{run.receipt&&<p>{run.receipt}</p>}
+      <RunAIAdvisor run={run}/>
       <div className="booking-actions">{['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.resumeBooking(run.id,run.status==='review')))}>{run.status==='review'?'Confirm this order and pay':run.rehearsal?'Complete simulated verification & resume':'I completed the required step · Resume'}</button>}{active&&<button className="button button-outline" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.stopBooking(run.id)))}>Stop and clear payment preparation</button>}</div>
     </div>}
     {active && <p className="input-hint">Closing this panel keeps the run active. Manage it in Live windows, or stop it here.</p>}

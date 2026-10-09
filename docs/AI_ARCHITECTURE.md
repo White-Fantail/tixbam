@@ -19,3 +19,6 @@ AI failure, network timeout, disabled task or lack of login never blocks rehears
 4. Verify Korean/English results, timeouts, quota and safe fallback; evaluate accuracy/latency before turning on other tasks.
 
 This release does **not** autonomously drive live ticketing, seats or payment through AI. Those require reviewed per-provider capabilities, explicit user authorization and site compliance checks.
+
+## Supervised live assistance
+The common host runner includes only a recognized booking stage and sanitized preference constraints in the status for any provider, never page text, card details, receipt identifiers or secrets. `RunAIAdvisor` is available in both Booking Panel and Booking Runs. On `awaiting_user` it requests `page_recovery`; on final `review` it requests `seat_review`. Both require an explicit user click, authenticated account and task enabled by Admin. Guidance is purely informational; the normal runner continues to be solely responsible for verified checkout and once-only payment submission. There is no automatic model execution or navigation.

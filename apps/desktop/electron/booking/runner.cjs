@@ -16,6 +16,10 @@ class BookingRunner {
     try {
       const page = await this.adapter.read();
       if (this.cancelled) return;
+      // The AI UI only needs a recognized state identifier, never the page contents.
+      if (['options','offers','payment','confirmation','unknown'].includes(page.stage)) {
+        this.state.aiPageStage = page.stage;
+      }
       if (page.eventKey !== this.state.eventKey) { this.update('awaiting_user', 'The page is for another event. Return to the saved event.'); return; }
       if (page.challenge) { this.update('awaiting_user', page.challenge); return; }
       if (page.stage === 'confirmation') {

@@ -81,6 +81,13 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     else if (prefs.checkout === 'automatic') throw new Error('Choose a local card and enter its security code before starting automatic checkout.');
     const adapter = ctx.rehearsal ? new RehearsalAdapter(ctx.eventKey, prefs) : ctx.adapter;
     const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal });
+    // Provider-neutral, non-secret AI context. No cards, CVV, cookies or page content.
+    runner.state.providerId = ctx.providerId;
+    runner.state.aiContext = {
+      quantity: prefs.quantity, currency: prefs.currency,
+      budget_minor: prefs.maxTotalMinor, require_together: prefs.requireTogether,
+      allow_fallback: prefs.allowFallback
+    };
     runs.set(runner.state.id, runner);
     await runner.step(); return runner.state;
   });

@@ -61,6 +61,8 @@ export interface BookingRun {
   id: string; eventKey: string; windowId?: number;
   status: 'running' | 'awaiting_user' | 'review' | 'submitting' | 'completed' | 'stopped' | 'failed' | 'payment_unknown';
   message: string; rehearsal: boolean; startedAt: number; order?: BookingOrder; receipt?: string;
+  providerId?: string; aiPageStage?: string;
+  aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
 export interface CardSummary { id: string; label: string; last4: string; expiryMonth: number; expiryYear: number }
 export interface CardInput { label: string; name: string; number: string; expiryMonth: number; expiryYear: number }
