@@ -1,7 +1,7 @@
 export interface CitylineScenario {
   id: string; title: string; difficulty: string; description: string;
   queue: boolean; presale: boolean; expressOnly: boolean; scarcity: boolean;
-  checkoutUncertain: boolean; restrictedView: boolean; maxTickets: number;
+  checkoutUncertain: boolean; restrictedView: boolean; mapUnavailable?: boolean; realName?: boolean; maxTickets: number;
 }
 export interface CitylineTier {
   id: string; label: string; priceMinor: number;
