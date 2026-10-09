@@ -317,6 +317,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
           Request adjacent seats {plan.quantity === 1 ? "(not applicable to one ticket)" : plan.requireTogether ? "— required by your plan" : "(optional)"}</label>
       </div>
       {ticketType === "concession" && <p className="cl-drill-helper">Concession is an eligibility exercise here; no discount is applied to the invented prices. Actual terms and prices are event-specific.</p>}
+      <p className="cl-drill-helper">This drill uses a strict same-row adjacency check. Cityline's published terms may describe adjacent allocation differently (including different rows); inspect the actual offer before accepting it.</p>
       <h5>Price zone <span>Invented prices / sample inventory</span></h5>
       <div className="cl-drill-tiers">
         {tiers.map(tier => {
@@ -393,6 +394,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     {stage === 5 && <div className="cl-drill-stage">
       <h4>Shopping cart</h4>
       <p>Cityline's published guide includes a cart review before checkout. The practice tickets shown here have not been held on the real site.</p>
+      {scenario.presale && <p className="cl-drill-helper">Some Cityline presale arrangements disclose assigned seat numbers only at ticket delivery. The seat IDs below are fictional training data, not guaranteed real-time information.</p>}
       <div className="cl-drill-receipt-lines">
         <div><span>Performance</span><b>{CITYLINE_PERFORMANCES.find(item => item.id === performance)?.label}</b></div>
         <div><span>Ticket type</span><b>{ticketType === "adult" ? "Standard" : "Concession · verify eligibility"}</b></div>
