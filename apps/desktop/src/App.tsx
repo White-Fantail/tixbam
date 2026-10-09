@@ -8,6 +8,8 @@ import {
 import { BookingPanel } from "./booking/BookingPanel";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
+import { TicketSaleStatus } from "./TicketSaleStatus";
+import { formatSaleLocalTime, matchesSaleFilter, pickNextSale, saleTimestamp, type SaleFilter } from "./ticket-sales";
 import { formatFavoritePerformanceDate } from "./event-dates";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
@@ -78,24 +80,6 @@ function saleUrlProvider(declaredProviderId: string, bookingUrl: string): Provid
   } catch {
     return undefined;
   }
-}
-
-function humanDate(value: string) {
-  if (!value) return "Sale date not set";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Sale date not set" :
-    new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
-}
-
-function countdown(value: string, now: number) {
-  if (!value) return "DATE TO BE ANNOUNCED";
-  const difference = new Date(value).getTime() - now;
-  if (Number.isNaN(difference)) return "DATE TO BE ANNOUNCED";
-  if (difference <= 0) return "SALE TIME PASSED";
-  const days = Math.floor(difference / 86400000);
-  const hours = Math.floor((difference % 86400000) / 3600000);
-  const minutes = Math.floor((difference % 3600000) / 60000);
-  return days > 0 ? days + "D " + hours + "H UNTIL SALE" : hours + "H " + minutes + "M UNTIL SALE";
 }
 
 function validateTicketUrl(value: string, provider: Provider) {
@@ -184,6 +168,8 @@ function App() {
   const [siteByProvider, setSiteByProvider] = useState<Record<string, string>>({});
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
   const [search, setSearch] = useState("");
+  const [discoverSaleFilter, setDiscoverSaleFilter] = useState<SaleFilter>("all");
+  const [mySaleFilter, setMySaleFilter] = useState<SaleFilter>("all");
   const apiUrl = initialApiUrl();
   const [apiRefresh, setApiRefresh] = useState(0);
   const [remoteEvents, setRemoteEvents] = useState<RemoteEvent[]>([]);
@@ -315,10 +301,42 @@ function App() {
 
   const filteredEvents = useMemo(() => {
     const query = search.toLowerCase().trim();
-    return watchlist.filter((item) => (
-      [item.artist, item.title, item.city, providerFor(item.providerId)?.name || ""].join(" ").toLowerCase().includes(query)
-    ));
-  }, [watchlist, search]);
+    return watchlist.filter(item =>
+      [item.artist, item.title, item.city, providerFor(item.providerId)?.name || ""].join(" ").toLowerCase().includes(query) &&
+      matchesSaleFilter([item.saleAt], now, mySaleFilter)
+    );
+  }, [watchlist, search, mySaleFilter, now]);
+
+  const filteredRemoteEvents = useMemo(() => remoteEvents.filter(event =>
+    [event.title, event.artist, event.city].join(" ").toLowerCase().includes(search.toLowerCase().trim()) &&
+    matchesSaleFilter(event.sales.map(sale => sale.saleAt), now, discoverSaleFilter)
+  ), [remoteEvents, search, discoverSaleFilter, now]);
+
+  const favoriteRemoteEvents = useMemo(() => remoteEvents.filter(event =>
+    favoriteEventIds.includes(event.id) &&
+    matchesSaleFilter(event.sales.map(sale => sale.saleAt), now, mySaleFilter)
+  ), [remoteEvents, favoriteEventIds, now, mySaleFilter]);
+
+  const nextTicketDrops = useMemo(() => {
+    const fromCatalog = remoteEvents.flatMap(event => {
+      const sale = pickNextSale(event.sales, now);
+      const timestamp = sale && saleTimestamp(sale.saleAt);
+      if (!sale || timestamp === null || timestamp <= now) return [];
+      return [{ key: "catalog-" + event.id, eventId: event.id, artist: event.artist,
+        title: event.title, city: event.city, providerId: sale.providerId,
+        saleType: sale.saleType, saleAt: sale.saleAt, timezone: sale.timezone || event.timezone, timestamp }];
+    });
+    const knownEventIds = new Set(remoteEvents.map(event => event.id));
+    const fromLocal = watchlist.flatMap(item => {
+      if (item.eventId && knownEventIds.has(item.eventId)) return [];
+      const timestamp = saleTimestamp(item.saleAt);
+      if (timestamp === null || timestamp <= now) return [];
+      return [{ key: "saved-" + item.id, eventId: "", artist: item.artist,
+        title: item.title, city: item.city, providerId: item.providerId,
+        saleType: "saved sale", saleAt: item.saleAt, timezone: null, timestamp }];
+    });
+    return [...fromCatalog, ...fromLocal].sort((a, b) => a.timestamp - b.timestamp).slice(0, 4);
+  }, [remoteEvents, watchlist, now]);
 
   function inform(message: string, error = false) {
     setToast({ message, error });
