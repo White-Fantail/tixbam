@@ -760,6 +760,32 @@ function App() {
               <div className="stat-card"><div className="stat-top"><span>READY TO LAUNCH</span><Globe2 size={18} /></div><div className="stat-value">{installedIds.size.toString().padStart(2, "0")}<span>ADD-ONS</span></div><div className="stat-foot">Across multiple regions</div></div>
             </div>
 
+            <section className="next-ticket-drops">
+              <div className="featured-row">
+                <SectionHeading eyebrow="THE COUNTDOWN" title="Next ticket drops"
+                  description="Upcoming ticket-sale openings; a past opening does not mean tickets sold out." />
+                <button className="subtle-link" onClick={() => { setDiscoverSaleFilter("upcoming"); setSearch(""); setSection("discover"); }}>
+                  Browse upcoming <ArrowUpRight size={16} />
+                </button>
+              </div>
+              {nextTicketDrops.length ? <div className="next-ticket-drop-grid">
+                {nextTicketDrops.map(drop => <article className="next-ticket-drop" key={drop.key}>
+                  <div className="next-ticket-drop-main">
+                    <strong>{drop.artist}</strong>
+                    <span>{drop.title} · {drop.city || "City TBA"}</span>
+                    <small>{drop.saleType.replaceAll("-", " ")} · {providerFor(drop.providerId)?.name || drop.providerId}</small>
+                  </div>
+                  <TicketSaleStatus saleAt={drop.saleAt} timezone={drop.timezone} now={now} showDate />
+                  <button className="button button-outline" onClick={() => {
+                    setSearch(drop.title);
+                    setDiscoverSaleFilter("all");
+                    setMySaleFilter("all");
+                    setSection(drop.eventId ? "discover" : "watchlist");
+                  }}>View <ArrowRight size={14}/></button>
+                </article>)}
+              </div> : <div className="next-ticket-drop-empty">No upcoming ticket openings announced. Check Discover events for updates.</div>}
+            </section>
+
             <div className="featured-row">
               <SectionHeading eyebrow="THE LINEUP" title="Picture yourself there." description="Fictional showcase events to explore the workflow." />
               <button className="subtle-link" onClick={() => setSection("watchlist")}>My watchlist <ArrowUpRight size={17} /></button>
