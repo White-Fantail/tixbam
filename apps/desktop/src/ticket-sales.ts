@@ -44,14 +44,17 @@ export function getSaleTiming(
 export function formatSaleLocalTime(saleAt: string | null | undefined, timezone?: string | null): string {
   const timestamp = saleTimestamp(saleAt);
   if (timestamp === null) return "Sale date TBA";
+  // Respect the selected desktop language; the venue time zone remains unchanged.
+  const locale = typeof document !== "undefined" && document.documentElement.lang === "ko"
+    ? "ko-KR" : "en-NZ";
   // User-created watchlist entries have no venue time zone and were entered
   // with datetime-local. Retain that local wall-clock interpretation in UI.
   if (!timezone) {
-    const local = new Intl.DateTimeFormat("en-NZ", {
+    const local = new Intl.DateTimeFormat(locale, {
       day: "numeric", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit", hourCycle: "h23"
     }).format(timestamp);
-    return local + " (your time)";
+    return local + (locale === "ko-KR" ? " (내 시간)" : " (your time)");
   }
   let zone = timezone;
   try {
