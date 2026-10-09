@@ -10,7 +10,9 @@ test("Cityline scenario data corresponds to verified branches, but never claims 
     "Performance & ticket options", "Seat selection", "Shopping cart",
     "Delivery & payment", "Transaction preview", "Simulated bank verification", "Result & verification"
   ]);
-  assert.equal(api.CITYLINE_SCENARIOS.length, 6);
+  assert.equal(api.CITYLINE_SCENARIOS.length, 8);
+  assert.equal(api.citylineScenario("seatmap").mapUnavailable, true);
+  assert.equal(api.citylineScenario("realname").realName, true);
   assert.equal(api.citylineScenario("express").expressOnly, true);
   assert.equal(api.citylineScenario("presale").presale, true);
   assert.equal(api.citylineScenario("rush").queue, true);
