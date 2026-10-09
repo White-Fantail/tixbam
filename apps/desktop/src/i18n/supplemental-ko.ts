@@ -99,7 +99,7 @@ export const supplementalKo: Record<string,string> = {
   "Ticketing kiosk pickup (where offered)": "무인 발권기 수령 (지원 시)",
   "Delivery (where offered)": "배송 (지원 시)",
   "No maximum budget set": "최대 예산 미설정",
-  "Not yet announced": "아직 발표되지 않음"
+  "Not yet announced": "아직 발표되지 않음",
   "Main navigation": "기본 메뉴",
   "App profile information": "앱 프로필 정보",
   "FROM THE TIXBAM SERVER": "TIXBAM 서버 제공",
