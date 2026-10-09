@@ -116,9 +116,15 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.');
     if (!['awaiting_user', 'review'].includes(runner.state.status) || runner.busy) throw new Error('This run cannot be resumed now.');
     if (runner.state.status === 'review' && confirm !== true) throw new Error('Confirm the displayed order before payment.');
-    if (runner.state.status === 'awaiting_user' && runner.adapter.completeChallenge)
+    const reviewing = runner.state.status === 'review';
+    if (!reviewing && confirm === true) {
+      // A caller cannot turn "resume after CAPTCHA/queue/3DS" into a
+      // checkout confirmation. Only the explicit final-order review does so.
+      throw new Error('Payment confirmation is only available at final order review.');
+    }
+    if (!reviewing && runner.adapter.completeChallenge)
       runner.adapter.completeChallenge();
-    await runner.step(confirm === true); return runner.state;
+    await runner.step(reviewing && confirm === true); return runner.state;
   });
   handle('stop-booking', id => { const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.'); runner.stop(); return runner.state; });
   const timer = setInterval(() => { for (const r of runs.values()) if (r.state.status === 'running') void r.step(); }, 2000);
