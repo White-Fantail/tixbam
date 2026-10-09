@@ -77,12 +77,14 @@ sign-in remains available, even in development mode.
 - `POST /v1/auth/oauth/apple/callback` — Apple `form_post` return
 - `POST /v1/auth/oauth/complete` — desktop-only claim with verifier; yields
   a signed 7-day TIXBAM session once, or returns `202 pending`
-- `GET /v1/me` — signed-in user favorites, ticket-sale watchlist
+- `GET /v1/me` — signed-in favorites, booking plans, and legacy ticket-sale watchlist
 - `PUT/DELETE /v1/me/artists/{artist_uuid}` — follow/unfollow
 - `PUT/DELETE /v1/me/events/{event_uuid}` — favorite/unfavorite
-- `PUT/DELETE /v1/me/watchlist/{item_uuid}` — save/delete watched ticket sale
+- `PUT/DELETE /v1/me/watchlist/{item_uuid}` — legacy watched ticket-sale records
+- `PUT/DELETE /v1/me/plans/{plan_uuid}` — account-scoped booking plan (no payment secrets)
+- `PUT/DELETE /v1/me/saved/{performance|sale}/{uuid}` — save a specific performance or sale
 
-`/v1/me` calls require the TIXBAM account bearer token. Signed-in data lives
+`/v1/me` calls require the TIXBAM account bearer token. The desktop also retains an OS-encrypted, read-only last-synced snapshot for temporary API outages while the account session remains unexpired. Signed-in data lives
 in the cloud; anonymous guest watchlists remain device-local until explicitly
 imported. Account sessions and provider-site browser cookies remain separate.
 
