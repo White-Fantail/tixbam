@@ -960,7 +960,7 @@ function App() {
                   <button className="icon-button" aria-label={"Unfavorite " + event.title} disabled={cloudBusy} onClick={() => void toggleFavorite("events", event.id)}><Heart fill="currentColor" size={16}/></button>
                 </article>;
               })}</div>
-              {favoriteRemoteEvents.length === 0 && <p className="sale-filter-empty">No favorite events match the selected sale filter.</p>
+              {favoriteRemoteEvents.length === 0 && <p className="sale-filter-empty">No favorite events match the selected sale filter.</p>}
             </section>}
             <div className="content-toolbar">
               <label className="search-field"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search artist, event or city..." /></label>
