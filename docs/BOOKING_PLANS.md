@@ -42,10 +42,10 @@ Unclear payment outcomes must be verified in provider order history and must
 not trigger automatic payment retry.
 
 ## Future implementation (not asserted by this release)
-1. Live booking assistant alongside official provider browser state.
+1. Provider-permitted live automation and official-site state integration.
 2. Plan-linked provider-specific seat preference versions and rehearsal reports.
 3. Per-provider capability/terms verification before enabling automation.
-4. Durable session diagnostic history with safe crash recovery.
+4. Expanded consented diagnostics and recovery beyond the current minimal local interruption journal.
 5. Verified receipt/charge outcome and explicit recovery paths.
 
 Do not infer a successful actual purchase from rehearsal completion.
@@ -67,3 +67,11 @@ configuration. Dynamic seat/price choices remain on the device. The editor
 supports zero-decimal currencies such as KRW/JPY and common two-decimal
 currencies; the value is stored in the currency's smallest unit. For providers
 serving multiple countries, users must confirm the currency themselves.
+
+## Live Booking Control Room
+
+The initial plan-bound live browser workspace, explicit manual stage guidance,
+protected session reuse/closure, popup tracking and minimal interruption
+reminders are now implemented. These features do not verify any third-party
+checkout. See [Live Booking Control Room](LIVE_BOOKING_WORKSPACE.md) for
+safety/truth boundaries and hands-on QA scenarios.
