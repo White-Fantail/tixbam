@@ -20,7 +20,6 @@ import type { CloudAccount, CloudSnapshot, Provider, TicketAddon, Section, Ticke
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
 const providers: Provider[] = catalog;
 const STORAGE_KEY = "tixbam.watchlist.v1";
-const MAX_WINDOWS = 6;
 
 const navItems = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
@@ -648,16 +647,6 @@ function App() {
       inform((providerFor(opened.providerId)?.name || "Ticket agent") + " opened in its own browser session. Sign in there if needed.");
     } catch (err) {
       inform(err instanceof Error ? err.message : "Could not open the ticket agent.", true);
-    }
-  }
-
-  async function controlWindow(action: "focus" | "close", id: number) {
-    if (!window.tixbam) return;
-    try {
-      if (action === "focus") await window.tixbam.focusWindow(id);
-      else await window.tixbam.closeWindow(id);
-    } catch (err) {
-      inform(err instanceof Error ? err.message : "Window action failed.", true);
     }
   }
 
