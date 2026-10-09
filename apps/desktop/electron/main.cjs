@@ -32,10 +32,18 @@ function rejectRehearsalWrites(planId) {
     pending.reject(new Error("The rehearsal window closed before saving finished."));
   }
 }
-function openRehearsalWindow(plan) {
+function openRehearsalWindow(plan, accountId) {
   const target = rehearsalTarget(plan);
+  if (accountId !== null && (typeof accountId !== "string" ||
+      accountId.length < 1 || accountId.length > 128)) {
+    throw new Error("Invalid rehearsal account.");
+  }
+  const ownerId = accountId;
   const existing = rehearsalWindows.get(target.id);
   if (existing && !existing.win.isDestroyed()) {
+    if (existing.ownerId !== ownerId) {
+      throw new Error("A rehearsal for this plan is already open under another account. Close that window first.");
+    }
     if (existing.win.isMinimized()) existing.win.restore();
     existing.win.show();
     existing.win.focus();
@@ -52,7 +60,7 @@ function openRehearsalWindow(plan) {
       nodeIntegration: false, webSecurity: true
     }
   });
-  rehearsalWindows.set(target.id, { win, target });
+  rehearsalWindows.set(target.id, { win, target, ownerId });
   win.webContents.on("will-navigate", event => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.on("closed", () => {
@@ -270,9 +278,9 @@ app.whenReady().then(() => {
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
   registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
-  ipcMain.handle("tixbam:open-rehearsal", (event, plan) => {
+  ipcMain.handle("tixbam:open-rehearsal", (event, plan, accountId) => {
     dashboardOnly(event);
-    return openRehearsalWindow(plan);
+    return openRehearsalWindow(plan, accountId);
   });
   ipcMain.handle("tixbam:rehearsal-context", event => rehearsalEntry(event).target);
   ipcMain.handle("tixbam:rehearsal-close", event => {
@@ -296,7 +304,7 @@ app.whenReady().then(() => {
       }, REHEARSAL_SAVE_TIMEOUT_MS);
       rehearsalWrites.set(requestId, { planId: entry.target.id, resolve, reject, timer });
       dashboard.webContents.send("tixbam:rehearsal-save-request", {
-        requestId, planId: entry.target.id
+        requestId, planId: entry.target.id, ownerId: entry.ownerId
       });
     });
   });
