@@ -165,9 +165,9 @@ function RehearsalSimulator({ plan, onComplete, onClose }: {
   </section>;
 }
 
-export function BookingDashboard({ plans, addons, now, onCreate, onSelect, onPractice, onBook }: {
+export function BookingDashboard({ plans, addons, now, onCreate, onDiscover, onSelect, onPractice, onBook }: {
   plans: BookingPlan[]; addons: TicketAddon[]; now: number;
-  onCreate: () => void; onSelect: (id: string) => void;
+  onCreate: () => void; onDiscover: () => void; onSelect: (id: string) => void;
   onPractice: (id: string) => void; onBook: (plan: BookingPlan) => void;
 }) {
   const upcoming = [...plans].filter(plan => {
@@ -191,7 +191,7 @@ export function BookingDashboard({ plans, addons, now, onCreate, onSelect, onPra
       <p>{featured ? "Prepare and rehearse before the official sale opens." : "Choose a concert in Discover or add a ticket link to create a plan."}</p></div></div>
     {featured ? <PlanCard plan={featured} addons={addons} now={now}
       onSelect={() => onSelect(featured.id)} onPractice={() => onPractice(featured.id)}
-      onBook={() => onBook(featured)} /> : <button className="button button-outline" onClick={onCreate}>Find tickets <ArrowRight size={15}/></button>}
+      onBook={() => onBook(featured)} /> : <button className="button button-outline" onClick={onDiscover}>Browse concert directory <ArrowRight size={15}/></button>}
     {plans.length > 1 && <p className="booking-more-note">{plans.length - 1} other booking plan(s) in My Bookings.</p>}
   </section>;
 }
