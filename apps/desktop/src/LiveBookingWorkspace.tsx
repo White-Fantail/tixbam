@@ -74,13 +74,17 @@ export function LiveBookingWorkspace({
 
   const planSessions = useMemo(() => windows.filter(item => item.planId && !item.popup), [windows]);
 
-  const chosenPlan = plans.find(item => item.id === selectedPlanId) ||
-    plans.find(item => planSessions.some(win => win.planId === item.id)) ||
-    plans.find(item => item.id === history[0]?.planId) || null;
+  const selectedPlan = plans.find(item => item.id === selectedPlanId);
+  const activePlan = plans.find(item => planSessions.some(win => win.planId === item.id));
+  // An ongoing sale should be visible immediately, even after browsing another plan.
+  const chosenPlan = selectedPlan && (!activePlan ||
+    planSessions.some(win => win.planId === selectedPlan.id)) ? selectedPlan :
+    activePlan || selectedPlan || plans.find(item => item.id === history[0]?.planId) || null;
   const plan = chosenPlan;
   const matching = planSessions.filter(item => item.planId === plan?.id);
   const primary = matching[matching.length - 1];
   const extra = windows.filter(item => item.planId === plan?.id && item.popup);
+  const remainingPopup = !primary && extra.length ? extra[extra.length - 1] : null;
   const selectedWindow = matching.find(item => item.id === selectedWindowId) || primary;
   const relatedRuns = runs.filter(run => !run.rehearsal && (!selectedWindow
     ? false : run.windowId === selectedWindow.id));
@@ -174,6 +178,9 @@ export function LiveBookingWorkspace({
           <div className="live-actions">
             {selectedWindow ? <button className="button button-primary" disabled={busy !== ""}
                 onClick={() => void invoke("focus", () => onFocus(selectedWindow.id))}><ExternalLink size={16}/> Focus official site</button> :
+              remainingPopup ? <button className="button button-primary" disabled={busy !== ""}
+                onClick={() => void invoke("focus-popup", () => onFocus(remainingPopup.id))}>
+                <ExternalLink size={16}/> Focus remaining verification popup</button> :
               <button className="button button-primary" disabled={busy !== "" || !plan.bookingUrl}
                 onClick={() => void invoke("start", () => onStart(plan))}><ExternalLink size={16}/> Open official ticket site</button>}
             {selectedWindow && <button className="button button-outline" disabled={busy !== ""}
@@ -182,6 +189,7 @@ export function LiveBookingWorkspace({
               <button className="button button-outline" disabled={busy !== ""}
                 onClick={() => void invoke("agent", () => onTicketAgent(selectedWindow.id))}>Open official ticket agent <ArrowRight size={15}/></button>}
           </div>
+          {remainingPopup && <p className="live-warning">The main ticket window is closed, but a provider popup is still open. Check it before starting another booking attempt.</p>}
           {extra.length > 0 && <div className="live-popups"><strong>Provider popups ({extra.length})</strong>
             <p>Login and payment verification can open additional windows. They are not extra queue positions.</p>
             {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>Focus popup #{win.id} · {win.site || "loading"}</button>)}
