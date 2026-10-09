@@ -52,14 +52,25 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
   async function read(rehearsal = false) {
     await perform(async () => {
       if (!window.tixbam) throw new Error('Open the desktop app to configure booking.');
-      const ctx = await window.tixbam.bookingContext({providerId:event.providerId,eventUrl:event.url || addon.url,windowId,rehearsal});
+      const ctx = await window.tixbam.bookingContext({
+        providerId:event.providerId, eventUrl:event.url || addon.url,
+        windowId, planId:plan?.id, rehearsal
+      });
+      // Never reinterpret a KRW budget as HKD, or silently lower ticket quantity.
+      if (plan && plan.currency !== ctx.schema.currency) {
+        throw new Error('Plan currency ' + plan.currency + ' differs from the provider currency ' +
+          ctx.schema.currency + '. Change your Booking Plan currency and re-enter its budget.');
+      }
+      if (plan && plan.quantity > ctx.schema.maxTickets) {
+        throw new Error('This provider allows up to ' + ctx.schema.maxTickets +
+          ' tickets. Update your Booking Plan quantity before continuing.');
+      }
       setContext(ctx);
       const previous = defaults(ctx);
-      // The purchase goal owns the shared hard conditions. Provider-specific
-      // dynamic choices remain in local preferences (never in the cloud plan).
-      const initial = plan ? { ...previous, quantity: Math.min(plan.quantity, ctx.schema.maxTickets),
-        maxTotalMinor: plan.budgetMinor || previous.maxTotalMinor,
-        requireTogether: plan.requireTogether, allowFallback: plan.allowFallback } : previous;
+      // The plan's hard limits override saved dynamic options; no implicit budget defaults.
+      const initial = plan ? { ...previous, quantity: plan.quantity,
+        maxTotalMinor: plan.budgetMinor, requireTogether: plan.requireTogether,
+        allowFallback: plan.allowFallback } : previous;
       setPrefs(initial);
       setTextOptions(Object.fromEntries(ctx.schema.fields.filter(f=>f.type==='ranked'&&!f.choices).map(f=>[f.id,(initial.options[f.id] as string[]).join('\n')])));
       setConsent(false); setCvv('');
@@ -110,7 +121,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
         {!context.rehearsal && <><label>Local payment card<select value={cardId} onChange={e=>setCardId(e.target.value)}><option value="">No card prepared</option>{cards.map(c=><option key={c.id} value={c.id}>{c.label} · •••• {c.last4}</option>)}</select></label>{cardId&&<label>CVV for this run<input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={cvv} onChange={e=>setCvv(e.target.value)}/><small>Kept in memory for up to 30 minutes. Cleared at completion, stop or failure.</small></label>}</>}
         {prefs.checkout==='automatic' && <label className="booking-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I authorize payment for this event, up to {prefs.currency} {(prefs.maxTotalMinor/100).toFixed(2)}, when all required conditions match.</label>}
       </fieldset>
-      <div className="booking-actions"><button className="button button-outline" disabled={busy || active} onClick={()=>perform(async()=> { await window.tixbam!.saveBookingPreferences(context.contextId,prefs); await onPlanPreferencesSaved?.(prefs); setError('Preferences saved on this device and booking plan updated.'); })}>Save preferences</button><button className="button button-primary" disabled={busy || active || (prefs.checkout==='automatic'&&!consent)} onClick={()=>perform(async()=> { const code=cvv; setCvv(''); setRun(await window.tixbam!.startBooking({contextId:context.contextId,preferences:prefs,cardId:cardId||undefined,cvv:code,paymentConsent:consent})); })}>Start {context.rehearsal?'rehearsal':'booking'}</button></div>
+      <div className="booking-actions"><button className="button button-outline" disabled={busy || active} onClick={()=>perform(async()=> { await window.tixbam!.saveBookingPreferences(context.contextId,prefs); await onPlanPreferencesSaved?.(prefs); setError('Preferences saved on this device and booking plan updated.'); })}>Save preferences</button><button className="button button-primary" disabled={busy || active || prefs.maxTotalMinor <= 0 || (prefs.checkout==='automatic'&&!consent)} onClick={()=>perform(async()=> { const code=cvv; setCvv(''); setRun(await window.tixbam!.startBooking({contextId:context.contextId,preferences:prefs,cardId:cardId||undefined,cvv:code,paymentConsent:consent})); })}>Start {context.rehearsal?'rehearsal':'booking'}</button></div>
     </>}
     {run&&<div className="booking-run" role="status"><strong>{run.rehearsal?'REHEARSAL · ':''}{run.status.replaceAll('_',' ').toUpperCase()}</strong><p>{run.message}</p>{run.order&&run.status==='review'&&<p>{run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor/100).toFixed(2)} including fees · {run.order.seats.join(', ')}</p>}{run.receipt&&<p>{run.receipt}</p>}
       <div className="booking-actions">{['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.resumeBooking(run.id,run.status==='review')))}>{run.status==='review'?'Confirm this order and pay':run.rehearsal?'Complete simulated verification & resume':'I completed the required step · Resume'}</button>}{active&&<button className="button button-outline" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.stopBooking(run.id)))}>Stop and clear payment preparation</button>}</div>
