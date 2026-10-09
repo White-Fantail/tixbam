@@ -65,6 +65,20 @@ function providerFor(id: string): Provider | undefined {
   return providers.find((p) => p.id === id);
 }
 
+// Presentation-only hint. Electron revalidates URLs before opening a window.
+function saleUrlProvider(declaredProviderId: string, bookingUrl: string): Provider | undefined {
+  try {
+    const parsed = new URL(bookingUrl);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) return undefined;
+    const matches = providers.filter(p =>
+      p.allowedHosts.some(host => parsed.hostname === host || parsed.hostname.endsWith("." + host)));
+    return matches.find(p => p.id === declaredProviderId) ||
+      (matches.length === 1 ? matches[0] : undefined);
+  } catch {
+    return undefined;
+  }
+}
+
 function humanDate(value: string) {
   if (!value) return "Sale date not set";
   const date = new Date(value);
@@ -482,6 +496,36 @@ function App() {
       inform(providerFor(providerId)?.name + " window opened. Complete login and verification yourself.");
     } catch (err) {
       inform(err instanceof Error ? err.message : "Could not open the ticketing window.", true);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function launchSaleLink(providerId: string, bookingUrl: string) {
+    const target = saleUrlProvider(providerId, bookingUrl);
+    if (!target) {
+      inform("This published booking URL needs a supported ticketing add-on. Check the link in Admin.", true);
+      return;
+    }
+    if (!installedIds.has(target.id)) {
+      inform("Install the " + target.name + " add-on to open this official link.", true);
+      setSection("providers");
+      return;
+    }
+    if (!window.tixbam) {
+      inform("Launch the Electron desktop app to open ticketing browser windows.", true);
+      return;
+    }
+    setBusy(providerId);
+    try {
+      const opened = await window.tixbam.openSaleWindow({ providerId, url: bookingUrl });
+      const actual = providerFor(opened.providerId)?.name || opened.providerId;
+      inform(opened.providerId !== providerId
+        ? "Opened the " + actual + " event page. Ticket seller: " +
+          (providerFor(providerId)?.name || providerId) + ". Follow the event page to its ticketing link."
+        : actual + " ticketing window opened. Complete login and verification yourself.");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not open the official ticket link.", true);
     } finally {
       setBusy("");
     }
