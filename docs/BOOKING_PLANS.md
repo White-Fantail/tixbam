@@ -49,3 +49,21 @@ not trigger automatic payment retry.
 5. Verified receipt/charge outcome and explicit recovery paths.
 
 Do not infer a successful actual purchase from rehearsal completion.
+
+## Offline resilience and currency handling
+
+When the signed-in API becomes unavailable, the desktop can display the last
+successfully synced account snapshot stored in its OS-encrypted account file.
+The session must still be within its known expiration time. A clear offline
+banner warns that cloud writes cannot be completed. Successful plan mutations
+update the encrypted snapshot; account sign-out deletes it. These cached plans
+are for viewing and for opening local provider sessions, not for bypassing login
+or asserting ticket availability. A generic offline drill can still be finished,
+but an unsaved result is labelled as unsaved.
+
+Basic ticket count, maximum total, adjacency requirement and fallback policy
+are shared between a Booking Plan and the optional provider-specific booking
+configuration. Dynamic seat/price choices remain on the device. The editor
+supports zero-decimal currencies such as KRW/JPY and common two-decimal
+currencies; the value is stored in the currency's smallest unit. For providers
+serving multiple countries, users must confirm the currency themselves.
