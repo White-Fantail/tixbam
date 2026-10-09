@@ -40,7 +40,7 @@ export function tx(source: string): string {
   const trailing = source.match(/\s*$/)?.[0] || "";
   const key = source.trim().replace(/\s+/g, " ");
   if (!key) return source;
-  return leading + (ko as Record<string,string>)[key] ?? source;
+  return leading + ((ko as Record<string,string>)[key] || key) + trailing;
 }
 export function tr(source: string, vars?: Record<string, string | number>): string {
   const translated = tx(source);
