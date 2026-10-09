@@ -81,6 +81,7 @@ export interface DesktopBridge {
   stopBooking: (id: string) => Promise<BookingRun>;
   onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
+  openSaleWindow: (options: { providerId: string; url: string }) => Promise<{ id: number; providerId: string; url: string }>;
   openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
