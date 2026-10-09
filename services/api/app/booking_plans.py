@@ -33,7 +33,7 @@ class PlanPayload(BaseModel):
     timezone: str = Field(default="", max_length=100)
     quantity: int = Field(default=2, ge=1, le=20)
     budgetMinor: int = Field(default=0, ge=0, le=10000000000)
-    currency: str = Field(default="HKD", pattern=r"^[A-Z]{3}$")
+    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
     requireTogether: bool = True
     allowFallback: bool = True
     preferencesReady: bool = False
@@ -134,6 +134,9 @@ def migrate_watch_items_to_plans(db: Session):
             payload = PlanPayload(
                 artist=item["artist"], title=item["title"], city=item.get("city", ""),
                 providerId=item["providerId"], bookingUrl=item.get("url", ""),
+                currency=("HKD" if item["providerId"] == "cityline" else
+                          "KRW" if item["providerId"] in ("nol", "yes24") else
+                          "TWD" if item["providerId"] == "kktix" else "USD"),
                 eventId=item.get("eventId"), performanceId=item.get("performanceId"),
                 saleAt=item.get("saleAt", ""), performanceAt=item.get("performanceAt", ""),
             ).model_dump()
