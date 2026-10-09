@@ -241,7 +241,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
     finally { setSaving(false); }
   };
   return <section className="booking-plan-detail">
-    <button className="subtle-link" onClick={() => { onSelect(null); onPracticeId(null); }}><ArrowLeft size={16}/> All booking plans</button>
+    <button className="subtle-link" onClick={() => onSelect(null)}><ArrowLeft size={16}/> All booking plans</button>
     <div className="section-heading"><div><span className="eyebrow">{addon?.name || (draft.providerId === "tba" ? "Provider TBA" : draft.providerId)} · BOOKING PLAN</span>
       <h2>{draft.artist}</h2><p>{draft.title}{draft.city ? " · " + draft.city : ""}</p>
     </div></div>
