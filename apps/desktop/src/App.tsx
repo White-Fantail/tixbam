@@ -8,6 +8,7 @@ import {
 import { BookingPanel } from "./booking/BookingPanel";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
+import { formatFavoritePerformanceDate } from "./event-dates";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
 import type { CloudAccount, CloudSnapshot, Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
@@ -866,7 +867,14 @@ function App() {
               <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteEventIds.length})</span></h3>
               <div className="favorite-events-grid">{remoteEvents.filter(event => favoriteEventIds.includes(event.id)).map(event => (
                 <article key={event.id} className="favorite-event-card">
-                  <div><strong>{event.artist}</strong><span>{event.title} · {event.city || "City TBD"}</span></div>
+                  <div>
+                    <strong>{event.artist}</strong>
+                    <span>{event.title} · {event.city || "City TBD"}</span>
+                    <span className="favorite-event-date" title="Performance date at the venue">
+                      <CalendarDays size={13} aria-hidden="true" />
+                      {formatFavoritePerformanceDate(event)}
+                    </span>
+                  </div>
                   <button className="button button-outline" onClick={() => { setSearch(event.title); setSection("discover"); }}>Find tickets <ArrowRight size={14}/></button>
                   <button className="icon-button" aria-label={"Unfavorite " + event.title} disabled={cloudBusy} onClick={() => void toggleFavorite("events", event.id)}><Heart fill="currentColor" size={16}/></button>
                 </article>
