@@ -108,6 +108,8 @@ class User(Base):
     favorite_artists: Mapped[list["FavoriteArtist"]] = relationship(cascade="all, delete-orphan")
     favorite_events: Mapped[list["FavoriteEvent"]] = relationship(cascade="all, delete-orphan")
     watch_items: Mapped[list["UserWatchItem"]] = relationship(cascade="all, delete-orphan")
+    booking_plans: Mapped[list["UserBookingPlan"]] = relationship(cascade="all, delete-orphan")
+    saved_targets: Mapped[list["UserSavedTarget"]] = relationship(cascade="all, delete-orphan")
 
 
 class UserIdentity(Base):
