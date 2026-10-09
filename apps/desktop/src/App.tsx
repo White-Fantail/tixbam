@@ -11,7 +11,7 @@ import { type BookingPlan, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayl
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
-import { eventPerformanceStatus, formatSaleLocalTime, matchesSaleFilter, pickNextSale, saleTimestamp, type SaleFilter } from "./ticket-sales";
+import { eventPerformanceStatus, formatSaleLocalTime, matchesSaleFilter, pickNextSale, type SaleFilter } from "./ticket-sales";
 import { formatFavoritePerformanceDate } from "./event-dates";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
