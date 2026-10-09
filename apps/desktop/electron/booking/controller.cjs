@@ -56,7 +56,11 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     if ([...runs.values()].some(r => r.state.eventKey === key && !TERMINAL.has(r.state.status))) throw new Error('This event already has an active booking. Manage it in Live windows.');
     const schema = schemaFor(addon, page);
     const contextId = require('node:crypto').randomUUID();
-    const ctx = { contextId, eventKey: key, providerId, windowId: rehearsal ? undefined : windowId, rehearsal, schema, adapter };
+    const ctx = { contextId, eventKey: key, providerId,
+      windowId: rehearsal ? undefined : windowId,
+      planId: rehearsal ? undefined : planId,
+      windowRef: rehearsal ? undefined : ticketWindows.get(windowId)?.win,
+      rehearsal, schema, adapter };
     if (contexts.size >= 100) contexts.delete(contexts.keys().next().value);
     contexts.set(contextId, ctx);
     let saved = null;
@@ -72,6 +76,15 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     const ctx = contexts.get(contextId); if (!ctx) throw new Error('Read event options before starting.');
     requireInstalled(ctx.providerId);
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status) && (r.state.eventKey === ctx.eventKey || (!ctx.rehearsal && r.state.windowId === ctx.windowId)))) throw new Error('A booking is already active for this event or window.');
+    // A context is not authority to use a window indefinitely. Revalidate
+    // its exact browser and plan before starting, then before every step.
+    const assertWindow = ctx.rehearsal ? null : () => {
+      const entry = ticketWindows.get(ctx.windowId);
+      if (!entry || entry.providerId !== ctx.providerId || entry.win !== ctx.windowRef)
+        throw new Error('The original booking window changed or was closed.');
+      assertBookingWindow(entry, ctx.planId);
+    };
+    if (assertWindow) assertWindow();
     const prefs = validatePreferences(input, ctx.schema);
     // AB-01 has no vendor-approved autonomous checkout release. Rehearsal
     // remains available; real user-supervised selection is unchanged.
@@ -85,14 +98,16 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     else if (cardId) secret = new RunSecret(vault.unlock(cardId), cvv);
     else if (prefs.checkout === 'automatic') throw new Error('Choose a local card and enter its security code before starting automatic checkout.');
     const adapter = ctx.rehearsal ? new RehearsalAdapter(ctx.eventKey, prefs) : ctx.adapter;
-    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal });
+    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow });
     // Provider-neutral, non-secret AI context. No cards, CVV, cookies or page content.
-    runner.state.providerId = ctx.providerId;
-    runner.state.aiContext = {
-      quantity: prefs.quantity, currency: prefs.currency,
-      budget_minor: prefs.maxTotalMinor, require_together: prefs.requireTogether,
-      allow_fallback: prefs.allowFallback
-    };
+    runner.setMetadata({
+      providerId: ctx.providerId,
+      aiContext: {
+        quantity: prefs.quantity, currency: prefs.currency,
+        budget_minor: prefs.maxTotalMinor, require_together: prefs.requireTogether,
+        allow_fallback: prefs.allowFallback
+      }
+    });
     runs.set(runner.state.id, runner);
     await runner.step(); return runner.state;
   });
@@ -101,8 +116,8 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.');
     if (!['awaiting_user', 'review'].includes(runner.state.status) || runner.busy) throw new Error('This run cannot be resumed now.');
     if (runner.state.status === 'review' && confirm !== true) throw new Error('Confirm the displayed order before payment.');
-    if (runner.adapter.completeChallenge) runner.adapter.completeChallenge();
-    if (runner.state.status !== 'review') runner.update('running', 'Resuming…');
+    if (runner.state.status === 'awaiting_user' && runner.adapter.completeChallenge)
+      runner.adapter.completeChallenge();
     await runner.step(confirm === true); return runner.state;
   });
   handle('stop-booking', id => { const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.'); runner.stop(); return runner.state; });

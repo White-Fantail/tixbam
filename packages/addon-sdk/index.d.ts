@@ -61,6 +61,8 @@ export interface BookingRun {
   id: string; eventKey: string; windowId?: number;
   status: 'running' | 'awaiting_user' | 'review' | 'submitting' | 'completed' | 'stopped' | 'failed' | 'payment_unknown';
   message: string; rehearsal: boolean; startedAt: number; order?: BookingOrder; receipt?: string;
+  /** AB-02 informational host-owned phase; clients cannot set it. */
+  phase?: BookingPhase; revision?: number; generation?: number;
   providerId?: string; aiPageStage?: string;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
@@ -118,3 +120,13 @@ export interface AutomationCapabilityResponse {
   schemaVersion: 1; globalKillSwitch: boolean; autonomousExecutionAvailable: false;
   items: ProviderAutomationStatus[];
 }
+
+
+/** AB-02 state machine exposes a phase for progress, while status preserves
+ * the backwards-compatible renderer contract. Terminal phases cannot resume. */
+export type BookingPhase =
+  | 'CREATED' | 'WAITING_FOR_SESSION' | 'OBSERVING' | 'DECIDING'
+  | 'VALIDATING_ACTION' | 'EXECUTING_ACTION' | 'OFFER_SELECTED'
+  | 'ORDER_REVIEW' | 'READY_TO_COMMIT' | 'PAYMENT_COMMITTING'
+  | 'VERIFYING' | 'WAITING_FOR_USER' | 'CONFIRMED'
+  | 'PAYMENT_UNKNOWN' | 'STOPPED' | 'FAILED';
