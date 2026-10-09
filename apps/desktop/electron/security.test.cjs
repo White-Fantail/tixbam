@@ -9,6 +9,50 @@ test("accepts official provider home pages and HTTPS event links", () => {
   assert.equal(resolveStartUrl("yes24", "https://ticket.yes24.com/Pages/Perf/Detail/Detail.aspx?id=123").provider.id, "yes24");
 });
 
+test("registered Ticketmaster regional sale links open under the Ticketmaster add-on", () => {
+  const officialLinks = [
+    "https://www.ticketmaster.com/event/123",
+    "https://www.ticketmaster.ca/event/123",
+    "https://www.ticketmaster.co.uk/event/123",
+    "https://ticketmaster.co.th/activity/detail/26th_youngk",
+    "https://ticketmaster.sg/activity/detail/123",
+    "https://www.ticketmaster.dk/event/123",
+    "https://www.ticketmaster.de/event/123",
+    "https://www.ticketmaster.es/event/aespa-live-tour--synk--complaexity--in-barcelona-entradas/1901386458",
+    "https://www.ticketmaster.com.au/event/123",
+    "https://www.ticketmaster.co.nz/event/123"
+  ];
+  for (const url of officialLinks) {
+    assert.equal(resolveStartUrl("ticketmaster", url).provider.id, "ticketmaster", url);
+    assert.equal(resolveOfficialSaleUrl("ticketmaster", url).providerId, "ticketmaster", url);
+  }
+});
+
+test("NOL Korean and global ticket sales both resolve to the NOL add-on", () => {
+  for (const url of [
+    "https://nol.yanolja.com/ticket/products/26012865",
+    "https://world.nol.com/en/ticket/places/26001084/products/26012865"
+  ]) {
+    assert.equal(resolveStartUrl("nol", url).provider.id, "nol", url);
+    assert.equal(resolveOfficialSaleUrl("nol", url).providerId, "nol", url);
+  }
+});
+
+test("regional provider allowlists never admit sibling brands or lookalike domains", () => {
+  for (const url of [
+    "https://ticketmaster.es.evil.example/",
+    "https://ticketmaster.evil.example/",
+    "https://faketicketmaster.es/",
+    "https://nol.yanolja.com.evil.example/",
+    "https://evil-yanolja.com/",
+    "https://ticketmaster.es@evil.example/",
+    "https://user:secret@ticketmaster.es/",
+    "http://ticketmaster.es/"
+  ]) {
+    assert.throws(() => resolveOfficialSaleUrl("ticketmaster", url), url);
+  }
+});
+
 test("Cityline sale on a Live Nation event page opens in the Live Nation session", () => {
   const url = "https://www.livenation.hk/en/event/young-k-solo-tour-youngest-in-hong-kong";
   assert.deepEqual(resolveOfficialSaleUrl("cityline", url), { providerId: "livenation", url });
