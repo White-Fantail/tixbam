@@ -147,7 +147,7 @@ export async function saveAiPolicy(f: FormData) {
   if (!base || !token) error = "Admin API is not configured";
   else {
     try {
-      const response = await fetch(base.replace(/\\/$/, "") + "/v1/admin/ai/tasks/" + task, {
+      const response = await fetch((base.endsWith("/") ? base.slice(0, -1) : base) + "/v1/admin/ai/tasks/" + task, {
         method: "PUT", cache: "no-store",
         headers: { "Content-Type": "application/json", "X-Admin-Key": token },
         body: JSON.stringify(payload),
