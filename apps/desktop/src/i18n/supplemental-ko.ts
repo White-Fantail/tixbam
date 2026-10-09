@@ -136,4 +136,52 @@ export const supplementalKo: Record<string,string> = {
   "Enter your manually determined HKD limit": "직접 정한 HKD 최대 예산 입력",
   "Fictional seat map": "연습용 가상 좌석도",
 
+  "Watchlist, official-site launch and session management (prototype).":
+    "즐겨찾기, 공식 사이트 실행, 브라우저 세션 관리 지원 (프로토타입)",
+  "Performance and price selection implemented; seat pages still require verification. Provider permission remains unverified.":
+    "공연 회차와 가격 선택 기능을 구현했어요. 좌석 선택 화면과 예매처의 자동화 허가는 아직 검증되지 않았어요.",
+  "Checkout runner and local card preparation implemented; live Cityline payment mapping is not yet verified.":
+    "결제 실행 흐름과 로컬 카드 준비 기능이 있어요. 실제 Cityline 결제 연동은 아직 검증되지 않았어요.",
+  "NOL World prohibits ticket purchasing by unauthorized macros and related methods.":
+    "NOL World는 허가되지 않은 매크로 등으로 티켓을 구매하는 행위를 금지하고 있어요.",
+  "Automated purchases require authorization; no integration permission is established.":
+    "자동 구매에는 사전 허가가 필요하며 현재 연동 허가를 확인하지 못했어요.",
+  "Permission for automated seat selection has not been verified.":
+    "좌석 자동 선택에 대한 허가는 아직 검증되지 않았어요.",
+  "No approved automatic-checkout integration has been confirmed.":
+    "승인된 자동 결제 연동을 확인하지 못했어요.",
+  "Ticketmaster NZ restricts automated site access and ticket orders.":
+    "Ticketmaster NZ는 자동화된 사이트 접근과 티켓 주문을 제한하고 있어요.",
+  "Automated ticket purchases are expressly prohibited without permission.":
+    "허가되지 않은 티켓 자동 구매는 명시적으로 금지되어 있어요.",
+  "AXS NZ restricts automated site access and repeated ticket-page requests.":
+    "AXS NZ는 자동 접근과 티켓 페이지의 반복 요청을 제한하고 있어요.",
+  "AXS can reject suspected bot purchases; no authorized checkout integration is established.":
+    "AXS는 봇으로 의심되는 구매를 거절할 수 있으며 승인된 결제 연동은 없어요.",
+  "Assisted automation permission has not been confirmed.":
+    "예매 지원 자동화에 대한 허가를 확인하지 못했어요.",
+  "Official concert pages, presale entry and local persistent browser sessions.":
+    "공식 공연 페이지, 선예매 진입, 로컬 브라우저 세션 유지를 지원해요.",
+  "Seats are selected with the event's official ticket agent, not at Live Nation.":
+    "좌석 선택은 Live Nation이 아니라 해당 공연의 공식 예매처에서 진행돼요.",
+  "Checkout and payment are handled by the event's ticket agent. No automatic Live Nation checkout is implemented.":
+    "주문과 결제는 공연의 공식 예매처가 처리해요. Live Nation 자체 자동 결제는 구현되지 않았어요.",
+  "Booking runs": "예매 실행 목록",
+  "Open provider window": "예매처 창 열기",
+  "Performance:": "공연 회차:",
+  "Ticket sale:": "티켓 오픈:",
+  "Date TBA": "날짜 미정",
+  "Location not specified": "장소 미정",
+  "No verified email": "인증된 이메일 없음",
+  "Cloud account": "클라우드 계정",
+  "Guest / local": "비회원 / 로컬",
+  "Electron desktop": "데스크톱 앱",
+  "Browser preview": "브라우저 미리보기",
+  "Search artist, event or city...": "아티스트·공연·도시 검색…",
+  "Finish signing in with": "다음 계정으로 로그인 완료:",
+  "Your artist favorites, event favorites and watchlist sync to the cloud.":
+    "아티스트·공연 즐겨찾기와 관심 티켓이 클라우드에 동기화돼요.",
+  "Sign in to save favorites and events to your account.":
+    "로그인하면 즐겨찾기와 공연을 계정에 저장할 수 있어요.",
+
 };
