@@ -904,10 +904,20 @@ function App() {
            {section === "watchlist" && <>
             <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="My events" description="Your personal calendar of tickets worth chasing."
               action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
+            <div className="sale-filter-toolbar">
+              <label htmlFor="my-sale-filter">Ticket sale filter</label>
+              <select id="my-sale-filter" value={mySaleFilter}
+                onChange={e => setMySaleFilter(e.target.value as SaleFilter)}>
+                <option value="all">All events</option>
+                <option value="upcoming">Upcoming sales</option>
+                <option value="week">Next 7 days</option>
+              </select>
+            </div>
             {favoriteEventIds.length > 0 && <section className="saved-favorites">
               <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteEventIds.length})</span></h3>
-              <div className="favorite-events-grid">{remoteEvents.filter(event => favoriteEventIds.includes(event.id)).map(event => (
-                <article key={event.id} className="favorite-event-card">
+              <div className="favorite-events-grid">{favoriteRemoteEvents.map(event => {
+                const nextSale = pickNextSale(event.sales, now);
+                return <article key={event.id} className="favorite-event-card">
                   <div>
                     <strong>{event.artist}</strong>
                     <span>{event.title} · {event.city || "City TBD"}</span>
@@ -915,11 +925,16 @@ function App() {
                       <CalendarDays size={13} aria-hidden="true" />
                       {formatFavoritePerformanceDate(event)}
                     </span>
+                    <span className="favorite-event-sale">
+                      <TicketSaleStatus saleAt={nextSale?.saleAt} timezone={nextSale?.timezone || event.timezone} now={now} compact />
+                      {nextSale && <small>{nextSale.saleType.replaceAll("-", " ")}</small>}
+                    </span>
                   </div>
-                  <button className="button button-outline" onClick={() => { setSearch(event.title); setSection("discover"); }}>Find tickets <ArrowRight size={14}/></button>
+                  <button className="button button-outline" onClick={() => { setSearch(event.title); setDiscoverSaleFilter("all"); setSection("discover"); }}>Find tickets <ArrowRight size={14}/></button>
                   <button className="icon-button" aria-label={"Unfavorite " + event.title} disabled={cloudBusy} onClick={() => void toggleFavorite("events", event.id)}><Heart fill="currentColor" size={16}/></button>
-                </article>
-              ))}</div>
+                </article>;
+              })}</div>
+              {favoriteRemoteEvents.length === 0 && <p className="sale-filter-empty">No favorite events match the selected sale filter.</p>
             </section>}
             <div className="content-toolbar">
               <label className="search-field"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search artist, event or city..." /></label>
@@ -930,18 +945,27 @@ function App() {
                 const provider = providerFor(item.providerId);
                 if (!provider) return null;
                 const linkProvider = saleUrlProvider(item.providerId, item.url);
+                const remoteEvent = remoteEvents.find(event => event.id === item.eventId);
+                const remoteSale = remoteEvent?.sales.find(sale =>
+                  sale.providerId === item.providerId && sale.saleAt === item.saleAt && sale.bookingUrl === item.url);
+                const timezone = remoteSale?.timezone || remoteEvent?.timezone;
                 return (
                   <article className="watch-card" key={item.id}>
                     <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
                     <div className="watch-divider" />
-                    <div className="watch-details"><div><CalendarDays size={16} /><span>{humanDate(item.saleAt)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
-                    <div className="countdown-chip"><Clock3 size={13} />{countdown(item.saleAt, now)}</div>
+                    <div className="watch-details"><div><CalendarDays size={16} /><span>{formatSaleLocalTime(item.saleAt, timezone)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
+                    <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now} />
                     {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" disabled={!installedIds.has(item.providerId)} onClick={()=>setBookingEvent(item)}><Settings2 size={15}/> Booking preferences & automation</button>}
                     <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}{linkProvider && linkProvider.id !== provider.id ? " · via " + linkProvider.name : ""}</span><button className="button button-primary" disabled={!!busy || !linkProvider} onClick={() => launchSaleLink(provider.id, item.url)}><ExternalLink size={15} /> {!linkProvider ? "Link unavailable" : !installedIds.has(linkProvider.id) ? "Install add-on" : linkProvider.id !== provider.id ? "Event page" : "Open site"}</button></div>
                   </article>
                 );
               })}
-            </div> : <div className="empty-state"><div className="empty-icon"><Ticket size={32} /></div><h3>{watchlist.length ? "No matching events." : "Your next great memory begins here."}</h3><p>{watchlist.length ? "Try another search." : "Keep track of your favorite artists, ticket launch times and official booking links."}</p><button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add your first event</button></div>}
+            </div> : <div className="empty-state"><div className="empty-icon"><Ticket size={32} /></div>
+              <h3>{watchlist.length ? "No matching saved sales." : "Your next great memory begins here."}</h3>
+              <p>{watchlist.length ? "Try All events or another search." : "Keep track of your favorite artists, ticket launch times and official booking links."}</p>
+              {watchlist.length ? <button className="button button-outline" onClick={() => { setMySaleFilter("all"); setSearch(""); }}>Show all saved sales</button> :
+                <button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add your first event</button>}
+            </div>}
           </>}
 
           {section === "sessions" && <>
