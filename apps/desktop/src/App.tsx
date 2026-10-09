@@ -1129,6 +1129,11 @@ function App() {
           !w.popup && (plans.some(p => p.id === bookingEvent.id)
             ? w.planId === bookingEvent.id : !w.planId))}
         plan={plans.find(p => p.id === bookingEvent.id)}
+        onRehearse={plans.some(p => p.id === bookingEvent.id) ? () => {
+          const currentPlanId = bookingEvent.id;
+          setBookingEvent(null);
+          practicePlan(currentPlanId);
+        } : undefined}
         onPlanPreferencesSaved={async prefs => {
           const plan = plans.find(p => p.id === bookingEvent.id);
           if (plan) await upsertPlan({ ...plan, quantity: prefs.quantity, budgetMinor: prefs.maxTotalMinor,
