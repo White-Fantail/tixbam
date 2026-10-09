@@ -116,7 +116,6 @@ export const supplementalKo: Record<string,string> = {
   "Remove saved session": "저장한 회차 삭제",
   "Remove saved ticket sale": "저장한 티켓 판매 삭제",
   "Performance date at the venue": "공연장 현지 날짜",
-  "Search artist, event or city...": "아티스트·공연·도시 검색…",
   "Remove event": "공연 삭제",
   "ONE HUB. EVERY STAGE.": "한곳에서 모든 예매 준비를.",
   "Add-on Store": "예매처 애드온",
