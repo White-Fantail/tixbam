@@ -6,11 +6,74 @@ const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 
 const { registerBooking } = require("./booking/controller.cjs");
 const { registerAccount } = require("./account.cjs");
+const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
 let dashboard = null;
 const ticketWindows = new Map();
+const rehearsalWindows = new Map();
+const rehearsalWrites = new Map();
+let rehearsalRequestSequence = 0;
+const REHEARSAL_SAVE_TIMEOUT_MS = 20000;
+
+function rehearsalEntry(event) {
+  const entry = findRehearsalBySender(rehearsalWindows, event.sender);
+  if (!entry || event.senderFrame !== entry.win.webContents.mainFrame) {
+    throw new Error("Only a TIXBAM rehearsal window can perform this action.");
+  }
+  return entry;
+}
+function rejectRehearsalWrites(planId) {
+  for (const [id, pending] of rehearsalWrites) {
+    if (pending.planId !== planId) continue;
+    clearTimeout(pending.timer);
+    rehearsalWrites.delete(id);
+    pending.reject(new Error("The rehearsal window closed before saving finished."));
+  }
+}
+function openRehearsalWindow(plan) {
+  const target = rehearsalTarget(plan);
+  const existing = rehearsalWindows.get(target.id);
+  if (existing && !existing.win.isDestroyed()) {
+    if (existing.win.isMinimized()) existing.win.restore();
+    existing.win.show();
+    existing.win.focus();
+    return { reused: true, planId: target.id };
+  }
+  const win = new BrowserWindow({
+    width: 1200, height: 900, minWidth: 760, minHeight: 600,
+    backgroundColor: "#10101b", title: "TIXBAM — Rehearsal · " + target.artist,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "rehearsal-preload.cjs"),
+      partition: "persist:tixbam-rehearsal",
+      contextIsolation: true, sandbox: true,
+      nodeIntegration: false, webSecurity: true
+    }
+  });
+  rehearsalWindows.set(target.id, { win, target });
+  win.webContents.on("will-navigate", event => event.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.on("closed", () => {
+    const previous = rehearsalWindows.get(target.id);
+    if (previous?.win === win) rehearsalWindows.delete(target.id);
+    rejectRehearsalWrites(target.id);
+    if (dashboard && !dashboard.isDestroyed()) {
+      dashboard.webContents.send("tixbam:rehearsal-closed", target.id);
+    }
+  });
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  const loading = devUrl === "http://127.0.0.1:5173"
+    ? win.loadURL(devUrl + "/?rehearsal=1")
+    : win.loadFile(path.join(__dirname, "../dist/index.html"), { query: { rehearsal: "1" } });
+  loading.catch(error => {
+    console.warn("Rehearsal window could not load:", error.message);
+    if (!win.isDestroyed()) win.close();
+  });
+  return { reused: false, planId: target.id };
+}
+
 let recoveryFile = null;
 let liveHistory = [];
 let quittingConfirmed = false;
@@ -207,6 +270,47 @@ app.whenReady().then(() => {
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
   registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
+  ipcMain.handle("tixbam:open-rehearsal", (event, plan) => {
+    dashboardOnly(event);
+    return openRehearsalWindow(plan);
+  });
+  ipcMain.handle("tixbam:rehearsal-context", event => rehearsalEntry(event).target);
+  ipcMain.handle("tixbam:rehearsal-close", event => {
+    const entry = rehearsalEntry(event);
+    entry.win.close();
+    return true;
+  });
+  ipcMain.handle("tixbam:rehearsal-complete", event => {
+    const entry = rehearsalEntry(event);
+    if (!dashboard || dashboard.isDestroyed() || dashboard.webContents.isLoading()) {
+      throw new Error("Main TIXBAM window is not ready to save this rehearsal. Reopen the dashboard and retry.");
+    }
+    if ([...rehearsalWrites.values()].some(item => item.planId === entry.target.id)) {
+      throw new Error("The rehearsal completion is already being saved.");
+    }
+    const requestId = ++rehearsalRequestSequence;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        rehearsalWrites.delete(requestId);
+        reject(new Error("Saving timed out. Check the main TIXBAM window and retry."));
+      }, REHEARSAL_SAVE_TIMEOUT_MS);
+      rehearsalWrites.set(requestId, { planId: entry.target.id, resolve, reject, timer });
+      dashboard.webContents.send("tixbam:rehearsal-save-request", {
+        requestId, planId: entry.target.id
+      });
+    });
+  });
+  ipcMain.handle("tixbam:rehearsal-save-ack", (event, requestId, success, message) => {
+    dashboardOnly(event);
+    const pending = rehearsalWrites.get(requestId);
+    if (!pending) return false;
+    clearTimeout(pending.timer);
+    rehearsalWrites.delete(requestId);
+    if (success === true) pending.resolve({ saved: true });
+    else pending.reject(new Error(typeof message === "string" && message.length <= 300 ?
+      message : "Could not save rehearsal. Retry after checking the main TIXBAM window."));
+    return true;
+  });
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
     // Only the explicit plan launch path may bind a browser to a plan.
