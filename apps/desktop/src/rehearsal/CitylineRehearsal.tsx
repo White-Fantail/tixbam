@@ -74,6 +74,11 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [startAt, setStartAt] = useState(Date.now);
   const progress = useRef<HTMLDivElement>(null);
 
+  const mismatch = plan.currency !== "HKD";
+  const enteredHkd = Number(practiceBudgetHkd);
+  const trainingBudgetMinor = mismatch ? Number.isFinite(enteredHkd) && enteredHkd > 0 &&
+    enteredHkd < 100000000 && Number.isSafeInteger(Math.round(enteredHkd * 100))
+      ? Math.round(enteredHkd * 100) : 0 : plan.budgetMinor;
   const tiers = useMemo(() => citylineAvailableTiers(scenarioId), [scenarioId]);
   const seats = useMemo(() => citylineSeats(tierId || "b", scenarioId), [tierId, scenarioId]);
   const selectedSeats = seats.filter(seat => selectedSeatIds.includes(seat.id));
@@ -84,11 +89,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
     acceptRestrictedView: restrictedConsent, scenarioId
   }) : null;
-  const mismatch = plan.currency !== "HKD";
-  const enteredHkd = Number(practiceBudgetHkd);
-  const trainingBudgetMinor = mismatch ? Number.isFinite(enteredHkd) && enteredHkd > 0 &&
-    enteredHkd < 100000000 && Number.isSafeInteger(Math.round(enteredHkd * 100))
-      ? Math.round(enteredHkd * 100) : 0 : plan.budgetMinor;
+
   const canBegin = plan.quantity >= 1 &&
     plan.quantity <= scenario.maxTickets && trainingBudgetMinor > 0 && plan.preferencesReady;
 
