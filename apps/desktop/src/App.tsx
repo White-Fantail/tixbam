@@ -798,7 +798,7 @@ function App() {
             <span className="guide-icon"><Sparkles size={18} /></span>
             <strong>Ready for the rush?</strong>
             <p>Get set up before tickets go live.</p>
-            <button onClick={() => setSection("settings")}>How it works <ArrowUpRight size={13} /></button>
+            <button onClick={() => setSection(windows.some(w => w.planId) ? "sessions" : "plans")}>Go to booking workspace <ArrowUpRight size={13} /></button>
           </div>
           <div className="desktop-label"><span className="status-pulse" />{desktop ? "DESKTOP APP · PROTOTYPE" : "WEB PREVIEW · PROTOTYPE"}</div>
         </div>
@@ -825,7 +825,7 @@ function App() {
             but changes require reconnecting to the TIXBAM API. Official ticketing browser sessions remain local.
           </div>}
           {section === "overview" && <BookingDashboard plans={plans} addons={addons} now={now}
-            onCreate={() => setSection("discover")}
+            onCreate={openCreate} onDiscover={() => setSection("discover")}
             onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); setSection("plans"); }}
             onPractice={practicePlan} onBook={openPlanBooking}/>}
           {section === "plans" && <BookingPlansWorkspace plans={plans} addons={addons} now={now}
@@ -1113,7 +1113,7 @@ function App() {
           <h2 id="modal-title">Create Booking Plan</h2><p className="modal-sub">Choose your concert and official ticketing provider, then prepare and rehearse.</p>
           <form onSubmit={saveEvent}>
             <div className="form-row"><label>Artist or group <span>*</span><input autoFocus maxLength={80} placeholder="e.g. Your favorite artist" value={form.artist} onChange={(e) => setForm({ ...form, artist: e.target.value })} /></label><label>Event name <span>*</span><input maxLength={120} placeholder="e.g. 2027 World Tour" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label></div>
-            <div className="form-row"><label>City / venue<input maxLength={100} placeholder="e.g. Hong Kong" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label><label>Ticket sales begin<input type="datetime-local" value={form.saleAt} onChange={(e) => setForm({ ...form, saleAt: e.target.value })} /></label></div>
+            <div className="form-row"><label>City / venue<input maxLength={100} placeholder="e.g. Hong Kong" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label><label>Ticket sales begin (your local time)<input type="datetime-local" value={form.saleAt} onChange={(e) => setForm({ ...form, saleAt: e.target.value })} /></label></div>
             <label>Ticketing provider<select value={form.providerId} onChange={(e) => setForm({ ...form, providerId: e.target.value })}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} — {provider.region}</option>)}</select></label>
             <label>Official ticket link <span className="optional">(optional)</span><div className="field-with-icon"><Link2 size={17} /><input type="url" placeholder={providerFor(form.providerId)?.url} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div></label>
             <p className="input-hint">Leave the link blank to open the provider's home page. Direct links must belong to that provider.</p>
