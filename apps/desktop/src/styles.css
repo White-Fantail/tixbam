@@ -382,3 +382,11 @@
 .cl-drill-options-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#252633;border:1px solid #474656;border-radius:10px;padding:12px 14px}
 .cl-drill-options-line .cl-drill-check{flex:1;min-width:210px;justify-content:flex-end}
 @media(max-width:740px){.cl-drill-options-line .cl-drill-check{justify-content:flex-start}}
+
+.cl-drill-currency{display:grid;gap:10px;background:#272b36;border:1px solid #5b5968;border-radius:11px;padding:15px}
+.cl-drill-currency label{font-size:12px!important}
+.cl-drill-currency input{width:100%;max-width:320px;background:#222433;color:#f2f4ff;border:1px solid #64616f;border-radius:8px;padding:11px;font:inherit}
+.cl-drill-currency p{margin:0;font-size:11px;color:#e1f3bf}
+.cl-drill-learnings{background:#292a37;border:1px solid #595565;border-radius:11px;padding:16px}
+.cl-drill-learnings strong{color:#e6f5c9;font-size:12px}
+.cl-drill-learnings ul{display:grid;gap:8px;margin:10px 0 0 18px;padding:0;color:#d6d2dc;font-size:11px;line-height:1.5}
