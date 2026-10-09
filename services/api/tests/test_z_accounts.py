@@ -249,3 +249,15 @@ def test_google_and_apple_identity_tokens_require_correct_signature_and_audience
     with pytest.raises(Exception) as error:
         verified_social_claims("google", header + "." + tampered + "." + signature)
     assert error.value.status_code == 401
+
+
+def test_placeholder_provider_credentials_do_not_enable_login(monkeypatch):
+    from app.oauth import provider_config
+    monkeypatch.setenv("TIXBAM_SESSION_SECRET", "long-production-test-only-secret-not-a-placeholder")
+    monkeypatch.setenv("TIXBAM_PUBLIC_URL", "https://tixbam-production.up.railway.app")
+    for name in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+                 "APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID",
+                 "APPLE_PRIVATE_KEY"):
+        monkeypatch.setenv("TIXBAM_" + name, "PLACEHOLDER_" + name)
+    assert provider_config("google") is None
+    assert provider_config("apple") is None
