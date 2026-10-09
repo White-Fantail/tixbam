@@ -89,3 +89,38 @@ Provider booking settings link back to this same training workspace.
 The scenario fixtures are not event inventory and do not reproduce an
 authenticated Cityline checkout. See [Cityline rehearsal design and
 verification](CITYLINE_REHEARSAL.md).
+
+## Native rehearsal window (October 2026)
+
+Rehearsal is launched into a dedicated Electron BrowserWindow rather than a
+panel inside My Bookings. Dashboard, booking details, and Cityline's provider
+settings all open/focus that window. The host enforces one rehearsal window per
+Booking Plan, keeping existing progress intact on repeated clicks. The window
+has its own header, back/close action, minimum size and scrollable responsive
+layout. Closing rehearsal does NOT close, refresh, or reconfigure live
+ticketing-site windows.
+
+A separate sandboxed preload exposes only a safe rehearsal context, a
+completion request and a close method. Neither authentication/session APIs,
+provider windows nor the local card vault are available from the rehearsal
+renderer. The host whitelists only artist/title, provider ID, plan ID, currency,
+ticket count, budget, adjacency/fallback policy, and preferences-ready flag:
+no booking URLs, tokens, payment details or notes pass into this window.
+
+Rehearsal completion uses an acknowledged host-to-dashboard request with a
+20-second timeout. The dashboard checks that the account still matches the
+one used when the rehearsal launched and that the plan still exists, then
+persists the last-rehearsed timestamp for that account or local guest.
+Only confirmed saves return success. Account switches, offline cloud sync,
+deleted plans and interrupted windows produce retryable errors rather than
+false success. The rehearsal remains open after completion for review.
+
+On a booking-details page, edited (unsaved) plan conditions are saved before
+the new rehearsal window is launched; failures keep the user on that page
+instead of practising an outdated snapshot. Reopening an existing rehearsal
+focuses it; to use newly changed conditions, close and restart it.
+
+Electron-only manual QA still required on a packaged macOS build: window
+creation/focusing, native close behavior, account switching, and cloud
+completion acknowledgment. Unit tests cover the minimal plan transfer and
+renderer sender validation; desktop build and tests run on CI.
