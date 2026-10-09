@@ -104,6 +104,7 @@ def test_legacy_watchlist_backfill_is_repeatable(monkeypatch):
             matches = db.scalars(select(UserBookingPlan).where(UserBookingPlan.id == watch_id)).all()
             assert len(matches) == 1
             assert matches[0].payload["title"] == "Old Concert"
+            assert matches[0].payload["currency"] == "HKD"
         assert len(client.get("/v1/me", headers=a).json()["bookingPlans"]) == 1
         assert len(client.get("/v1/me", headers=a).json()["watchlist"]) == 1
     engine.dispose()
