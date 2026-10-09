@@ -712,10 +712,10 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-symbol"><span>✳</span></div>
-          <div className="brand-wordmark">TIX<span>BAM</span><small>THE FAN FIRST PLATFORM</small></div>
+          <div className="brand-wordmark">TIX<span>BAM</span><small>PREPARE · PRACTICE · BOOK</small></div>
         </div>
 
-        <div className="nav-label">YOUR SPACE</div>
+        <div className="nav-label">BOOKING WORKSPACE</div>
         <nav className="main-nav" aria-label="Main navigation">
           {navItems.map((item) => (
             <button key={item.id} onClick={() => { setSection(item.id); setSearch(""); }}
@@ -763,110 +763,17 @@ function App() {
         </header>
 
         <main className="main-content">
-          {section === "overview" && <>
-            <div className="hero">
-              <div className="hero-glow hero-glow-one" />
-              <div className="hero-glow hero-glow-two" />
-              <div className="hero-grid-lines" />
-              <div className="hero-copy">
-                <div className="hero-label"><span className="starburst">✳</span> YOUR FRONT ROW STARTS HERE</div>
-                <h1>THE SHOW IS<br /> <em>YOURS TO CHASE.</em></h1>
-                <p>Every ticket site. One powerful place to get ready. Your next unforgettable moment starts here.</p>
-                <div className="hero-buttons">
-                  <button className="button button-dark" onClick={openCreate}><Plus size={18} /> Add an event</button>
-                  <button className="hero-secondary" onClick={() => setSection("providers")}>Explore providers <ArrowUpRight size={16} /></button>
-                </div>
-              </div>
-              <div className="hero-art" aria-hidden="true">
-                <div className="hero-orbit" />
-                <div className="hero-ring">
-                  <div className="hero-ring-inner"><span>TIX</span><b>BAM!</b></div>
-                </div>
-                <span className="hero-art-star star-a">✦</span>
-                <span className="hero-art-star star-b">✳</span>
-                <span className="hero-art-star star-c">✦</span>
-                <span className="floating-mini-ticket"><Ticket size={17} /> ACCESS GRANTED TO DREAM BIG</span>
-              </div>
-            </div>
-
-            <div className="stats-grid">
-              <div className="stat-card"><div className="stat-top"><span>YOUR WATCHLIST</span><Heart size={18} /></div><div className="stat-value">{watchlist.length.toString().padStart(2, "0")}<span>EVENTS</span></div><div className="stat-foot">Your upcoming ticket drops</div></div>
-              <div className="stat-card"><div className="stat-top"><span>LIVE BROWSER WINDOWS</span><Layers3 size={18} /></div><div className="stat-value">{windows.length.toString().padStart(2, "0")}<span>OF {MAX_WINDOWS}</span></div><div className="stat-foot"><span className="tiny-green-dot" />{desktop ? "Desktop session manager" : "Requires desktop app"}</div></div>
-              <div className="stat-card"><div className="stat-top"><span>READY TO LAUNCH</span><Globe2 size={18} /></div><div className="stat-value">{installedIds.size.toString().padStart(2, "0")}<span>ADD-ONS</span></div><div className="stat-foot">Across multiple regions</div></div>
-            </div>
-
-            <section className="next-ticket-drops">
-              <div className="featured-row">
-                <SectionHeading eyebrow="THE COUNTDOWN" title="Next ticket drops"
-                  description="Upcoming ticket-sale openings; a past opening does not mean tickets sold out." />
-                <button className="subtle-link" onClick={() => { setDiscoverSaleFilter("upcoming"); setSearch(""); setSection("discover"); }}>
-                  Browse upcoming <ArrowUpRight size={16} />
-                </button>
-              </div>
-              {nextTicketDrops.length ? <div className="next-ticket-drop-grid">
-                {nextTicketDrops.map(drop => <article className="next-ticket-drop" key={drop.key}>
-                  <div className="next-ticket-drop-main">
-                    <strong>{drop.artist}</strong>
-                    <span>{drop.title} · {drop.city || "City TBA"}</span>
-                    <small>{drop.saleType.replaceAll("-", " ")} · {providerFor(drop.providerId)?.name || drop.providerId}</small>
-                  </div>
-                  <TicketSaleStatus saleAt={drop.saleAt} timezone={drop.timezone} now={now} showDate />
-                  <button className="button button-outline" onClick={() => {
-                    setSearch(drop.title);
-                    setDiscoverSaleFilter("all");
-                    setMySaleFilter("all");
-                    setSection(drop.eventId ? "discover" : "watchlist");
-                  }}>View <ArrowRight size={14}/></button>
-                </article>)}
-              </div> : <div className="next-ticket-drop-empty">No upcoming ticket openings announced. Check Discover events for updates.</div>}
-            </section>
-
-            <div className="featured-row">
-              <SectionHeading eyebrow="THE LINEUP" title="Picture yourself there." description="Fictional showcase events to explore the workflow." />
-              <button className="subtle-link" onClick={() => setSection("watchlist")}>My watchlist <ArrowUpRight size={17} /></button>
-            </div>
-            <div className="sample-grid">
-              {demos.map((demo) => {
-                const provider = providerFor(demo.providerId)!;
-                return (
-                  <article key={demo.id} className="sample-card">
-                    <div className={"sample-cover cover-" + demo.theme}>
-                      <div className="cover-noise" />
-                      <span className="sample-badge">FICTIONAL DEMO</span>
-                      <span className="cover-topline">TIXBAM PRESENTS • {demo.edition}</span>
-                      <div className="cover-shape"><span>{demo.artist}</span></div>
-                      <span className="cover-bottomline">LIVE THE MOMENT / FEEL THE MAGIC</span>
-                    </div>
-                    <div className="sample-body">
-                      <div className="sample-kicker"><span><Radio size={12} /> SAMPLE EVENT</span><span>— DATE TBD</span></div>
-                      <h3>{demo.artist}</h3><p>{demo.title}</p>
-                      <div className="sample-place"><Globe2 size={14} />{demo.city}</div>
-                      <div className="sample-bottom"><div className="sample-provider"><ProviderMark provider={provider} small /><span>{provider.name}</span></div><button aria-label={"Open " + provider.name} onClick={() => launch(provider.id)} disabled={!installedIds.has(provider.id)} title={!installedIds.has(provider.id) ? "Install provider add-on first" : "Open provider"}><ArrowUpRight size={18} /></button></div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div className="overview-bottom">
-              <div className="getting-ready-card">
-                <span className="eyebrow"><span className="eyebrow-line" /> THE PLAYBOOK</span>
-                <h3>Less chaos.<br /><span>More concert energy.</span></h3>
-                <div className="playbook-steps">
-                  <div><b>01</b><span>Save an event and official ticket link.</span></div>
-                  <div><b>02</b><span>Open your provider browser and sign in manually.</span></div>
-                  <div><b>03</b><span>Keep the window handy for the ticket drop.</span></div>
-                </div>
-              </div>
-              <div className="safety-card">
-                <div className="safety-circle"><ShieldCheck size={29} /></div>
-                <div><strong>Human first. Fan always.</strong><p>TIXBAM pauses for CAPTCHAs, queues and bank verification. You stay in control of every purchase.</p><button onClick={() => setSection("settings")}>Privacy & limitations <ArrowUpRight size={15} /></button></div>
-              </div>
-            </div>
-          </>}
-
+          {section === "overview" && <BookingDashboard plans={plans} addons={addons} now={now}
+            onCreate={() => setSection("discover")}
+            onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); setSection("plans"); }}
+            onPractice={practicePlan} onBook={openPlanBooking}/>}
+          {section === "plans" && <BookingPlansWorkspace plans={plans} addons={addons} now={now}
+            onCreate={openCreate} selectedId={selectedPlanId}
+            onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); }}
+            practiceId={practicePlanId} onPracticeId={setPracticePlanId}
+            onSave={upsertPlan} onRemove={removePlan} onOpen={openPlanBooking} onConfigure={configurePlan}/>}
           {section === "discover" && <>
-            <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover events" description="Concerts and ticket sales published by the TIXBAM platform." />
+            <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover tickets" description="Choose a show, performance and official ticket sale to create a booking plan." />
             <div className="remote-banner"><Globe2 size={17} /><span>API: {apiStatus}</span>
               <button onClick={() => setSection("settings")}>Service status <ArrowUpRight size={15}/></button></div>
             <div className="sale-filter-toolbar">
@@ -930,7 +837,7 @@ function App() {
                           {!linkProvider && <span>Booking link needs a supported add-on</span>}
                         </div>
                         <button className="button button-outline" disabled={!eligible || !active}
-                          onClick={() => saveDiscoveredEvent(event, sale, selectedSession)}>Watch</button>
+                          onClick={() => saveDiscoveredEvent(event, sale, selectedSession)}><Plus size={14}/> Plan booking</button>
                         <button className="button button-primary" disabled={!eligible || !active || !linkProvider || busy === sale.providerId}
                           title={linkedEventPage ? "Opens the " + linkProvider.name + " event page, not the ticket seller directly." : "Open official ticketing site"}
                           onClick={() => launchSaleLink(sale.providerId, sale.bookingUrl)}>{linkedEventPage ? "Event page" : "Open"}</button>
@@ -963,7 +870,7 @@ function App() {
            </>}
 
            {section === "watchlist" && <>
-            <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="My events" description="Your personal calendar of tickets worth chasing."
+            <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="Saved" description="Favorite artists, events and legacy watched ticket links."
               action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
             <div className="sale-filter-toolbar">
               <label htmlFor="my-sale-filter">Ticket sale filter</label>
@@ -1032,6 +939,7 @@ function App() {
           </>}
 
           {section === "sessions" && <>
+             {selectedPlanId && plans.some(p => p.id === selectedPlanId) && <div className="remote-banner"><Ticket size={16}/> Ticketing target: {plans.find(p => p.id === selectedPlanId)?.artist} — {plans.find(p => p.id === selectedPlanId)?.title}<button onClick={() => setSection("plans")}>Back to plan <ArrowRight size={14}/></button></div>}
             <SectionHeading eyebrow="THE CONTROL ROOM" title="Live windows" description="Manage the ticketing browsers you have opened."
               action={<span className="counter-badge"><span className="tiny-green-dot" />{windows.length} / {MAX_WINDOWS} WINDOWS OPEN</span>} />
             <div className="desktop-explainer"><div className="desktop-explainer-icon"><Monitor size={23} /></div><div><strong>{desktop ? "Each window is a real ticketing browser." : "Live ticketing windows require the desktop app."}</strong><p>Windows for the same provider share sign-in cookies. Keep track of provider queues yourself; opening more windows does not create extra queue positions.</p></div><button onClick={() => setSection("providers")}>Open a provider <ArrowUpRight size={17} /></button></div>
@@ -1076,7 +984,7 @@ function App() {
                  <div className="settings-panel-title"><UserRound size={20}/><div><h3>TIXBAM account</h3><p>{account ? "Your artist favorites, event favorites and watchlist sync to the cloud." : "Sign in to save favorites and events to your account."}</p></div></div>
                  {account ? <>
                    <div className="settings-inline"><div className="account-identity"><strong>{account.displayName}</strong><span>{account.email || "No verified email"} · {account.providers.join(", ")}</span></div><button className="button button-outline" onClick={() => void signOut()} disabled={cloudBusy}>Sign out</button></div>
-                   <div className="settings-inline"><span>{favoriteArtistIds.length} artists · {favoriteEventIds.length} favorite events · {watchlist.length} watched ticket sales</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void refreshAccount()}>Sync now</button></div>
+                   <div className="settings-inline"><span>{plans.length} booking plans · {favoriteArtistIds.length} artists · {favoriteEventIds.length} favorite events</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void refreshAccount()}>Sync now</button></div>
                    {loadWatchlist().length > 0 && <div className="settings-inline"><span>{loadWatchlist().length} guest events stored on this device</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void importGuestEvents()}>Import guest events</button></div>}
                  </> : <>
                    <div className="account-options">
@@ -1101,13 +1009,13 @@ function App() {
           </>}
         </main>
 
-        <footer className="footer"><div>© TIXBAM • FOR THE FANS, BY DESIGN.</div><div><span className="tiny-green-dot" /> LOCAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
+        <footer className="footer"><div>© TIXBAM • PREPARE · PRACTICE · BOOK.</div><div><span className="tiny-green-dot" /> LOCAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
       </div>
 
       {eventModal && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setEventModal(false); }}>
         <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div className="modal-top"><span className="eyebrow"><span className="eyebrow-line" /> STAY ONE STEP AHEAD</span><button className="icon-button" aria-label="Close" onClick={() => setEventModal(false)}><X size={20} /></button></div>
-          <h2 id="modal-title">Add your next big thing.</h2><p className="modal-sub">Organize an event and its official booking site in one place.</p>
+          <h2 id="modal-title">Create Booking Plan</h2><p className="modal-sub">Choose your concert and official ticketing provider, then prepare and rehearse.</p>
           <form onSubmit={saveEvent}>
             <div className="form-row"><label>Artist or group <span>*</span><input autoFocus maxLength={80} placeholder="e.g. Your favorite artist" value={form.artist} onChange={(e) => setForm({ ...form, artist: e.target.value })} /></label><label>Event name <span>*</span><input maxLength={120} placeholder="e.g. 2027 World Tour" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label></div>
             <div className="form-row"><label>City / venue<input maxLength={100} placeholder="e.g. Hong Kong" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label><label>Ticket sales begin<input type="datetime-local" value={form.saleAt} onChange={(e) => setForm({ ...form, saleAt: e.target.value })} /></label></div>
@@ -1115,12 +1023,12 @@ function App() {
             <label>Official ticket link <span className="optional">(optional)</span><div className="field-with-icon"><Link2 size={17} /><input type="url" placeholder={providerFor(form.providerId)?.url} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div></label>
             <p className="input-hint">Leave the link blank to open the provider's home page. Direct links must belong to that provider.</p>
             {formError && <p className="form-error" role="alert">{formError}</p>}
-            <div className="modal-actions"><button type="button" className="button button-outline" onClick={() => setEventModal(false)}>Cancel</button><button type="submit" className="button button-primary"><Check size={17} /> Save event</button></div>
+            <div className="modal-actions"><button type="button" className="button button-outline" onClick={() => setEventModal(false)}>Cancel</button><button type="submit" className="button button-primary"><Check size={17} /> Create plan</button></div>
           </form>
         </div>
       </div>}
 
-      {bookingEvent && <BookingPanel event={bookingEvent} addon={addons.find(a=>a.id===bookingEvent.providerId)!} windows={windows.filter(w=>w.providerId===bookingEvent.providerId)} onClose={()=>setBookingEvent(null)}/>}
+      {bookingEvent && addons.some(a => a.id === bookingEvent.providerId) && <BookingPanel event={bookingEvent} addon={addons.find(a=>a.id===bookingEvent.providerId)!} windows={windows.filter(w=>w.providerId===bookingEvent.providerId)} onClose={()=>setBookingEvent(null)}/>}
       {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
