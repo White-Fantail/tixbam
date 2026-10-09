@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
-  FlaskConical, Globe2, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, ExternalLink,
+  FlaskConical, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
 import type { TicketAddon } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
