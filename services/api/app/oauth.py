@@ -69,17 +69,19 @@ def provider_config(provider):
             return None
         if provider == "apple" and parsed.scheme != "https":
             return None
+        def configured(value):
+            return bool(value) and not value.upper().startswith(("PLACEHOLDER_", "CHANGE_ME", "YOUR_"))
         if provider == "google":
             cid = os.getenv("TIXBAM_GOOGLE_CLIENT_ID", "").strip()
             secret = os.getenv("TIXBAM_GOOGLE_CLIENT_SECRET", "").strip()
-            if not cid or not secret: return None
+            if not all(configured(value) for value in (cid, secret)): return None
             return {"origin": origin, "client_id": cid, "client_secret": secret}
         if provider == "apple":
             cid = os.getenv("TIXBAM_APPLE_CLIENT_ID", "").strip()
             team = os.getenv("TIXBAM_APPLE_TEAM_ID", "").strip()
             kid = os.getenv("TIXBAM_APPLE_KEY_ID", "").strip()
             key = os.getenv("TIXBAM_APPLE_PRIVATE_KEY", "").replace("\\n", "\n").strip()
-            if not all((cid, team, kid, key)): return None
+            if not all(configured(value) for value in (cid, team, kid, key)): return None
             return {"origin": origin, "client_id": cid, "team": team, "key_id": kid, "key": key}
     except ValueError:
         return None
