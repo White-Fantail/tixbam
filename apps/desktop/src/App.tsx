@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
-import { type BookingPlan, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
+import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
@@ -693,12 +693,21 @@ function App() {
     }
     const existing = plans.find(plan => plan.saleId === sale.id && plan.performanceId === (performance?.id || null));
     if (existing) { setSelectedPlanId(existing.id); setPracticePlanId(null); setSection("plans"); return; }
-    const plan = makePlan({
+    const draft = plans.find(plan => plan.eventId === event.id &&
+      plan.performanceId === (performance?.id || null) && !plan.saleId &&
+      (plan.providerId === "tba" || plan.providerId === sale.providerId));
+    const currency = currencyForProvider(sale.providerId);
+    const fields = {
       artist: event.artist, title: event.title, city: event.city, providerId: sale.providerId,
       eventId: event.id, performanceId: performance?.id || null, performanceAt: performance?.startsAt || "",
       saleId: sale.id, saleAt: sale.saleAt || "",
       timezone: sale.timezone || event.timezone || "", bookingUrl: sale.bookingUrl
-    });
+    };
+    const plan: BookingPlan = draft ? { ...draft, ...fields,
+      currency, budgetMinor: draft.currency === currency ? draft.budgetMinor : 0,
+      preferencesReady: draft.currency === currency && draft.preferencesReady,
+      updatedAt: new Date().toISOString()
+    } : makePlan(fields);
     try {
       await upsertPlan(plan);
       setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans");
