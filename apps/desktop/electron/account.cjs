@@ -20,8 +20,10 @@ function allowedApi(url, isPackaged) {
 
 function allowedAccountEndpoint(method, endpoint) {
   if (method === "GET" && endpoint === "/v1/me") return true;
-  return ["PUT", "DELETE"].includes(method) &&
-    /^\/v1\/me\/(artists|events|watchlist)\/[0-9a-fA-F-]{36}$/.test(endpoint);
+  return ["PUT", "DELETE"].includes(method) && (
+    /^\/v1\/me\/(artists|events|watchlist|plans)\/[0-9a-fA-F-]{36}$/.test(endpoint) ||
+    /^\/v1\/me\/saved\/(performance|sale)\/[0-9a-fA-F-]{36}$/.test(endpoint)
+  );
 }
 
 function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
