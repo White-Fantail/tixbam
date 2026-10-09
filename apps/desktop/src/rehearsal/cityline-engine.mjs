@@ -38,7 +38,7 @@ export const CITYLINE_SCENARIOS = Object.freeze([
 export const CITYLINE_STEPS = Object.freeze([
   "Scenario & readiness", "Ticketing queue", "Member login",
   "Performance & ticket options", "Seat selection", "Shopping cart",
-  "Delivery & payment", "Transaction preview", "Result & verification"
+  "Delivery & payment", "Transaction preview", "Simulated bank verification", "Result & verification"
 ]);
 export const CITYLINE_TIERS = Object.freeze([
   { id: "vip", label: "VIP", priceMinor: 148000 },
