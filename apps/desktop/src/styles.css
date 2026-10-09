@@ -202,3 +202,9 @@
 @media(max-width:660px){.booking-hero{padding:27px}.booking-key-actions{grid-template-columns:1fr}.booking-hero h1{font-size:32px}.plan-card{padding:17px}.booking-plan-detail .form-row{grid-template-columns:1fr}.booking-detail-side .button{width:100%}}
 
 .plan-currency-row{display:flex;gap:8px;align-items:center}.plan-currency-row select{flex:none;background:#23232f;color:#f5f3ff;border:1px solid #444353;border-radius:9px;padding:10px;font:inherit;color-scheme:dark}.plan-currency-row input{min-width:0;flex:1}
+
+.plan-provider-fields{display:grid;gap:13px;margin:0 0 20px}
+.plan-provider-fields label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#e2dfea}
+.plan-provider-fields select{width:100%;background:#242431;border:1px solid #444353;border-radius:9px;color:#eeeefa;padding:11px;font:inherit}
+.plan-unannounced{display:flex;align-items:center;justify-content:space-between;gap:11px;flex-wrap:wrap;padding:12px 0}
+.plan-unannounced .muted{font-size:11px;color:#b0afc1}
