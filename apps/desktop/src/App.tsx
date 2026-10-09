@@ -307,10 +307,14 @@ function App() {
     );
   }, [watchlist, search, mySaleFilter, now]);
 
-  const filteredRemoteEvents = useMemo(() => remoteEvents.filter(event =>
-    [event.title, event.artist, event.city].join(" ").toLowerCase().includes(search.toLowerCase().trim()) &&
-    matchesSaleFilter(event.sales.map(sale => sale.saleAt), now, discoverSaleFilter)
-  ), [remoteEvents, search, discoverSaleFilter, now]);
+  const filteredRemoteEvents = useMemo(() => remoteEvents.filter(event => {
+    const chosen = event.performances.find(performance => performance.id === chosenPerformances[event.id])
+      || event.performances[0];
+    const eligibleSales = event.sales.filter(sale =>
+      !chosen || sale.appliesToAll !== false || sale.performanceIds.includes(chosen.id));
+    return [event.title, event.artist, event.city].join(" ").toLowerCase().includes(search.toLowerCase().trim()) &&
+      matchesSaleFilter(eligibleSales.map(sale => sale.saleAt), now, discoverSaleFilter);
+  }), [remoteEvents, search, discoverSaleFilter, chosenPerformances, now]);
 
   const favoriteRemoteEvents = useMemo(() => remoteEvents.filter(event =>
     favoriteEventIds.includes(event.id) &&
@@ -942,7 +946,7 @@ function App() {
               </select>
             </div>
             {favoriteEventIds.length > 0 && <section className="saved-favorites">
-              <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteEventIds.length})</span></h3>
+              <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteRemoteEvents.length}{mySaleFilter !== "all" ? " of " + favoriteEventIds.length : ""})</span></h3>
               <div className="favorite-events-grid">{favoriteRemoteEvents.map(event => {
                 const nextSale = pickNextSale(event.sales, now);
                 return <article key={event.id} className="favorite-event-card">
