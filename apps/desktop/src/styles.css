@@ -390,3 +390,19 @@
 .cl-drill-learnings{background:#292a37;border:1px solid #595565;border-radius:11px;padding:16px}
 .cl-drill-learnings strong{color:#e6f5c9;font-size:12px}
 .cl-drill-learnings ul{display:grid;gap:8px;margin:10px 0 0 18px;padding:0;color:#d6d2dc;font-size:11px;line-height:1.5}
+
+
+/* The rehearsal is a standalone, distraction-free native Electron window. */
+.rehearsal-window{min-height:100vh;background:#0f101a;color:#f4f1fa;display:flex;flex-direction:column}
+.rehearsal-window-toolbar{height:auto;min-height:74px;display:flex;align-items:center;gap:16px;justify-content:space-between;padding:14px clamp(18px,3vw,35px);background:#161724;border-bottom:1px solid #343648}
+.rehearsal-window-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.rehearsal-brand-mark{width:39px;height:39px;background:#ddfa89;color:#1b2517;border-radius:11px;display:grid;place-items:center;flex:none}
+.rehearsal-window-brand>div{display:grid;gap:3px}
+.rehearsal-window-brand strong{font:800 18px 'Space Grotesk',sans-serif;letter-spacing:-.5px}
+.rehearsal-window-brand small{font-size:9px;letter-spacing:1px;color:#aaa9bd;font-weight:700}
+.rehearsal-window-trust{display:inline-flex;align-items:center;gap:7px;color:#cff4a4;font-size:11px;font-weight:750;white-space:nowrap}
+.rehearsal-window-body{width:100%;max-width:1380px;margin:0 auto;padding:clamp(18px,3vw,36px);flex:1;min-width:0}
+.rehearsal-window-body>.cityline-drill{width:100%;margin:0}
+.rehearsal-window-body>.practice-panel{margin:0}
+.rehearsal-window-toolbar .button{white-space:nowrap;min-height:38px}
+@media(max-width:680px){.rehearsal-window-toolbar{flex-wrap:wrap}.rehearsal-window-trust{order:3;width:100%}.rehearsal-window-toolbar .button{margin-left:auto}.rehearsal-window-body{padding:14px}}
