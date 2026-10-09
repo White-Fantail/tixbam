@@ -666,6 +666,24 @@ function App() {
     }
   }
 
+  async function planAnnouncedEvent(event: RemoteEvent, performance?: RemotePerformance) {
+    if (performance && ["cancelled", "postponed"].includes(performance.status)) {
+      inform("This performance is unavailable.", true); return;
+    }
+    const existing = plans.find(p => p.eventId === event.id && p.performanceId === (performance?.id || null)
+      && p.providerId === "tba");
+    if (existing) { setSelectedPlanId(existing.id); setSection("plans"); return; }
+    const plan = makePlan({
+      artist:event.artist, title:event.title, city:event.city, eventId:event.id, providerId:"tba",
+      performanceId:performance?.id || null, performanceAt:performance?.startsAt || "",
+      timezone:event.timezone || ""
+    });
+    try {
+      await upsertPlan(plan); setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans");
+      inform("Booking plan created. Add the official ticket agent and sale details when announced.");
+    } catch(err) { inform(err instanceof Error ? err.message : "Could not save the booking plan.", true); }
+  }
+
   async function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number], performance?: RemotePerformance) {
     if (performance && ["cancelled", "postponed"].includes(performance.status)) {
       inform("This performance is not available.", true); return;
@@ -856,7 +874,12 @@ function App() {
                           <Heart size={15} fill={favoriteSaleIds.includes(sale.id) ? "currentColor" : "none"}/>
                         </button>
                       </div>;
-                    }) : <span className="muted">Ticket sale details not published yet.</span>}
+                    }) : <div className="plan-unannounced">
+                      <span className="muted">Ticket sale details not announced yet.</span>
+                      <button className="button button-outline" onClick={() => void planAnnouncedEvent(event, selectedSession)}>
+                        <Plus size={14}/> Prepare this concert
+                      </button>
+                    </div>}
                   </div>
                 </article>;
               })}
