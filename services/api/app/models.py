@@ -139,6 +139,25 @@ class UserWatchItem(Base):
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
 
 
+
+class UserBookingPlan(Base):
+    """A user's ticket purchase goal. No provider cookies, card data or CVV."""
+    __tablename__ = "user_booking_plans"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class UserSavedTarget(Base):
+    """Saved performances and sales; legacy artist/event favorites remain readable."""
+    __tablename__ = "user_saved_targets"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), primary_key=True)
+    target_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+
 class OAuthLoginFlow(Base):
     __tablename__ = "oauth_login_flows"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
