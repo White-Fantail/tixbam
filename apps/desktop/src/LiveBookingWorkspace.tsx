@@ -4,6 +4,8 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CircleHelp, Clock3,
 import type { BookingRun } from "../../../packages/addon-sdk";
 import type { BookingPlan } from "./booking-plans";
 import { currencyFactor } from "./booking-plans";
+import { SaleCountdown } from "./BookingWorkspace";
+import { formatSaleLocalTime } from "./ticket-sales";
 import type { LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
 
 const steps: Array<{ id: LivePhase; name: string; help: string }> = [
@@ -138,7 +140,7 @@ export function LiveBookingWorkspace({
       {planHistory.map(item => {
         const previous = plans.find(p => p.id === item.planId);
         return <div className="live-recovery-item" key={item.planId}>
-          <span><b>{previous?.artist || "Booking plan"}</b> · {item.reason === "interrupted" ? "Session interrupted" : "Window closed"}
+          <span><b>{previous?.artist || "Booking plan"}</b> · {item.reason === "interrupted" ? "Session interrupted" : "Window closed"} · {new Date(item.updatedAt).toLocaleString()}
             {riskStages.has(item.phase) ? " · Checkout may need verification" : ""}</span>
           <button className="button button-outline" disabled={busy !== ""} onClick={() => void invoke("dismiss-" + item.planId, () => onDismissHistory(item.planId))}>
             Dismiss reminder</button>
@@ -163,6 +165,11 @@ export function LiveBookingWorkspace({
               <p>{addons.find(a => a.id === plan.providerId)?.name || plan.providerId}{plan.city ? " · " + plan.city : ""}</p>
             </div>
             <button className="button button-outline" onClick={() => onBackToPlan(plan.id)}><ArrowLeft size={15}/> Plan</button>
+          </div>
+          <div className="live-sale-time">
+            <SaleCountdown saleAt={plan.saleAt}/>
+            <span>{plan.saleAt ? "Scheduled sale: " + formatSaleLocalTime(plan.saleAt, plan.timezone || undefined) :
+              "Official sale date not yet published"}</span>
           </div>
           <div className="live-browser-status">
             <Globe2 size={20}/>
@@ -202,7 +209,7 @@ export function LiveBookingWorkspace({
             const status = summarizeRun(run);
             return <div key={run.id} className={"live-run"+(status.dangerous ? " live-run-alert" : "")}>
               <strong>{status.heading}</strong><p>{run.message}</p><p>{status.action}</p>
-              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {run.order.totalMinor / currencyFactor(run.order.currency)} including fees · {run.order.seats.join(", ")}</p>}
+              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(", ")}</p>}
               {run.receipt && <p>Receipt reference reported by provider: {run.receipt}</p>}
               <div className="booking-actions">
                 {["review", "awaiting_user"].includes(run.status) && <button className="button button-primary"
