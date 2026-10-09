@@ -26,7 +26,7 @@ function addonFor(addons: TicketAddon[], id: string) {
   return addons.find(addon => addon.id === id);
 }
 
-function SaleCountdown({ saleAt }: { saleAt: string }) {
+export function SaleCountdown({ saleAt }: { saleAt: string }) {
   const [clock, setClock] = useState(Date.now);
   const opens = saleTimestamp(saleAt);
   const fast = opens !== null && opens > clock && opens - clock <= 24 * 60 * 60 * 1000;
