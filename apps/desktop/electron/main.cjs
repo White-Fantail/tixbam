@@ -17,7 +17,7 @@ let quittingConfirmed = false;
 let closingApplication = false;
 
 function rememberSession(entry, reason = "interrupted") {
-  if (!entry?.planId || !recoveryFile) return;
+  if (!entry?.planId || entry.popup || !recoveryFile) return;
   liveHistory = mergeHistory(liveHistory, { ...activeEntry(entry), reason });
   try { writeHistory(recoveryFile, liveHistory); }
   catch (error) { console.warn("Live session recovery could not be saved:", error.message); }
@@ -43,6 +43,14 @@ function confirmSessionClose(win, entry, event) {
 
 function trackWindow(win, { providerId, planId = null, popup = false, parentId = null }) {
   const wc = win.webContents;
+  if (popup) wc.setWindowOpenHandler(({ url: requestedUrl }) => {
+    if (requestedUrl !== "about:blank" && !isSafeWebUrl(requestedUrl)) return { action: "deny" };
+    return { action: "allow", overrideBrowserWindowOptions: {
+      autoHideMenuBar: true,
+      webPreferences: { partition: "persist:tixbam-" + providerId,
+        sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true }
+    } };
+  });
   const entry = {
     win, providerId, planId, popup, parentId, openedAt: Date.now(),
     phase: "preparing", loadError: null
@@ -67,12 +75,12 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   });
   win.on("close", event => confirmSessionClose(win, entry, event));
   win.on("closed", () => {
-    if (planId) rememberSession(entry, closingApplication ? "interrupted" : "closed");
+    if (planId && !popup) rememberSession(entry, closingApplication ? "interrupted" : "closed");
     booking?.windowClosed(win.id);
     ticketWindows.delete(win.id);
     broadcast();
   });
-  if (planId) rememberSession(entry);
+  if (planId && !popup) rememberSession(entry);
   return entry;
 }
 
@@ -192,7 +200,8 @@ app.whenReady().then(() => {
   registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
-    return openTicketWindow(options);
+    // Only the explicit plan launch path may bind a browser to a plan.
+    return openTicketWindow({ providerId: options?.providerId, url: options?.url });
   });
   ipcMain.handle("tixbam:open-sale-window", (event, options) => {
     dashboardOnly(event);
@@ -206,7 +215,7 @@ app.whenReady().then(() => {
     const destination = resolveOfficialSaleUrl(options.providerId, options.url);
     requireInstalled(destination.providerId);
     // Never reload a live plan's browser: a reload can discard a queue position.
-    const existing = [...ticketWindows.values()].find(entry => entry.planId === planId && !entry.popup);
+    const existing = [...ticketWindows.values()].filter(entry => entry.planId === planId && !entry.popup).at(-1);
     if (existing) {
       if (existing.win.isMinimized()) existing.win.restore();
       existing.win.show(); existing.win.focus();
