@@ -45,7 +45,7 @@ export default function RehearsalApp() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {!error && !plan && <div className="empty-state"><h3>Loading your booking rehearsal…</h3></div>}
       {plan && (plan.providerId === "cityline"
-        ? <CitylineRehearsal plan={plan} onComplete={() => bridge!.complete()} onClose={() => void close()}/>
+        ? <CitylineRehearsal plan={plan} onComplete={async () => { await bridge!.complete(); }} onClose={() => void close()}/>
         : <RehearsalSimulator plan={plan} onComplete={() => bridge!.complete()}
             onClose={() => void close()}/>)}
     </div>
