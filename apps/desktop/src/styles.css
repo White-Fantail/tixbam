@@ -406,3 +406,10 @@
 .rehearsal-window-body>.practice-panel{margin:0}
 .rehearsal-window-toolbar .button{white-space:nowrap;min-height:38px}
 @media(max-width:680px){.rehearsal-window-toolbar{flex-wrap:wrap}.rehearsal-window-trust{order:3;width:100%}.rehearsal-window-toolbar .button{margin-left:auto}.rehearsal-window-body{padding:14px}}
+
+/* Korean-first language switch. Available in Desktop settings and rehearsal. */
+.language-settings .settings-panel-title{margin-bottom:18px}
+.language-switcher{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.language-switcher .button{min-width:110px;min-height:40px;justify-content:center}
+.language-switcher-compact .button{min-width:72px;min-height:32px;font-size:11px;padding:6px 10px}
+@media(max-width:680px){.language-switcher-compact{order:3}.language-switcher-compact .button{min-width:67px}}
