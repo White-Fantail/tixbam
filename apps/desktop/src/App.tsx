@@ -26,7 +26,6 @@ const navItems = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
   { id: "plans", label: "My Bookings", icon: Ticket },
   { id: "discover", label: "Discover", icon: CalendarDays },
-  { id: "artists", label: "My artists", icon: Star },
   { id: "watchlist", label: "Saved", icon: Heart },
   { id: "sessions", label: "Sessions", icon: Layers3 },
   { id: "providers", label: "Providers", icon: Globe2 },
@@ -861,7 +860,7 @@ function App() {
           </>}
 
           {section === "artists" && <>
-             <SectionHeading eyebrow="YOUR FAVORITE ARTISTS" title="My artists" description="Follow artists to keep your preferences synced across devices." />
+             <SectionHeading eyebrow="SECONDARY DIRECTORY" title="Artists" description="Save artists to find their upcoming ticket sales more easily." />
              <div className="content-toolbar">
                <label className="search-field"><Search size={18} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Find an artist..." /></label>
                <label className="favorite-filter"><input type="checkbox" checked={onlyFavoriteArtists} onChange={e => setOnlyFavoriteArtists(e.target.checked)} /> Followed only ({favoriteArtistIds.length})</label>
@@ -876,7 +875,7 @@ function App() {
 
            {section === "watchlist" && <>
             <SectionHeading eyebrow="YOUR NEXT BIG MOMENT" title="Saved" description="Favorite artists, events and legacy watched ticket links."
-              action={<button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add event</button>} />
+              action={<div className="booking-actions"><button className="button button-outline" onClick={() => setSection("artists")}>Browse artists</button><button className="button button-primary" onClick={openCreate}><Plus size={17} /> New plan</button></div>} />
             <div className="sale-filter-toolbar">
               <label htmlFor="my-sale-filter">Ticket sale filter</label>
               <select id="my-sale-filter" value={mySaleFilter}
