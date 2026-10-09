@@ -9,7 +9,7 @@ import {
   citylineOfferCheck, citylineNextFromResult
 } from "./cityline-engine.mjs";
 
-type Stage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type Stage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type PaymentOutcome = "simulated-receipt" | "unknown" | null;
 type Report = { scenarioId: string; completedAt: string; durationSeconds: number; errors: number;
   outcome: "simulated-receipt" | "unknown-reviewed" };
@@ -52,6 +52,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [restrictedConsent, setRestrictedConsent] = useState(false);
   const [outcome, setOutcome] = useState<PaymentOutcome>(null);
   const [historyChecked, setHistoryChecked] = useState(false);
+  const [challengeCompleted, setChallengeCompleted] = useState(false);
   const [checkoutEnds, setCheckoutEnds] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(CITYLINE_PRACTICE_HOLD_SECONDS);
   const [errors, setErrors] = useState(0);
@@ -104,7 +105,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setLoginMethod("email"); setTierId(""); setPurchaseMode(id === "express" || id === "presale" ? "express" : "normal");
     setTicketType("adult"); setDiscountEligible(false); setSelectedSeatIds([]);
     setDeliveryId("eticket"); setPaymentMethod("card"); setTermsAccepted(false);
-    setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false);
+    setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false); setChallengeCompleted(false);
     setCheckoutEnds(null); setRemaining(CITYLINE_PRACTICE_HOLD_SECONDS);
     setErrors(0); setFeedback(""); setSaveError(""); setSynced(false); setStartAt(Date.now());
   }
@@ -173,8 +174,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     if (remaining === 0) return warn("The practice countdown expired. Select the tickets again.");
     if (!offer?.ok) return warn(offer?.reason || "The offer no longer meets the booking conditions.");
     setCheckoutEnds(null);
-    setOutcome(citylineNextFromResult(scenarioId));
     setHistoryChecked(false);
+    setChallengeCompleted(false);
     go(8);
   }
   async function finish() {
@@ -404,6 +405,21 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <p className="cl-drill-helper">This button only moves the offline simulation forward. No card, order or site request is submitted.</p>
     </div>}
     {stage === 8 && <div className="cl-drill-stage">
+      <h4>Simulated bank / payment verification</h4>
+      <div className="cl-drill-action-card">
+        <CreditCard size={25}/>
+        <strong>{paymentMethod === "card" ? "Practice 3-D Secure challenge" : "Practice digital payment confirmation"}</strong>
+        <p>This is not an actual bank page. On a real purchase, your bank or payment provider may request verification on your phone, via an approved banking app, or another secure method.</p>
+        <p>Do not enter your real OTP, card details or bank password into TIXBAM rehearsals.</p>
+        <label className="cl-drill-check"><input type="checkbox" checked={challengeCompleted}
+          onChange={e => setChallengeCompleted(e.target.checked)}/>
+          I completed the simulated verification on my own device</label>
+        <button className="button button-primary" disabled={!challengeCompleted}
+          onClick={() => {setOutcome(citylineNextFromResult(scenarioId)); go(9);}}>
+          Check simulated transaction outcome <ArrowRight size={15}/></button>
+      </div>
+    </div>}
+    {stage === 9 && <div className="cl-drill-stage">
       {outcome === "unknown" ? <div className="cl-drill-uncertain">
         <ShieldAlert size={29}/><h4>Payment outcome unknown — practice scenario</h4>
         <p>A fictional bank challenge completed but the ticket site never displayed a confirmed receipt. Do <strong>not</strong> retry payment immediately.</p>
