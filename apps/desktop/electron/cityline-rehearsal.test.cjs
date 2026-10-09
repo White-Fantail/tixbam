@@ -10,7 +10,8 @@ test("Cityline scenario data corresponds to verified branches, but never claims 
     "Performance & ticket options", "Seat selection", "Shopping cart",
     "Delivery & payment", "Transaction preview", "Simulated bank verification", "Result & verification"
   ]);
-  assert.equal(api.CITYLINE_SCENARIOS.length, 8);
+  assert.equal(api.CITYLINE_SCENARIOS.length, 9);
+  assert.equal(api.citylineScenario("standing").standing, true);
   assert.equal(api.citylineScenario("seatmap").mapUnavailable, true);
   assert.equal(api.citylineScenario("realname").realName, true);
   assert.equal(api.citylineScenario("express").expressOnly, true);
@@ -75,4 +76,16 @@ test("the fixture includes no actual seat pages, user credentials or fetch calls
   const x = await simulator;
   assert.deepEqual(x.citylineSeats("b","standard"),x.citylineSeats("b","standard"));
   assert.equal(x.CITYLINE_SCENARIOS.some(s=>Object.hasOwn(s,"bookingUrl")),false);
+});
+
+
+test("standing general admission uses quantity and budget without pretending to assign seats", async () => {
+  const x = await simulator;
+  const input = {scenarioId:"standing",tierId:"b",quantity:2,selectedSeatIds:[],seats:[],
+    budgetMinor:150000,requireTogether:false,acceptRestrictedView:false};
+  const okay = x.citylineOfferCheck(input);
+  assert.equal(okay.ok,true);
+  assert.equal(okay.quote.totalMinor,143000);
+  assert.match(x.citylineOfferCheck({...input,selectedSeatIds:["A1"]}).reason,/does not allocate/);
+  assert.match(x.citylineOfferCheck({...input,budgetMinor:140000}).reason,/exceeds your limit/);
 });
