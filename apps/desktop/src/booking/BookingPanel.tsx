@@ -3,6 +3,7 @@ import type { BookingContext, BookingPreferences, BookingRun, CardSummary } from
 import type { TicketAddon, TicketWindow, WatchEvent } from '../types';
 import type { BookingPlan } from '../booking-plans';
 import { currencyFactor } from '../booking-plans';
+import { tx } from '../i18n';
 const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
   return ctx.preferences || { schemaVersion: 1, quantity: 2, maxTotalMinor: 200000, currency: ctx.schema.currency, requireTogether: true, allowFallback: true, checkout: 'review', options: Object.fromEntries(ctx.schema.fields.map(f => [f.id, f.type === 'ranked' ? [] : ''])) };
@@ -121,8 +122,8 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
         <label className="booking-check"><input type="checkbox" checked={prefs.requireTogether} onChange={e=>{ setPrefs({...prefs,requireTogether:e.target.checked}); setConsent(false); }}/>Adjacent seats required (when buying multiple seats)</label>
         <label className="booking-check"><input type="checkbox" checked={prefs.allowFallback} onChange={e=>{ setPrefs({...prefs,allowFallback:e.target.checked}); setConsent(false); }}/>Allow the ranked alternatives below</label>
         {context.schema.fields.map(field => <div className="booking-field" key={field.id}>
-          <label>{field.label}{field.required ? ' *' : ''}
-            {field.type === 'select' ? <select value={prefs.options[field.id] as string} onChange={e=>option(field.id,e.target.value)}><option value="">{field.required ? 'Select an option' : 'No requirement'}</option>{field.choices?.map(c=><option key={c.id} value={c.id} disabled={c.available===false}>{c.label}{c.available===false?' · Unavailable':''}</option>)}</select> : !field.choices ? <textarea rows={2} maxLength={4000} value={textOptions[field.id] || ''} onChange={e=> { setTextOptions({...textOptions,[field.id]:e.target.value}); option(field.id,e.target.value.split('\n').map(s=>s.trim()).filter(Boolean)); }}/> : <div className="rank-options">{field.choices.map(c=> {
+          <label>{tx(field.label)}{field.required ? ' *' : ''}
+            {field.type === 'select' ? <select value={prefs.options[field.id] as string} onChange={e=>option(field.id,e.target.value)}><option value="">{field.required ? 'Select an option' : 'No requirement'}</option>{field.choices?.map(c=><option key={c.id} value={c.id} disabled={c.available===false}>{tx(c.label)}{c.available===false?' · Unavailable':''}</option>)}</select> : !field.choices ? <textarea rows={2} maxLength={4000} value={textOptions[field.id] || ''} onChange={e=> { setTextOptions({...textOptions,[field.id]:e.target.value}); option(field.id,e.target.value.split('\n').map(s=>s.trim()).filter(Boolean)); }}/> : <div className="rank-options">{field.choices.map(c=> {
               const selected=prefs.options[field.id] as string[], i=selected.indexOf(c.id);
               return <div className="rank-choice" key={c.id}><button type="button" className={'button button-outline'+(i>=0?' selected':'')} disabled={c.available===false} onClick={()=>option(field.id,i<0?[...selected,c.id]:selected.filter(v=>v!==c.id))}>{i>=0?`${i+1}. `:''}{c.label}</button>{i>=0&&<><button type="button" aria-label={'Move '+c.label+' up'} disabled={i===0} onClick={()=>rank(field.id,c.id,-1)}>↑</button><button type="button" aria-label={'Move '+c.label+' down'} disabled={i===selected.length-1} onClick={()=>rank(field.id,c.id,1)}>↓</button></>}</div>;
             })}</div>}
@@ -138,6 +139,6 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
       <div className="booking-actions">{['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.resumeBooking(run.id,run.status==='review')))}>{run.status==='review'?'Confirm this order and pay':run.rehearsal?'Complete simulated verification & resume':'I completed the required step · Resume'}</button>}{active&&<button className="button button-outline" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.stopBooking(run.id)))}>Stop and clear payment preparation</button>}</div>
     </div>}
     {active && <p className="input-hint">Closing this panel keeps the run active. Manage it in Live windows, or stop it here.</p>}
-    {error&&<p className="form-error" role="alert">{error}</p>}
+    {error&&<p className="form-error" role="alert">{tx(error)}</p>}
   </div></div>;
 }
