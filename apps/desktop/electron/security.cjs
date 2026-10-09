@@ -33,4 +33,16 @@ function resolveStartUrl(providerId, candidate) {
   return { provider, url: parsed.toString() };
 }
 
-module.exports = { MAX_WINDOWS, findProvider, isSafeWebUrl, isHostAllowed, resolveStartUrl };
+// Published sale links sometimes point to an event promoter rather than the
+// registered ticket seller. Use the actual trusted add-on for that URL.
+function resolveOfficialSaleUrl(declaredProviderId, bookingUrl) {
+  if (!findProvider(declaredProviderId)) throw new Error("Unknown ticketing provider.");
+  if (!isSafeWebUrl(bookingUrl)) throw new Error("Enter a valid HTTPS booking URL.");
+  const parsed = new URL(bookingUrl);
+  const matches = providers.filter(provider => isHostAllowed(parsed.hostname, provider.allowedHosts));
+  const destination = matches.find(provider => provider.id === declaredProviderId) ||
+    (matches.length === 1 ? matches[0] : null);
+  if (!destination) throw new Error("No supported TIXBAM add-on for booking URL host " + parsed.hostname + ".");
+  return { providerId: destination.id, url: parsed.toString() };
+}
+module.exports = { MAX_WINDOWS, findProvider, isSafeWebUrl, isHostAllowed, resolveStartUrl, resolveOfficialSaleUrl };
