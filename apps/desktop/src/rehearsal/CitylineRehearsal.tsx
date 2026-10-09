@@ -345,10 +345,11 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         })}
       </div>
       <h5>Purchase method</h5>
+      {scenario.standing && <p className="cl-drill-helper">Standing/general admission: there are no numbered seats. Entry order and venue restrictions are decided by the organiser, not this simulator.</p>}
       <div className="cl-drill-methods">
         <button type="button" aria-pressed={purchaseMode==="express"} className={purchaseMode==="express"?"selected":""}
-          onClick={() => {setPurchaseMode("express"); setSelectedSeatIds([]);}}>Express Purchase
-          <small>Computer suggests seats; no individual seat map selection</small></button>
+          onClick={() => {setPurchaseMode("express"); setSelectedSeatIds([]);}}>{scenario.standing ? "General admission booking" : "Express Purchase"}
+          <small>{scenario.standing ? "Ticket quantity and section only; no seat numbers" : "Computer suggests seats; no individual seat map selection"}</small></button>
         {!scenario.expressOnly && <button type="button" aria-pressed={purchaseMode==="normal"} className={purchaseMode==="normal"?"selected":""}
           onClick={() => {setPurchaseMode("normal"); setSelectedSeatIds([]);}}>Normal Purchase
           <small>Choose practice seats from a simplified diagram</small></button>}
@@ -362,7 +363,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
           Choose tickets <ArrowRight size={15}/></button></div>
     </div>}
     {stage === 4 && <div className="cl-drill-stage">
-      <h4>{purchaseMode === "express" ? "Express allocation" : "Normal Purchase · practice seat map"}</h4>
+      <h4>{scenario.standing ? "Standing / general admission" : purchaseMode === "express" ? "Express allocation" : "Normal Purchase · practice seat map"}</h4>
       <p>Sample layout only. Real events differ by venue, available inventory and organiser settings.</p>
       <div className="cl-drill-legend"><span><i className="available"/>Available</span><span><i className="selected"/>Selected</span>
         <span><i className="sold"/>Unavailable</span><span><i className="restricted"/>Restricted view</span></div>
@@ -398,8 +399,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         </div>}
       </div>
       <div className="cl-drill-seat-summary"><strong>{scenario.standing ? plan.quantity + " standing ticket(s) · no reserved seats" : "Selected: " + selectedSeatIds.length + " / " + plan.quantity}</strong>
-        <span>{selectedSeatIds.length ? selectedSeatIds.join(", ") : "No seats allocated"}</span>
-        <span>{plan.requireTogether ? "Your plan requires adjacent seats" : "Your plan allows non-adjacent seats"}</span></div>
+        <span>{scenario.standing ? "No assigned seats" : selectedSeatIds.length ? selectedSeatIds.join(", ") : "No seats allocated"}</span>
+        <span>{scenario.standing ? "Standing has no guaranteed adjacent positions" : plan.requireTogether ? "Your plan requires adjacent seats" : "Your plan allows non-adjacent seats"}</span></div>
       {(selectedSeats.some(seat => seat.restrictedView) || tiers.find(t => t.id === tierId)?.restrictedView) &&
         <label className="cl-drill-check"><input type="checkbox" checked={restrictedConsent}
           onChange={e => setRestrictedConsent(e.target.checked)}/>
