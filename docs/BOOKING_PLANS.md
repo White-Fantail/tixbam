@@ -79,7 +79,7 @@ safety/truth boundaries and hands-on QA scenarios.
 ## Cityline-specific rehearsal
 
 Cityline plans now open a separate 10-step **offline** training workspace.
-It is based on official Cityline purchasing guidance and supports eight
+It is based on official Cityline purchasing guidance and supports nine
 synthetic practice scenarios for queue, presale, price zones, Normal/Express
 seat choices, adjacent seats, illustrative fees, delivery, identity/discount
 rules, transaction review, bank verification and uncertain outcomes.
