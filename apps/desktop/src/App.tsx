@@ -491,8 +491,7 @@ function App() {
     if (!plan.bookingUrl) { inform("Add an official booking URL first.", true); return; }
     if (!window.tixbam) { inform("Live booking requires the desktop app.", true); return; }
     setSelectedPlanId(plan.id);
-    await launchSaleLink(plan.providerId, plan.bookingUrl);
-    setSection("sessions");
+    if (await launchSaleLink(plan.providerId, plan.bookingUrl)) setSection("sessions");
   }
   function configurePlan(plan: BookingPlan) {
     const addon = addons.find(item => item.id === plan.providerId);
@@ -564,20 +563,20 @@ function App() {
     }
   }
 
-  async function launchSaleLink(providerId: string, bookingUrl: string) {
+  async function launchSaleLink(providerId: string, bookingUrl: string): Promise<boolean> {
     const target = saleUrlProvider(providerId, bookingUrl);
     if (!target) {
       inform("This published booking URL needs a supported ticketing add-on. Check the link in Admin.", true);
-      return;
+      return false;
     }
     if (!installedIds.has(target.id)) {
       inform("Install the " + target.name + " add-on to open this official link.", true);
       setSection("providers");
-      return;
+      return false;
     }
     if (!window.tixbam) {
       inform("Launch the Electron desktop app to open ticketing browser windows.", true);
-      return;
+      return false;
     }
     setBusy(providerId);
     try {
@@ -587,8 +586,10 @@ function App() {
         ? "Opened the " + actual + " event page. Ticket seller: " +
           (providerFor(providerId)?.name || providerId) + ". Follow the event page to its ticketing link."
         : actual + " ticketing window opened. Complete login and verification yourself.");
+      return true;
     } catch (err) {
       inform(err instanceof Error ? err.message : "Could not open the official ticket link.", true);
+      return false;
     } finally {
       setBusy("");
     }
