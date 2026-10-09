@@ -1,0 +1,107 @@
+export const bookingKo: Record<string,string> = {
+  "Sale time TBA": "티켓 오픈 일정 미정",
+  "Scheduled opening reached · check the official site": "예정된 오픈 시각이에요 · 공식 사이트에서 확인하세요",
+  "Tickets open in": "티켓 오픈까지",
+  "Prepare": "준비", "Rehearse": "리허설", "Book": "예매",
+  "Open tickets": "공식 예매 페이지 열기",
+  "GENERIC OFFLINE SIMULATION": "일반 오프라인 시뮬레이션",
+  "Rehearse your booking": "티켓팅 리허설",
+  "1. Know your booking conditions": "1. 예매 조건 확인",
+  "Make sure your real provider account and payment authentication device are ready before the actual sale.":
+    "실제 예매 전에 예매처 계정과 결제 인증 기기가 준비되었는지 확인하세요.",
+  "Set a total budget and save your preferences first.": "총예산과 예매 조건을 먼저 저장하세요.",
+  "2. Waiting room": "2. 대기실",
+  "The official waiting room may put you in a queue. Do not refresh or open extra sessions unless the ticket provider instructs you to.":
+    "공식 대기실에서 대기열로 이동할 수 있어요. 예매처에서 안내하지 않는 한 새로고침하거나 창을 여러 개 열지 마세요.",
+  "Simulate admission": "입장 상황 연습",
+  "3. Check the offer": "3. 제안된 티켓 확인",
+  "Practice rejecting seats that do not satisfy the quantity, adjacency and maximum total price you chose.":
+    "선택한 수량, 연석 조건, 총예산에 맞지 않는 티켓을 거절하는 연습이에요.",
+  "Check selection": "선택 확인",
+  "4. Review before payment": "4. 결제 전 최종 확인",
+  "Confirm the artist, performance, ticket quantity and final total including fees. The real payment page might still require bank verification.":
+    "아티스트, 회차, 티켓 수량, 수수료 포함 최종 금액을 확인하세요. 실제 결제에서는 은행 인증이 필요할 수 있어요.",
+  "Proceed to simulated verification": "가상 인증으로 계속",
+  "5. Bank challenge and confirmation": "5. 은행 인증 및 결과 확인",
+  "Imagine completing 3-D Secure on your phone. Confirm the ticket provider's final order receipt before treating a real booking as successful. No real payment occurs here.":
+    "휴대폰으로 3-D Secure 인증을 마치는 상황을 연습해요. 실제 예매는 예매처의 영수증을 확인해야 성공으로 볼 수 있어요. 여기서는 결제되지 않아요.",
+  "Finish offline rehearsal": "오프라인 리허설 마치기",
+  "Offline rehearsal finished": "오프라인 리허설 완료",
+  "This confirms only that you completed the practice walkthrough. Real seat selection, queue placement, card processing and checkout remain unverified.":
+    "연습 과정을 마쳤다는 의미예요. 실제 좌석 확보, 대기열 입장, 카드 결제나 구매 완료를 보장하지 않아요.",
+  "Practice again": "다시 연습하기",
+  "TIXBAM · TICKETING FIRST": "TIXBAM · 티켓팅이 먼저",
+  "Prepare. Practice. Book.": "준비하고, 연습하고, 예매하세요.",
+  "Build your booking plan, rehearse the flow and keep your next ticket drop under control.":
+    "예매 계획을 만들고 흐름을 연습해서 다음 티켓팅을 차근차근 준비하세요.",
+  "Set requirements before tickets open.": "티켓 오픈 전에 조건을 설정하세요.",
+  "Practice": "연습",
+  "Rehearse without risking a purchase.": "실제 구매 없이 안전하게 연습하세요.",
+  "Launch the official site with your plan ready.": "준비한 계획으로 공식 예매 사이트를 여세요.",
+  "NEXT ACTION": "다음 할 일",
+  "Browse concert directory": "공연 목록 둘러보기",
+  "YOUR TICKET PURCHASE GOALS": "내 티켓 구매 목표",
+  "Every ticket drop has one place for preparation, rehearsal and live booking.":
+    "예매 준비부터 리허설, 실전 티켓팅까지 한곳에서 관리해요.",
+  "No booking plans yet": "예매 계획이 아직 없어요",
+  "Start with an official ticket sale in Discover. You can also add your own event and URL.":
+    "공연 찾기에서 예매할 공연을 선택하거나, 직접 공연과 링크를 등록하세요.",
+  "Create your first booking plan": "첫 예매 계획 만들기",
+  "All booking plans": "모든 예매 계획", "Preparation": "예매 준비",
+  "Booking preferences": "예매 조건",
+  "Official ticketing provider": "공식 예매처", "Not announced yet": "아직 발표되지 않음",
+  "Official booking URL (when announced)": "공식 예매 주소 (발표 후 입력)",
+  "Set the non-negotiable limits now. Provider-specific seat tiers and checkout options are configured separately when verified options are available.":
+    "양보할 수 없는 구매 조건부터 정하세요. 좌석 등급과 결제 방식은 해당 예매처에서 지원이 확인되면 별도로 설정할 수 있어요.",
+  "Tickets": "티켓 수량", "Maximum total incl. fees": "수수료 포함 최대 총예산",
+  "Require adjacent seats": "연석 필수", "Allow only explicitly ranked alternatives": "지정한 대안만 허용",
+  "Notes / preferred sections": "메모 / 선호 좌석 구역",
+  "I've checked my ticketing account": "예매처 계정을 확인했어요",
+  "My payment method and 3-D Secure device are ready": "결제 수단과 3-D Secure 인증 기기를 준비했어요",
+  "Save plan": "예매 계획 저장", "Mark preferences ready": "예매 조건 준비 완료",
+  "Rehearsal": "리허설",
+  "Practice ticketing steps using your saved conditions. Cityline includes a scenario-based checkout simulation; other providers use a generic walkthrough. No real purchase occurs.":
+    "저장한 조건으로 티켓팅을 연습해요. Cityline은 상황별 결제 리허설을 제공하고, 다른 업체는 일반 연습을 제공해요. 실제 구매는 발생하지 않아요.",
+  "Open rehearsal window": "리허설 창 열기",
+  "Live booking": "실전 티켓팅",
+  "Open the official ticketing site. Login, queue entry and human verification remain under your control.":
+    "공식 예매 사이트를 엽니다. 로그인, 대기열 입장, 본인 확인은 직접 진행해 주세요.",
+  "Open official ticket link": "공식 예매 링크 열기",
+  "Provider options & automation": "예매처별 설정 및 자동화",
+  "Verify purchase": "구매 결과 확인",
+  "After checkout, verify the ticket provider's confirmation page, receipt or order history. If payment status is unclear, do not attempt another charge until you confirm the result.":
+    "결제 후에는 예매처의 완료 화면, 영수증 또는 구매 내역을 확인하세요. 결제 여부가 불분명하면 결과를 확인하기 전까지 다시 결제하지 마세요.",
+  "Provider receipt verification and durable booking history are not available in this release. An offline rehearsal is never proof of purchase.":
+    "현재 버전은 공식 영수증 검증이나 구매 내역 영구 저장을 지원하지 않아요. 오프라인 리허설 완료는 실제 구매 증명이 아니에요.",
+  "Delete booking plan": "예매 계획 삭제",
+  "Preparation checks complete": "예매 준비 항목 완료",
+  "Offline rehearsal": "오프라인 리허설",
+  "Currency": "통화", "Set a maximum total": "최대 총예산 입력",
+  "e.g. Front section preferred; no restricted-view seats": "예: 앞쪽 좌석 선호, 시야 제한석 제외",
+  "Practice finished, but your rehearsal result could not be saved. Reconnect and try again.":
+    "연습은 완료했지만 결과를 저장하지 못했어요. 다시 연결한 후 시도하세요.",
+  "This total exceeds your limit. Do not accept it.": "설정한 예산을 초과해요. 선택하지 마세요.",
+  "Use a valid official HTTPS ticket link, or leave the field blank until announced.":
+    "올바른 HTTPS 공식 예매 링크를 입력하거나, 발표 전이라면 비워두세요.",
+  "Delete this booking plan? Existing watchlist records are not deleted.":
+    "이 예매 계획을 삭제할까요? 기존 즐겨찾기 내역은 삭제되지 않아요.",
+  "Link uses ticket provider domain": "공식 예매처 도메인 확인",
+  "Cityline budget currency matches HKD ticket prices": "Cityline 예산 통화가 HKD와 일치",
+  "Ticketing account checked": "예매처 계정 확인",
+  "Ticket preferences configured": "예매 조건 설정",
+  "Payment method prepared": "결제 수단 준비",
+  "Simulation rehearsed": "리허설 완료",
+  "Additional requirements": "추가 조건",
+  "Seat preferences": "좌석 선호도",
+  "Ticket quantity": "티켓 수량",
+  "Continue to booking": "예매로 계속",
+  "Practice completed": "리허설 완료",
+  "Plan currency": "계획 통화",
+  "Booking Plan": "예매 계획",
+  "Total including fees": "수수료 포함 총액",
+  "Over budget": "예산 초과",
+  "Within budget": "예산 이내",
+  "Select a ticket": "티켓 선택",
+  "Open a ticket provider": "예매처 열기",
+  "A valid ticketing URL is required": "올바른 예매 주소가 필요해요"
+};
