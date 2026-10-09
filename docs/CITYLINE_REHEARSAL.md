@@ -51,8 +51,9 @@ automation permissions. These are NOT implied by the rehearsal.
     unknown-payment scenario where official Transaction History must be
     checked before retrying a charge.
 
-Eight scenarios: full purchase; high-demand queue; Express only; presale;
-restricted view; seat-map failure; real-name ticketing; uncertain payment.
+Nine scenarios: full purchase; high-demand queue; Express only; presale;
+restricted view; seat-map failure; real-name ticketing; standing/general
+admission without numbered seats; uncertain payment.
 
 ## Invariants and safety
 
