@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
   FlaskConical, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
-import type { TicketAddon } from "./types";
+import type { TicketAddon, RehearsalTarget } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
 import { type BookingPlan, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
-import { CitylineRehearsal } from "./rehearsal/CitylineRehearsal";
+
 
 type Change = (next: BookingPlan) => Promise<void>;
 type Props = {
@@ -19,8 +19,7 @@ type Props = {
   onOpen: (plan: BookingPlan) => void;
   onConfigure: (plan: BookingPlan) => void;
   selectedId: string | null;
-  practiceId: string | null;
-  onPracticeId: (id: string | null) => void;
+  onPractice: (plan: BookingPlan) => Promise<void>;
 };
 
 function addonFor(addons: TicketAddon[], id: string) {
@@ -97,8 +96,8 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
 }
 
 /** This is an explicitly generic, offline interaction drill; never access a ticketing site. */
-function RehearsalSimulator({ plan, onComplete, onClose }: {
-  plan: BookingPlan; onComplete: () => Promise<void>; onClose: () => void;
+export function RehearsalSimulator({ plan, onComplete, onClose }: {
+  plan: RehearsalTarget; onComplete: () => Promise<void>; onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState("");
@@ -198,7 +197,7 @@ export function BookingDashboard({ plans, addons, now, onCreate, onDiscover, onS
 }
 
 export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, onSave, onRemove,
-  onOpen, onConfigure, selectedId, practiceId, onPracticeId }: Props) {
+  onOpen, onConfigure, selectedId, onPractice }: Props) {
   const selected = plans.find(plan => plan.id === selectedId);
   const [draft, setDraft] = useState<BookingPlan | null>(null);
   const [saving, setSaving] = useState(false);
@@ -212,7 +211,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       {plans.length ? <div className="booking-plans-grid">{[...plans].sort((a,b) => planSort(a,b,now)).map(plan =>
         <PlanCard key={plan.id} plan={plan} addons={addons} now={now}
           onSelect={() => onSelect(plan.id)}
-          onPractice={() => { onSelect(plan.id); onPracticeId(plan.id); }}
+          onPractice={() => { void onPractice(plan); }}
           onBook={() => onOpen(plan)}/>)}</div> :
         <div className="empty-state"><h3>No booking plans yet</h3><p>Start with an official ticket sale in Discover. You can also add your own event and URL.</p>
           <button className="button button-primary" onClick={onCreate}>Create your first booking plan</button></div>}
@@ -240,11 +239,6 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
     try { await onSave({ ...draft, updatedAt: new Date().toISOString() }); }
     catch (err) { setError(err instanceof Error ? err.message : "Could not save your plan."); }
     finally { setSaving(false); }
-  };
-  const recordRehearsal = async () => {
-    const next = { ...draft, lastRehearsalAt: new Date().toISOString() };
-    await onSave(next);
-    setDraft(next);
   };
   return <section className="booking-plan-detail">
     <button className="subtle-link" onClick={() => { onSelect(null); onPracticeId(null); }}><ArrowLeft size={16}/> All booking plans</button>
@@ -317,8 +311,19 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         <h3><FlaskConical size={19}/> Rehearsal</h3>
         <p>Practice ticketing steps using your saved conditions. Cityline includes a scenario-based checkout simulation; other providers use a generic walkthrough. No real purchase occurs.</p>
         {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {new Date(draft.lastRehearsalAt).toLocaleString()}</p>}
-        <button className="button button-primary" onClick={() => onPracticeId(practiceId === selected.id ? null : selected.id)}>
-          {practiceId === selected.id ? "Close rehearsal" : "Start rehearsal"}</button>
+        <button className="button button-primary" disabled={saving} onClick={() => {
+          void (async () => {
+            setSaving(true);
+            setError("");
+            try {
+              // Practice the latest visible conditions, never an older saved version.
+              if (JSON.stringify(draft) !== JSON.stringify(selected)) await onSave(draft);
+              await onPractice(draft);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Could not open the rehearsal.");
+            } finally { setSaving(false); }
+          })();
+        }}><ExternalLink size={16}/> Open rehearsal window</button>
       </div>
       <div className="settings-panel"><h3><TicketCheck size={19}/> Live booking</h3>
         <p>Open the official ticketing site. Login, queue entry and human verification remain under your control.</p>
@@ -337,14 +342,9 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       </div>
       <button className="button button-outline plan-delete" disabled={saving} onClick={() => {
         if (window.confirm("Delete this booking plan? Existing watchlist records are not deleted.")) {
-          void onRemove(selected.id).then(() => { onSelect(null); onPracticeId(null); }).catch(e => setError(String(e)));
+          void onRemove(selected.id).then(() => { onSelect(null); }).catch(e => setError(String(e)));
         }
       }}><Trash2 size={15}/> Delete booking plan</button>
     </div></div>
-    {practiceId === selected.id && (draft.providerId === "cityline"
-      ? <CitylineRehearsal key={selected.id} plan={draft}
-          onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/>
-      : <RehearsalSimulator key={selected.id} plan={draft}
-          onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/> )}
   </section>;
 }
