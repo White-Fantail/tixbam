@@ -63,7 +63,7 @@ export interface TicketWindow {
 }
 
 export interface CloudAccount { id: string; displayName: string; email: string | null; providers: string[]; }
-export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; favoritePerformanceIds: string[]; favoriteSaleIds: string[]; bookingPlans: BookingPlan[]; watchlist: WatchEvent[]; }
+export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; favoritePerformanceIds: string[]; favoriteSaleIds: string[]; bookingPlans: BookingPlan[]; offline?: boolean; watchlist: WatchEvent[]; }
 export interface DesktopBridge {
   accountStatus: () => Promise<CloudSnapshot | null>;
   accountOAuthStart: (url: string, provider: "google" | "apple") => Promise<{ provider: "google" | "apple"; expiresIn: number }>;
