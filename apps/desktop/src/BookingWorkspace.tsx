@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, ExternalLink,
+import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
   FlaskConical, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
 import type { TicketAddon } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
@@ -24,6 +24,32 @@ type Props = {
 
 function addonFor(addons: TicketAddon[], id: string) {
   return addons.find(addon => addon.id === id);
+}
+
+function SaleCountdown({ saleAt }: { saleAt: string }) {
+  const [clock, setClock] = useState(Date.now);
+  const opens = saleTimestamp(saleAt);
+  useEffect(() => {
+    setClock(Date.now());
+    if (opens === null) return;
+    // High-frequency updates are isolated to this small component.
+    const frequency = opens - Date.now() <= 24 * 60 * 60 * 1000 ? 1000 : 60000;
+    const timer = window.setInterval(() => setClock(Date.now()), frequency);
+    return () => window.clearInterval(timer);
+  }, [opens]);
+  if (opens === null) return <span className="plan-countdown">Sale time TBA</span>;
+  const remaining = Math.max(0, Math.ceil((opens - clock) / 1000));
+  if (!remaining) return <span className="plan-countdown plan-countdown-open">Scheduled opening reached · check the official site</span>;
+  const days = Math.floor(remaining / 86400);
+  const hours = Math.floor((remaining % 86400) / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const label = days > 0 ? days + "d " + hours + "h " + minutes + "m" :
+    pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+  return <span className={"plan-countdown" + (remaining <= 300 ? " plan-countdown-soon" : "")}>
+    <CalendarClock size={16}/> Tickets open in <strong>{label}</strong>
+  </span>;
 }
 
 function readiness(plan: BookingPlan, addons: TicketAddon[]) {
@@ -53,6 +79,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
       {plan.performanceAt && <small>Performance: {new Date(plan.performanceAt).toLocaleString()}</small>}
     </div><TicketCheck size={25} /></div>
     <TicketSaleStatus saleAt={plan.saleAt} timezone={plan.timezone} now={now} showDate />
+    <SaleCountdown saleAt={plan.saleAt}/>
     <div className="plan-progress"><span>{finished}/{checks.length} preparation checks</span>
       <progress max={checks.length} value={finished} aria-label="Preparation checks complete" /></div>
     <div className="plan-actions">
@@ -222,6 +249,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       <div className="settings-panel">
         <h3><ListChecks size={19}/> Preparation</h3>
         <TicketSaleStatus saleAt={draft.saleAt} timezone={draft.timezone} now={now} showDate />
+        <SaleCountdown saleAt={draft.saleAt}/>
         <p className="settings-note">Ticket sale: {formatSaleLocalTime(draft.saleAt, draft.timezone || undefined)}{draft.performanceAt ? " · Performance: " + new Date(draft.performanceAt).toLocaleString() : ""}</p>
         <div className="plan-checklist">{checks.map(check => <div key={check.label}>
           {check.done ? <CheckCircle2 size={16} className="plan-check-yes"/> : <Circle size={16}/>}
