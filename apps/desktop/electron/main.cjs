@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, safeStorage, shell, dialog } = require("electron");
 const path = require("node:path");
+const { readLanguage, persistLanguage } = require("./language.cjs");
 const { MAX_WINDOWS, isSafeWebUrl, resolveOfficialSaleUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
 const { resolveAgentHandoff } = require("./agent-handoff.cjs");
@@ -10,7 +11,14 @@ const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.c
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
+let desktopLanguage = "ko";
+function nativeCopy(en, ko) { return desktopLanguage === "ko" ? ko : en; }
 let dashboard = null;
+function notifyLanguage() {
+  const wins = [dashboard, ...[...rehearsalWindows.values()].map(e=>e.win)];
+  for (const win of wins) if (win && !win.isDestroyed())
+    win.webContents.send("tixbam:language-changed", desktopLanguage);
+}
 const ticketWindows = new Map();
 const rehearsalWindows = new Map();
 const rehearsalWrites = new Map();
@@ -103,12 +111,17 @@ function visibleHistory() {
 function confirmSessionClose(win, entry, event) {
   if (closingApplication || !entry.planId || win.isDestroyed()) return;
   const response = dialog.showMessageBoxSync(win, {
-    type: "warning", title: "Leave this ticketing session?",
-    message: "Closing this browser may lose your position or unfinished order.",
+    type: "warning",
+    title: nativeCopy("Leave this ticketing session?", "진행 중인 티켓팅을 종료할까요?"),
+    message: nativeCopy("Closing this browser may lose your position or unfinished order.",
+      "이 창을 닫으면 대기 순서나 진행 중인 주문이 사라질 수 있어요."),
     detail: isSensitivePhase(entry.phase)
-      ? "You marked this session as checkout or verification. Check the ticket provider's order history before retrying or paying again."
-      : "Keep this window open while you are in a waiting room or queue. Closing cannot be undone.",
-    buttons: ["Keep window open", "Close anyway"], defaultId: 0, cancelId: 0, noLink: true
+      ? nativeCopy("You marked this session as checkout or verification. Check the ticket provider's order history before retrying or paying again.",
+        "결제 또는 인증 중인 것으로 표시돼 있어요. 재시도나 추가 결제 전에 공식 주문 내역을 확인하세요.")
+      : nativeCopy("Keep this window open while you are in a waiting room or queue. Closing cannot be undone.",
+        "대기실이나 대기열에서는 창을 유지하세요. 닫으면 대기 순서를 복구할 수 없어요."),
+    buttons: [nativeCopy("Keep window open", "창 유지"), nativeCopy("Close anyway", "그래도 닫기")],
+    defaultId: 0, cancelId: 0, noLink: true
   });
   if (response !== 1) event.preventDefault();
 }
@@ -276,9 +289,23 @@ function openTicketWindow({ providerId, url: candidate, planId = null } = {}) {
 }
 
 app.whenReady().then(() => {
+  desktopLanguage = readLanguage(app.getPath("userData"));
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
   registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
+  ipcMain.handle("tixbam:language-get", event => {
+    if (event.sender === dashboard?.webContents) dashboardOnly(event);
+    else rehearsalEntry(event);
+    return desktopLanguage;
+  });
+  ipcMain.handle("tixbam:language-set", (event, code) => {
+    if (event.sender === dashboard?.webContents) dashboardOnly(event);
+    else rehearsalEntry(event);
+    if (code !== "ko" && code !== "en") throw new Error("Unsupported language.");
+    desktopLanguage = persistLanguage(app.getPath("userData"), code);
+    notifyLanguage();
+    return desktopLanguage;
+  });
   ipcMain.handle("tixbam:open-rehearsal", (event, plan, accountId) => {
     dashboardOnly(event);
     return openRehearsalWindow(plan, accountId);
@@ -433,10 +460,14 @@ app.whenReady().then(() => {
     const active = [...ticketWindows.values()].filter(entry => entry.planId);
     if (!active.length) { closingApplication = true; return; }
     const response = dialog.showMessageBoxSync({
-      type: "warning", title: "Quit TIXBAM during ticketing?",
-      message: "Quitting will close live ticketing sessions and may lose queue positions.",
-      detail: "If a checkout has been attempted, check the provider's order history before trying another payment.",
-      buttons: ["Keep ticketing open", "Quit anyway"], defaultId: 0, cancelId: 0, noLink: true
+      type: "warning",
+      title: nativeCopy("Quit TIXBAM during ticketing?", "티켓팅 중 TIXBAM을 종료할까요?"),
+      message: nativeCopy("Quitting will close live ticketing sessions and may lose queue positions.",
+        "TIXBAM을 종료하면 예매 창이 닫히고 대기 순서가 사라질 수 있어요."),
+      detail: nativeCopy("If a checkout has been attempted, check the provider's order history before trying another payment.",
+        "결제를 시도했다면 다시 결제하기 전에 예매처 주문 내역을 확인하세요."),
+      buttons: [nativeCopy("Keep ticketing open", "티켓팅 계속하기"), nativeCopy("Quit anyway", "그래도 종료")],
+      defaultId: 0, cancelId: 0, noLink: true
     });
     if (response !== 1) { event.preventDefault(); return; }
     quittingConfirmed = true; closingApplication = true;
