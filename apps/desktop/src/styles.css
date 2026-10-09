@@ -208,3 +208,8 @@
 .plan-provider-fields select{width:100%;background:#242431;border:1px solid #444353;border-radius:9px;color:#eeeefa;padding:11px;font:inherit}
 .plan-unannounced{display:flex;align-items:center;justify-content:space-between;gap:11px;flex-wrap:wrap;padding:12px 0}
 .plan-unannounced .muted{font-size:11px;color:#b0afc1}
+
+.plan-countdown{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;width:fit-content;color:#ced4c7;background:#263228;border:1px solid #46543b;border-radius:10px;padding:10px 12px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.plan-countdown strong{font:700 17px 'Space Grotesk',sans-serif;letter-spacing:.2px;color:#ddfc94}
+.plan-countdown-soon{background:#443421;color:#ffe5c1;border-color:#77603e}.plan-countdown-soon strong{color:#ffda96}
+.plan-countdown-open{background:#292b35;border-color:#424657;color:#bfc2d0}
