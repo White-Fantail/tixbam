@@ -21,8 +21,42 @@ export function localizedJsxPlugin(): Plugin {
       const translateCall = (text: string) =>
         ts.factory.createCallExpression(ts.factory.createIdentifier("__tixbamTx"), undefined,
           [ts.factory.createStringLiteral(text)]);
+      // Translate static strings used directly as visible JSX expressions,
+      // including concise conditional labels. Never touch conditions,
+      // attributes such as className/value, or arbitrary data structures.
+      const visibleLiteral = (expression: ts.Expression): ts.Expression => {
+        if (ts.isStringLiteral(expression) && /[A-Za-z]/.test(expression.text) &&
+            !/^https?:\/\//.test(expression.text)) {
+          rewritten++;
+          return translateCall(expression.text);
+        }
+        if (ts.isParenthesizedExpression(expression)) {
+          return ts.factory.updateParenthesizedExpression(expression, visibleLiteral(expression.expression));
+        }
+        if (ts.isConditionalExpression(expression)) {
+          return ts.factory.updateConditionalExpression(expression, expression.condition,
+            expression.questionToken, visibleLiteral(expression.whenTrue),
+            expression.colonToken, visibleLiteral(expression.whenFalse));
+        }
+        if (ts.isBinaryExpression(expression) &&
+          [ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(expression.operatorToken.kind)) {
+          return ts.factory.updateBinaryExpression(expression, visibleLiteral(expression.left),
+            expression.operatorToken, visibleLiteral(expression.right));
+        }
+        return expression;
+      };
       const transformer: ts.TransformerFactory<ts.SourceFile> = ctx => {
         const visit = (node: ts.Node): ts.Node => {
+          if (ts.isJsxExpression(node) && node.expression) {
+            const parent = node.parent;
+            if (!ts.isJsxAttribute(parent) ||
+              (ts.isIdentifier(parent.name) && jsxProps.has(parent.name.text))) {
+              const translated = visibleLiteral(node.expression);
+              if (translated !== node.expression) {
+                return ts.factory.updateJsxExpression(node, node.dotDotDotToken, translated);
+              }
+            }
+          }
           if (ts.isJsxText(node)) {
             const raw = node.text;
             const trimmed = raw.trim();
