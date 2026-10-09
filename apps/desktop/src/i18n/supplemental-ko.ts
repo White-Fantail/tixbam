@@ -184,4 +184,84 @@ export const supplementalKo: Record<string,string> = {
   "Sign in to save favorites and events to your account.":
     "로그인하면 즐겨찾기와 공연을 계정에 저장할 수 있어요.",
 
+  "Account changed during rehearsal. Return to the original account to save.":
+    "리허설 중 계정이 바뀌었어요. 완료 기록을 저장하려면 처음 계정으로 돌아가세요.",
+  "This Booking Plan is no longer in the current account.":
+    "이 예매 계획은 현재 계정에 없어요.",
+  "Rehearsal cannot sync while the account is offline. Reconnect and retry.":
+    "계정이 오프라인이어서 리허설을 동기화할 수 없어요. 다시 연결한 뒤 시도하세요.",
+  "Could not load add-on settings.": "애드온 설정을 불러올 수 없어요.",
+  "Sign-in timed out. Please try again.": "로그인 시간이 초과됐어요. 다시 시도하세요.",
+  "Signed out. Guest items remain on this device.": "로그아웃했어요. 비회원 항목은 이 기기에 그대로 남아요.",
+  "Session expired. Please sign in again.": "로그인 세션이 만료됐어요. 다시 로그인하세요.",
+  "Guest events copied to your account.": "비회원 공연을 계정으로 복사했어요.",
+  "Guest booking plans imported.": "비회원 예매 계획을 가져왔어요.",
+  "Sign in to save performances and ticket sales.": "공연 회차와 티켓 판매를 저장하려면 로그인하세요.",
+  "Use the TIXBAM desktop app to open a rehearsal window.":
+    "리허설 창을 열려면 TIXBAM 데스크톱 앱을 사용하세요.",
+  "A supported official ticket link is required. Review this plan.":
+    "지원되는 공식 예매 링크가 필요해요. 예매 계획을 확인하세요.",
+  "Live booking requires the desktop app.": "실전 티켓팅에는 데스크톱 앱이 필요해요.",
+  "Live sessions require the desktop app.": "실전 예매 세션은 데스크톱 앱에서만 사용할 수 있어요.",
+  "Desktop browser is unavailable.": "데스크톱 브라우저를 사용할 수 없어요.",
+  "Browser remains open. Your session was preserved.":
+    "브라우저 창은 계속 열려 있어요. 예매 세션이 유지됐어요.",
+  "Provider-specific booking options are not verified yet.":
+    "예매처별 구매 옵션은 아직 검증되지 않았어요.",
+  "Sign in to save your favorite artists and events.":
+    "아티스트와 공연을 즐겨찾기에 저장하려면 로그인하세요.",
+  "Install and remove add-ons in the desktop app.":
+    "애드온 설치와 삭제는 데스크톱 앱에서 진행하세요.",
+  "Launch the Electron desktop app to open ticketing browser windows.":
+    "티켓팅 브라우저 창을 열려면 Electron 데스크톱 앱을 실행하세요.",
+  "This published booking URL needs a supported ticketing add-on. Check the link in Admin.":
+    "게시된 예매 링크에는 지원되는 애드온이 필요해요. 관리자 페이지에서 링크를 확인하세요.",
+  "Session storage controls require the desktop app.":
+    "세션 저장 데이터 관리는 데스크톱 앱에서만 가능해요.",
+  "Booking plan saved. Configure and rehearse before tickets open.":
+    "예매 계획을 저장했어요. 티켓 오픈 전에 조건을 설정하고 리허설을 진행하세요.",
+  "This performance is unavailable.": "이 공연 회차를 이용할 수 없어요.",
+  "Booking plan created. Add the official ticket agent and sale details when announced.":
+    "예매 계획을 만들었어요. 공식 예매처와 티켓 판매 정보가 발표되면 추가하세요.",
+  "This performance is not available.": "이 회차는 현재 이용할 수 없어요.",
+  "This sale does not cover the selected performance.":
+    "선택한 티켓 판매는 해당 공연 회차에 적용되지 않아요.",
+  "Booking plan created. Set your preferences and rehearse.":
+    "예매 계획을 만들었어요. 구매 조건을 설정하고 리허설을 진행하세요.",
+  "Event removed from your watchlist.": "관심 목록에서 공연을 삭제했어요.",
+  "Practice checkout timer expired. The simulated offer has been released; choose tickets again.":
+    "연습용 결제 시간이 끝났어요. 가상 티켓 확보가 해제됐으니 다시 선택하세요.",
+  "This practice price zone is sold out. Choose another.":
+    "이 연습용 가격 구역은 매진됐어요. 다른 구역을 선택하세요.",
+  "Your Booking Plan requires adjacent seats. Enable the adjacent-seat request before proceeding.":
+    "예매 계획에 연석이 필수로 지정돼 있어요. 계속하기 전에 연석 요청을 켜세요.",
+  "No suitable practice allocation for your conditions. Try a different price zone or scenario.":
+    "조건에 맞는 가상 좌석이 없어요. 다른 구역이나 시나리오를 선택하세요.",
+  "Express allocation includes a restricted-view seat. Explicitly accept or switch to another option.":
+    "Express 배정에 시야 제한석이 포함되어 있어요. 명시적으로 동의하거나 다른 옵션을 선택하세요.",
+  "Real-name ticketing needs matching attendee identification. Check the event's official requirements before proceeding.":
+    "실명제 티켓은 관람객의 신분증 정보가 일치해야 할 수 있어요. 공연의 공식 조건을 확인하세요.",
+  "Reduced-price tickets may require valid proof of eligibility. Confirm the required documentation.":
+    "할인 티켓은 자격 증빙이 필요할 수 있어요. 필요한 서류를 확인하세요.",
+  "Avoid rapid retries or refreshes. In a real queue, follow Cityline's on-screen instructions.":
+    "빠른 반복 재시도나 새로고침을 피하세요. 실제 대기열에서는 Cityline 화면 안내를 따르세요.",
+  "No qualifying practice seats could be allocated. Try another price zone.":
+    "조건에 맞는 연습용 좌석을 배정할 수 없어요. 다른 가격 구역을 선택하세요.",
+  "Open the desktop app to configure booking.":
+    "예매 조건을 설정하려면 데스크톱 앱을 실행하세요.",
+  "Preferences saved on this device and booking plan updated.":
+    "이 기기에 예매 조건을 저장하고 예매 계획을 업데이트했어요.",
+  "Could not read the local card vault.":
+    "로컬 카드 보관함을 읽을 수 없어요.",
+  "Could not save this card. Check its details and operating-system secure storage.":
+    "카드를 저장하지 못했어요. 카드 정보와 운영체제의 보안 저장소를 확인하세요.",
+  "Remove this saved card from this device?":
+    "이 기기에서 저장한 카드를 삭제할까요?",
+  "Could not remove the card. Stop active bookings first.":
+    "카드를 삭제하지 못했어요. 진행 중인 예매를 먼저 중지하세요.",
+  "Copy this device's guest events into your cloud account?":
+    "이 기기의 비회원 공연을 클라우드 계정으로 복사할까요?",
+  "Stop TIXBAM automation? This does not cancel any order already submitted to the ticket provider.":
+    "TIXBAM 자동화를 중지할까요? 이미 예매처에 접수한 주문은 취소되지 않아요."
+
 };
