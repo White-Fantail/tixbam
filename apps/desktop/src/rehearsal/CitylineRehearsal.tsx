@@ -13,7 +13,7 @@ import {
 type Stage = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type PaymentOutcome = "simulated-receipt" | "unknown" | null;
 type Report = { scenarioId: string; completedAt: string; durationSeconds: number; errors: number;
-  outcome: "simulated-receipt" | "unknown-reviewed" };
+  hints?: string[]; outcome: "simulated-receipt" | "unknown-reviewed" };
 const reportsKey = (planId: string) => "tixbam.rehearsal.cityline.v1." + planId;
 
 function budgetLabel(plan: BookingPlan) {
@@ -66,6 +66,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [checkoutEnds, setCheckoutEnds] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(CITYLINE_PRACTICE_HOLD_SECONDS);
   const [errors, setErrors] = useState(0);
+  const [mistakeNotes, setMistakeNotes] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [synced, setSynced] = useState(false);
@@ -106,6 +107,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       setTermsAccepted(false);
       setFeedback("Practice checkout timer expired. The simulated offer has been released; choose tickets again.");
       setErrors(prev => prev + 1);
+      setMistakeNotes(prev => [...prev, "Practice checkout expired; verify remaining time before confirming."].slice(-8));
       setStage(3);
       setSelectedSeatIds([]);
     }
@@ -123,9 +125,10 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setDeliveryId("eticket"); setPaymentMethod("card"); setTermsAccepted(false);
     setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false); setChallengeCompleted(false);
     setCheckoutEnds(null); setRemaining(CITYLINE_PRACTICE_HOLD_SECONDS);
-    setErrors(0); setFeedback(""); setSaveError(""); setSynced(false); setStartAt(Date.now());
+    setErrors(0); setMistakeNotes([]); setFeedback(""); setSaveError(""); setSynced(false); setStartAt(Date.now());
   }
-  function warn(message: string) { setFeedback(message); setErrors(n => n + 1); }
+  function warn(message: string) { setFeedback(message); setErrors(n => n + 1);
+    setMistakeNotes(prev => [...prev, message].slice(-8)); }
   function go(to: Stage) { setFeedback(""); setStage(to); }
   function chooseTier(id: string) {
     if (tiers.find(t => t.id === id)?.soldOut) { warn("This practice price zone is sold out. Choose another."); return; }
@@ -208,7 +211,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setBusy(true); setSaveError("");
     const report: Report = { scenarioId, completedAt: new Date().toISOString(),
       durationSeconds: Math.max(1, Math.round((Date.now() - startAt) / 1000)),
-      errors, outcome: outcome === "unknown" ? "unknown-reviewed" : "simulated-receipt" };
+      errors, hints: mistakeNotes, outcome: outcome === "unknown" ? "unknown-reviewed" : "simulated-receipt" };
     saveReport(plan.id, report);
     setHistory(reportHistory(plan.id));
     try { await onComplete(); setSynced(true); }
@@ -491,6 +494,10 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <div><span>Time used</span><b>{Math.max(1, Math.round((Date.now()-startAt)/1000))} sec</b></div>
         <div><span>Outcome</span><b>{outcome==="unknown"?"Uncertain charge — history check required":"Offline receipt only"}</b></div>
       </div>
+      {mistakeNotes.length > 0 && <div className="cl-drill-learnings">
+        <strong>Things to practise again</strong>
+        <ul>{[...new Set(mistakeNotes)].slice(-5).map((hint, i) => <li key={i}>{hint}</li>)}</ul>
+      </div>}
       {synced ? <p className="cl-drill-synced" role="status"><CheckCircle2 size={17}/> Rehearsal completion saved to your Booking Plan. No real tickets purchased.</p> :
         <button className="button button-primary" disabled={busy || (outcome==="unknown"&&!historyChecked)}
           onClick={() => void finish()}><CheckCircle2 size={16}/> Save rehearsal completion</button>}
