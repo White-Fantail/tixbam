@@ -6,6 +6,7 @@ import {
   Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
+import { LANGUAGES, useLanguage, tx, localDate } from "./i18n";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
@@ -121,11 +122,11 @@ function AddonAutomationLevels({ addon }: { addon: TicketAddon }) {
         const support = addon.automation[level.key];
         return (
           <div className="automation-level" key={level.key}>
-            <span className="automation-level-name">{level.name}<small>{level.title}</small></span>
+            <span className="automation-level-name">{level.name}<small>{tx(level.title)}</small></span>
             <span className={"automation-support automation-support-" + support.status}
-              title={support.summary}>
+              title={tx(support.summary)}>
               {support.status === "available" ? <Check size={12} /> : support.status === "restricted" ? <X size={12} /> : support.status === "delegated" ? <ArrowUpRight size={12} /> : <Clock3 size={12} />}
-              {supportLabels[support.status]}
+              {tx(supportLabels[support.status])}
             </span>
           </div>
         );
@@ -146,9 +147,9 @@ function SectionHeading({ eyebrow, title, description, action }: {
   return (
     <div className="section-heading">
       <div>
-        <div className="eyebrow"><span className="eyebrow-line" />{eyebrow}</div>
-        <h2>{title}</h2>
-        {description && <p>{description}</p>}
+        <div className="eyebrow"><span className="eyebrow-line" />{tx(eyebrow)}</div>
+        <h2>{tx(title)}</h2>
+        {description && <p>{tx(description)}</p>}
       </div>
       {action}
     </div>
@@ -156,6 +157,7 @@ function SectionHeading({ eyebrow, title, description, action }: {
 }
 
 function App() {
+  const { language, setLanguage } = useLanguage();
   const [section, setSection] = useState<Section>("overview");
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [plans, setPlans] = useState<BookingPlan[]>(loadGuestPlans);
@@ -789,7 +791,7 @@ function App() {
     }
   }
 
-  const localClock = new Intl.DateTimeFormat(undefined, {
+  const localClock = new Intl.DateTimeFormat(language === "ko" ? "ko-KR" : "en-NZ", {
     hour: "2-digit", minute: "2-digit", hour12: false
   }).format(new Date(now));
   const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll("_", " ").split("/").pop();
@@ -808,7 +810,7 @@ function App() {
             <button key={item.id} onClick={() => { setSection(item.id); setSearch(""); }}
               className={"nav-item" + (section === item.id ? " active" : "")}>
               <item.icon size={18} strokeWidth={1.9} />
-              <span>{item.label}</span>
+              <span>{tx(item.label)}</span>
               {item.id === "sessions" && windows.length > 0 && <b className="nav-count">{windows.length}</b>}
               {section === item.id && <span className="nav-active-dot" />}
             </button>
