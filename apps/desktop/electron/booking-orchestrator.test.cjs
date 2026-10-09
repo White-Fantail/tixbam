@@ -259,3 +259,42 @@ test('mid-read window ownership drift blocks selection and fails closed',async()
   assert.equal(r.state.phase,'FAILED');
   assert.equal(r.busy,false);
 });
+
+
+test('synchronous Stop from a resume notification cancels before re-observation',async()=> {
+  let runner;let reads=0;
+  const adapter={read:async()=>{
+    reads++;
+    return {eventKey:'event-1',stage:'unknown'};
+  }};
+  runner=make(adapter,{notify:state=>{
+    if (state.message==='Resuming…') runner.stop();
+  }});
+  await runner.step();
+  assert.equal(runner.state.status,'awaiting_user');
+  await runner.step();
+  assert.equal(runner.state.status,'stopped');
+  assert.equal(reads,1);
+  assert.equal(runner.busy,false);
+});
+
+test('all invalid transitions preserve revision and phase; no terminal can be revived',()=> {
+  for(const phase of ['OBSERVING','DECIDING','VALIDATING_ACTION','EXECUTING_ACTION',
+                       'OFFER_SELECTED','ORDER_REVIEW','WAITING_FOR_USER']) {
+    const m=new BookingStateMachine('invariant-'+phase);
+    move(m,'START'); move(m,'SESSION_READY');
+    if(phase!=='OBSERVING') move(m,'OBSERVED');
+    if(phase==='VALIDATING_ACTION') move(m,'VALIDATE_ACTION');
+    else if(phase==='EXECUTING_ACTION'){move(m,'VALIDATE_ACTION');move(m,'ACTION_VALIDATED');}
+    else if(phase==='OFFER_SELECTED') move(m,'OFFER_CHOSEN');
+    else if(phase==='ORDER_REVIEW') move(m,'REVIEW_ORDER');
+    else if(phase==='WAITING_FOR_USER') move(m,'NEED_USER');
+    assert.equal(m.phase,phase);
+    const revision=m.revision;
+    assert.throws(()=>m.transition(m.runId,revision,'ARBITRARY_EXECUTE'),InvalidTransition);
+    assert.equal(m.revision,revision);
+    assert.equal(m.phase,phase);
+    assert.equal(move(m,'STOP').phase,'STOPPED');
+    assert.throws(()=>move(m,'START'),InvalidTransition);
+  }
+});
