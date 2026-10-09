@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Circle, ExternalLink,
 import type { TicketAddon } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
-import { type BookingPlan, currencyFactor, officialLinkKind, planChecks } from "./booking-plans";
+import { type BookingPlan, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
 
 type Change = (next: BookingPlan) => Promise<void>;
 type Props = {
@@ -222,6 +222,20 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       </div>
       <div className="settings-panel">
         <h3><Settings2 size={19}/> Booking preferences</h3>
+        <div className="plan-provider-fields">
+          <label>Official ticketing provider
+            <select value={draft.providerId}
+              onChange={e => change({providerId:e.target.value, currency:currencyForProvider(e.target.value),
+                budgetMinor:0, preferencesReady:false})}>
+              <option value="tba">Not announced yet</option>
+              {addons.map(addon => <option key={addon.id} value={addon.id}>{addon.name}</option>)}
+            </select>
+          </label>
+          <label>Official booking URL (when announced)
+            <input type="url" value={draft.bookingUrl} placeholder="https://official-ticket-provider.example/"
+              onChange={e => change({bookingUrl:e.target.value})}/>
+          </label>
+        </div>
         <p className="settings-note">Set the non-negotiable limits now. Provider-specific seat tiers and checkout options are configured separately when verified options are available.</p>
         <div className="form-row"><label>Tickets<input type="number" min={1} max={20} value={draft.quantity}
           onChange={e => change({ quantity: Number(e.target.value) })}/></label>
