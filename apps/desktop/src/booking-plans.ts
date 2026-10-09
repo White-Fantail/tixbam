@@ -29,13 +29,22 @@ export interface BookingPlan {
 
 export const PLANS_KEY = "tixbam.booking-plans.v1";
 
+export function currencyFactor(currency: string): number {
+  // Zero-decimal currencies are stored as integer smallest units.
+  return ["KRW", "JPY", "VND"].includes(currency) ? 1 : 100;
+}
+
+
 export function planFromWatch(item: WatchEvent): BookingPlan {
   return {
     id: item.id, artist: item.artist, title: item.title, city: item.city,
     providerId: item.providerId, bookingUrl: item.url || "",
     eventId: item.eventId || null, performanceId: item.performanceId || null, saleId: null,
     saleAt: item.saleAt || "", performanceAt: item.performanceAt || "", timezone: "",
-    quantity: 2, budgetMinor: 0, currency: item.providerId === "cityline" ? "HKD" : "USD",
+    quantity: 2, budgetMinor: 0,
+    currency: item.providerId === "cityline" ? "HKD" :
+      ["nol", "yes24"].includes(item.providerId) ? "KRW" :
+      item.providerId === "kktix" ? "TWD" : "USD",
     requireTogether: true, allowFallback: true,
     preferencesReady: false, accountReady: false, paymentReady: false,
     lastRehearsalAt: null, notes: "",
@@ -108,7 +117,7 @@ export function officialLinkKind(plan: BookingPlan, hosts: readonly string[]): "
 
 export function planChecks(plan: BookingPlan, hosts: readonly string[]) {
   return [
-    { label: "Official ticket link confirmed", done: officialLinkKind(plan, hosts) === "direct" },
+    { label: "Link uses ticket provider domain", done: officialLinkKind(plan, hosts) === "direct" },
     { label: "Ticketing account checked", done: plan.accountReady },
     { label: "Ticket preferences configured", done: plan.preferencesReady && plan.budgetMinor > 0 },
     { label: "Payment method prepared", done: plan.paymentReady },
