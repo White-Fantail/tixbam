@@ -100,4 +100,40 @@ export const supplementalKo: Record<string,string> = {
   "Delivery (where offered)": "배송 (지원 시)",
   "No maximum budget set": "최대 예산 미설정",
   "Not yet announced": "아직 발표되지 않음"
+  "Main navigation": "기본 메뉴",
+  "App profile information": "앱 프로필 정보",
+  "FROM THE TIXBAM SERVER": "TIXBAM 서버 제공",
+  "Discover tickets": "티켓 찾기",
+  "Choose a show, performance and official ticket sale to create a booking plan.":
+    "공연과 회차, 공식 티켓 판매를 선택해 예매 계획을 만들 수 있어요.",
+  "SECONDARY DIRECTORY": "공연 정보 탐색",
+  "Save artists to find their upcoming ticket sales more easily.":
+    "아티스트를 저장하고 다음 공연 티켓 오픈 정보를 더 쉽게 찾아보세요.",
+  "Find an artist...": "아티스트 검색…",
+  "YOUR NEXT BIG MOMENT": "기다리는 공연을 위해",
+  "Favorite artists, events and legacy watched ticket links.":
+    "즐겨찾기한 아티스트·공연·예매 링크를 확인하세요.",
+  "Remove saved session": "저장한 회차 삭제",
+  "Remove saved ticket sale": "저장한 티켓 판매 삭제",
+  "Performance date at the venue": "공연장 현지 날짜",
+  "Search artist, event or city...": "아티스트·공연·도시 검색…",
+  "Remove event": "공연 삭제",
+  "ONE HUB. EVERY STAGE.": "한곳에서 모든 예매 준비를.",
+  "Add-on Store": "예매처 애드온",
+  "Install only the ticketing providers you use. Remove them whenever you like.":
+    "사용하는 예매처만 설치하고 필요하지 않은 애드온은 언제든 제거하세요.",
+  "Automation support legend": "자동화 지원 범례",
+  "MAKE IT YOURS": "내게 맞게 설정하기",
+  "Settings & privacy": "설정 및 개인정보",
+  "A transparent look at what TIXBAM stores and how it works.":
+    "TIXBAM이 어떤 정보를 보관하고 어떻게 작동하는지 확인하세요.",
+  "e.g. Your favorite artist": "예: 좋아하는 아티스트",
+  "e.g. 2027 World Tour": "예: 2027 월드 투어",
+  "e.g. Hong Kong": "예: 홍콩",
+  "Dismiss notification": "알림 닫기",
+  "Cityline offline ticketing rehearsal": "Cityline 오프라인 티켓팅 리허설",
+  "Rehearsal progress": "리허설 진행률",
+  "Enter your manually determined HKD limit": "직접 정한 HKD 최대 예산 입력",
+  "Fictional seat map": "연습용 가상 좌석도",
+
 };
