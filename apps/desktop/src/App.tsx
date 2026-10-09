@@ -183,6 +183,7 @@ function App() {
   const signInCancelled = useRef(false);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState("");
+  const [accountOffline, setAccountOffline] = useState(false);
   const [onlyFavoriteArtists, setOnlyFavoriteArtists] = useState(false);
   const [chosenPerformances, setChosenPerformances] = useState<Record<string, string>>({});
   const [remoteAddons, setRemoteAddons] = useState<RemoteAddon[]>([]);
@@ -330,6 +331,7 @@ function App() {
 
   function applySnapshot(snapshot: CloudSnapshot) {
     setAccount(snapshot.user);
+    setAccountOffline(Boolean(snapshot.offline));
     setWatchlist(snapshot.watchlist);
     setFavoriteArtistIds(snapshot.favoriteArtistIds);
     setFavoriteEventIds(snapshot.favoriteEventIds);
@@ -394,6 +396,7 @@ function App() {
     try {
       await window.tixbam.accountSignOut();
       setAccount(null);
+      setAccountOffline(false);
       setWatchlist(loadWatchlist());
       setPlans(loadGuestPlans());
       setFavoriteArtistIds([]);
@@ -415,6 +418,7 @@ function App() {
       if (snapshot) applySnapshot(snapshot);
       else {
         setAccount(null);
+        setAccountOffline(false);
         setWatchlist(loadWatchlist());
         setPlans(loadGuestPlans());
         setFavoriteArtistIds([]);
@@ -757,6 +761,10 @@ function App() {
         </header>
 
         <main className="main-content">
+          {accountOffline && <div className="remote-banner" role="status">
+            <ShieldCheck size={17}/> Offline account cache: your previously synced booking plans are available,
+            but changes require reconnecting to the TIXBAM API. Official ticketing browser sessions remain local.
+          </div>}
           {section === "overview" && <BookingDashboard plans={plans} addons={addons} now={now}
             onCreate={() => setSection("discover")}
             onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); setSection("plans"); }}
