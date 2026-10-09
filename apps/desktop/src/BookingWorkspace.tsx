@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Circle, ExternalLink,
 import type { TicketAddon } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
-import { type BookingPlan, officialLinkKind, planChecks } from "./booking-plans";
+import { type BookingPlan, currencyFactor, officialLinkKind, planChecks } from "./booking-plans";
 
 type Change = (next: BookingPlan) => Promise<void>;
 type Props = {
@@ -73,7 +73,11 @@ function RehearsalSimulator({ plan, onComplete, onClose }: {
   const [error, setError] = useState("");
   const max = plan.budgetMinor;
   const good = max > 0 ? Math.round(max * 0.8) : 0;
-  const amount = (minor: number) => plan.currency + " " + (minor / 100).toFixed(2);
+  const amount = (minor: number) => plan.currency + " " +
+    (minor / currencyFactor(plan.currency)).toLocaleString(undefined, {
+      minimumFractionDigits: currencyFactor(plan.currency) === 1 ? 0 : 2,
+      maximumFractionDigits: currencyFactor(plan.currency) === 1 ? 0 : 2,
+    });
   async function finish() {
     setBusy(true); setError("");
     try { await onComplete(); setStep(5); }
@@ -162,7 +166,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
   const [draft, setDraft] = useState<BookingPlan | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { setDraft(selected || null); setError(""); }, [selected]);
+  useEffect(() => { setDraft(selected || null); setError(""); }, [selected?.id, selected?.updatedAt]);
   if (!selected || !draft) {
     return <section className="booking-plans-page">
       <div className="section-heading"><div><div className="eyebrow">YOUR TICKET PURCHASE GOALS</div>
@@ -182,7 +186,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
   const checks = readiness(draft, addons);
   const change = (patch: Partial<BookingPlan>) => {
     setDraft(current => current && ({ ...current, ...patch,
-      preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "requireTogether" in patch || "allowFallback" in patch) ? false : current.preferencesReady }));
+      preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "currency" in patch || "requireTogether" in patch || "allowFallback" in patch) ? false : current.preferencesReady }));
   };
   const persist = async () => {
     setSaving(true); setError("");
@@ -217,10 +221,17 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         <p className="settings-note">Set the non-negotiable limits now. Provider-specific seat tiers and checkout options are configured separately when verified options are available.</p>
         <div className="form-row"><label>Tickets<input type="number" min={1} max={20} value={draft.quantity}
           onChange={e => change({ quantity: Number(e.target.value) })}/></label>
-          <label>Maximum total incl. fees ({draft.currency})<input type="number" min={0} step="0.01"
-            value={draft.budgetMinor ? (draft.budgetMinor / 100).toString() : ""}
-            placeholder="Set a maximum budget"
-            onChange={e => change({ budgetMinor: Math.round(Number(e.target.value) * 100) })}/></label></div>
+          <label>Maximum total incl. fees
+            <div className="plan-currency-row"><select aria-label="Currency" value={draft.currency}
+              onChange={e => change({ currency: e.target.value, budgetMinor: 0 })}>
+              {["HKD", "KRW", "TWD", "USD", "NZD", "JPY", "SGD", "AUD", "GBP", "EUR"].map(code =>
+                <option key={code} value={code}>{code}</option>)}
+            </select>
+            <input type="number" min={0} step={currencyFactor(draft.currency) === 1 ? "1" : "0.01"}
+              value={draft.budgetMinor ? (draft.budgetMinor / currencyFactor(draft.currency)).toString() : ""}
+              placeholder="Set a maximum total"
+              onChange={e => change({ budgetMinor: Math.round(Number(e.target.value) * currencyFactor(draft.currency)) })}/></div>
+          </label></div>
         <div className="plan-options"><label><input type="checkbox" checked={draft.requireTogether}
           onChange={e => change({ requireTogether: e.target.checked })}/> Require adjacent seats</label>
           <label><input type="checkbox" checked={draft.allowFallback}
