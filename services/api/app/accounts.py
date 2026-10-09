@@ -137,8 +137,10 @@ def me(user: CurrentUser, db: Db):
     artists = db.scalars(select(FavoriteArtist.artist_id).where(FavoriteArtist.user_id == user.id)).all()
     events = db.scalars(select(FavoriteEvent.event_id).where(FavoriteEvent.user_id == user.id)).all()
     watchlist = db.scalars(select(UserWatchItem).where(UserWatchItem.user_id == user.id)).all()
+    from .booking_plans import account_extras
     return {"user": user_data(user), "favoriteArtistIds": artists, "favoriteEventIds": events,
-            "watchlist": [dict(item.payload, id=item.id) for item in watchlist]}
+            "watchlist": [dict(item.payload, id=item.id) for item in watchlist],
+            **account_extras(db, user.id)}
 
 
 @router.put("/me/artists/{artist_id}", status_code=204)
