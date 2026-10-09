@@ -83,12 +83,23 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     const active = load();
     if (!active) return null;
     try {
-      return await request(active.apiUrl, "/v1/me", "GET", undefined, active.token);
+      const snapshot = await request(active.apiUrl, "/v1/me", "GET", undefined, active.token);
+      // Cache only account metadata and non-secret plan information in the
+      // same OS-encrypted account file; usable read-only during API outages.
+      active.snapshot = snapshot;
+      save();
+      return snapshot;
     } catch (error) {
       if (error.status === 401) {
         session = null;
         save();
         return null;
+      }
+      // Never bypass an explicit authentication/authorization error.
+      if ((!error.status || error.status >= 500) &&
+          active.snapshot?.user?.id && typeof active.expiresAt === "string" &&
+          Date.now() < Date.parse(active.expiresAt)) {
+        return { ...active.snapshot, offline: true };
       }
       throw error;
     }
@@ -136,10 +147,13 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     // Avoid races if the user cancelled this attempt while polling.
     if (pending !== attempt) return null;
     const previous = session;
-    session = { apiUrl: attempt.apiUrl, token: result.accessToken };
+    session = { apiUrl: attempt.apiUrl, token: result.accessToken, expiresAt: result.expiresAt };
     try { save(); } catch (error) { session = previous; throw error; }
     pending = null;
-    return request(session.apiUrl, "/v1/me", "GET", undefined, session.token);
+    const snapshot = await request(session.apiUrl, "/v1/me", "GET", undefined, session.token);
+    session.snapshot = snapshot;
+    save();
+    return snapshot;
   });
   ipcMain.handle("tixbam:account-oauth-cancel", event => {
     dashboardOnly(event);
@@ -161,7 +175,16 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     const active = load();
     if (!active) throw Error("Please sign in first");
     try {
-      return await request(active.apiUrl, endpoint, method, body, active.token);
+      const answer = await request(active.apiUrl, endpoint, method, body, active.token);
+      // Keep plan cache current without a second network round-trip. Do not
+      // cache card data, provider sessions or dynamic payment conditions.
+      if (active.snapshot && endpoint.startsWith("/v1/me/plans/")) {
+        const id = endpoint.slice("/v1/me/plans/".length);
+        const rest = (active.snapshot.bookingPlans || []).filter(plan => plan.id !== id);
+        active.snapshot.bookingPlans = method === "PUT" ? [...rest, answer] : rest;
+        save();
+      }
+      return answer;
     } catch (error) {
       if (error.status === 401) { session = null; save(); }
       throw error;
