@@ -73,6 +73,11 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     requireInstalled(ctx.providerId);
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status) && (r.state.eventKey === ctx.eventKey || (!ctx.rehearsal && r.state.windowId === ctx.windowId)))) throw new Error('A booking is already active for this event or window.');
     const prefs = validatePreferences(input, ctx.schema);
+    // AB-01 has no vendor-approved autonomous checkout release. Rehearsal
+    // remains available; real user-supervised selection is unchanged.
+    if (!ctx.rehearsal && prefs.checkout === 'automatic') {
+      throw new Error('Unattended live checkout is not authorized for this provider. Use review mode.');
+    }
     if (prefs.checkout === 'automatic' && paymentConsent !== true) throw new Error('Authorize automatic payment within your budget before starting.');
     preferences.set(ctx.eventKey, prefs, ctx.schema);
     let secret;

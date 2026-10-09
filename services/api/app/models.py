@@ -213,3 +213,45 @@ class AIUsageLog(Base):
     model: Mapped[str] = mapped_column(String(160), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class ProviderAutomationPolicy(Base):
+    """Evidence record only. A row never grants execution by itself."""
+    __tablename__ = "provider_automation_policies"
+    __table_args__ = (UniqueConstraint("provider_id", "country", "capability", name="uq_provider_automation_scope"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    provider_id: Mapped[str] = mapped_column(ForeignKey("providers.id", ondelete="CASCADE"), index=True)
+    country: Mapped[str] = mapped_column(String(2), nullable=False)
+    capability: Mapped[str] = mapped_column(String(40), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), default="unverified", nullable=False)
+    evidence_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    reviewer: Mapped[str] = mapped_column(String(120), default="admin-key", nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)
+
+
+class ProviderAutomationAudit(Base):
+    """Append-only change history. Shared admin key does not identify an individual."""
+    __tablename__ = "provider_automation_audit"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    provider_id: Mapped[str | None] = mapped_column(String(60), index=True, nullable=True)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    capability: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    actor: Mapped[str] = mapped_column(String(120), default="admin-key", nullable=False)
+    old_value: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    new_value: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)
+
+
+class AutomationSafetySetting(Base):
+    """Singleton: autonomous execution globally disabled until separately released."""
+    __tablename__ = "automation_safety_settings"
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    kill_switch: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)

@@ -84,3 +84,37 @@ export interface AIAdvisoryResponse {
   nextStep: "continue" | "review" | "wait" | "ask_user" | "stop";
   advisoryOnly: true;
 }
+
+
+/** AB-01: types only. The server's evidence registry cannot execute actions.
+ * The Electron main process must independently validate a bundled/reviewed
+ * implementation, current user consent, and a separately approved release.
+ */
+export type AutomationPermissionState = 'restricted' | 'unverified' | 'permitted' | 'revoked';
+export type AutomationMode = 'assistant' | 'supervised' | 'conditional_auto';
+export type AutomationCapability =
+  | 'OBSERVE' | 'SELECT_PERFORMANCE' | 'SELECT_PRICE_TIER' | 'LIST_OFFERS'
+  | 'SELECT_OFFER' | 'READ_ORDER' | 'PREPARE_CHECKOUT'
+  | 'VERIFY_ORDER' | 'PAYMENT_EXECUTOR';
+export type AutomationImplementationState = 'verified' | 'pending' | 'disabled';
+export interface LocalReviewedCapabilityManifest {
+  providerId: string; addonVersion: string; profileId: string;
+  hostOwned: true; capabilities: Partial<Record<AutomationCapability, AutomationImplementationState>>;
+}
+export interface AutomationPolicyStatus {
+  capability: AutomationCapability; country: string;
+  permissionState: AutomationPermissionState; reason: string;
+  revision: number; permitted: boolean;
+}
+export interface ProviderAutomationStatus {
+  providerId: string; name: string; country: string;
+  registeredCountry: string; published: boolean;
+  ticketAgentRequired: boolean;
+  mode: 'assistant'; autonomousCheckoutAvailable: false;
+  localVerificationRequired: true;
+  policies: AutomationPolicyStatus[];
+}
+export interface AutomationCapabilityResponse {
+  schemaVersion: 1; globalKillSwitch: boolean; autonomousExecutionAvailable: false;
+  items: ProviderAutomationStatus[];
+}

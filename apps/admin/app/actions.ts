@@ -162,3 +162,29 @@ export async function saveAiPolicy(f: FormData) {
   revalidatePath("/ai");
   redirect("/ai?ok=" + encodeURIComponent("Saved " + task.replaceAll("_", " ")));
 }
+
+
+/** AB-01: Admin can record restrictions/evidence but not grant permission. */
+export async function saveAutomationPolicy(f: FormData) {
+  const provider = val(f, "provider_id");
+  const capability = val(f, "capability");
+  const country = val(f, "country");
+  const back = "/automation/" + encodeURIComponent(provider) + "?country=" + encodeURIComponent(country);
+  const payload = {
+    country, capability, state: val(f, "state"),
+    reason: val(f, "reason"), evidence_url: opt(f, "evidence_url"),
+    reviewer: val(f, "reviewer") || "admin-key",
+    expires_at: opt(f, "expires_at"),
+    expected_revision: Number(val(f, "expected_revision") || "0"),
+  };
+  await submit("/v1/admin/automation/providers/" + encodeURIComponent(provider) + "/policies",
+               payload, "PUT", "automation", back, provider);
+}
+
+export async function saveAutomationKillSwitch(f: FormData) {
+  const payload = {
+    kill_switch: val(f, "kill_switch") === "true",
+    expected_revision: Number(val(f, "expected_revision")),
+  };
+  await submit("/v1/admin/automation/kill-switch", payload, "PUT", "automation", "/automation");
+}
