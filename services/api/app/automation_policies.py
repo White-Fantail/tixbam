@@ -10,7 +10,8 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .db import get_db
@@ -226,26 +227,43 @@ def write_policy(provider_id: str, body: PolicyWrite, db: Db):
         "state": item.state, "reason": item.reason,
         "evidenceUrl": item.evidence_url, "expiresAt": item.expires_at.isoformat() if item.expires_at else None,
     } if item else {}
+    updated = now()
+    values = {
+        "state": body.state, "evidence_url": body.evidence_url,
+        "reason": body.reason.strip(), "reviewer": body.reviewer,
+        "reviewed_at": updated, "expires_at": body.expires_at,
+        "updated_at": updated, "revision": previous + 1,
+    }
     if item is None:
-        item = ProviderAutomationPolicy(provider_id=provider_id, country=body.country, capability=body.capability)
-        db.add(item)
-    item.state = body.state
-    item.evidence_url = body.evidence_url
-    item.reason = body.reason.strip()
-    item.reviewer = body.reviewer
-    item.reviewed_at = now()
-    item.expires_at = body.expires_at
-    item.updated_at = now()
-    item.revision = previous + 1
+        db.add(ProviderAutomationPolicy(
+            provider_id=provider_id, country=body.country,
+            capability=body.capability, **values))
+    else:
+        # CAS avoids silently overwriting a concurrent update after both
+        # editors read the same revision (not just sequential stale forms).
+        result = db.execute(
+            update(ProviderAutomationPolicy)
+            .where(ProviderAutomationPolicy.id == item.id,
+                   ProviderAutomationPolicy.revision == previous)
+            .values(**values))
+        if result.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Policy was changed. Refresh before saving.")
+        db.expire_all()
     db.add(ProviderAutomationAudit(
         provider_id=provider_id, country=body.country, capability=body.capability,
-        action="policy_changed", actor="admin-key", revision=item.revision,
+        action="policy_changed", actor="admin-key", revision=previous + 1,
         old_value=old, new_value={
-            "state": item.state, "reason": item.reason,
-            "evidenceUrl": item.evidence_url, "expiresAt": item.expires_at.isoformat() if item.expires_at else None,
-            "submittedReviewer": item.reviewer,
+            "state": body.state, "reason": body.reason.strip(),
+            "evidenceUrl": body.evidence_url,
+            "expiresAt": body.expires_at.isoformat() if body.expires_at else None,
+            "submittedReviewer": body.reviewer,
         }))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Policy was changed. Refresh before saving.") from exc
     return provider_view(db, provider, body.country, True)
 
 
@@ -267,12 +285,20 @@ def update_kill_switch(body: SwitchWrite, db: Db):
         raise HTTPException(status_code=409, detail="Switch setting changed. Refresh before saving.")
     else:
         before = item.kill_switch
-        item.kill_switch = body.kill_switch
-        item.revision += 1
-        item.updated_at = now()
+        result = db.execute(
+            update(AutomationSafetySetting)
+            .where(AutomationSafetySetting.id == "global",
+                   AutomationSafetySetting.revision == body.expected_revision)
+            .values(kill_switch=body.kill_switch,
+                    revision=body.expected_revision + 1, updated_at=now()))
+        if result.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Switch setting changed. Refresh before saving.")
         db.add(ProviderAutomationAudit(
-            action="kill_switch_changed", actor="admin-key", revision=item.revision,
-            old_value={"killSwitch": before}, new_value={"killSwitch": item.kill_switch}))
+            action="kill_switch_changed", actor="admin-key",
+            revision=body.expected_revision + 1,
+            old_value={"killSwitch": before}, new_value={"killSwitch": body.kill_switch}))
         db.commit()
+        db.expire_all()
     return {"globalKillSwitch": item.kill_switch, "switchRevision": item.revision,
             "autonomousExecutionAvailable": False}
