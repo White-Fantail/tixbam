@@ -6,6 +6,8 @@ import {
   Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
+import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
+import { type BookingPlan, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
@@ -20,19 +22,14 @@ const providers: Provider[] = catalog;
 const STORAGE_KEY = "tixbam.watchlist.v1";
 const MAX_WINDOWS = 6;
 
-const demos = [
-  { id: "sample-1", artist: "NOVA8", title: "AFTERGLOW WORLD TOUR", city: "Seoul, South Korea", providerId: "nol", theme: "violet", edition: "01" },
-  { id: "sample-2", artist: "MOONLINE", title: "STARLIGHT FAN MEETING", city: "Hong Kong", providerId: "cityline", theme: "orange", edition: "02" },
-  { id: "sample-3", artist: "ECHO/WAVE", title: "LIVE IN TAIPEI", city: "Taipei, Taiwan", providerId: "kktix", theme: "cyan", edition: "03" },
-] as const;
-
 const navItems = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "discover", label: "Discover events", icon: CalendarDays },
+  { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+  { id: "plans", label: "My Bookings", icon: Ticket },
+  { id: "discover", label: "Discover", icon: CalendarDays },
   { id: "artists", label: "My artists", icon: Star },
-  { id: "watchlist", label: "My events", icon: Heart },
-  { id: "sessions", label: "Live windows", icon: Layers3 },
-  { id: "providers", label: "Ticket providers", icon: Globe2 },
+  { id: "watchlist", label: "Saved", icon: Heart },
+  { id: "sessions", label: "Sessions", icon: Layers3 },
+  { id: "providers", label: "Providers", icon: Globe2 },
   { id: "settings", label: "Settings", icon: Settings2 },
 ] as const;
 
@@ -163,6 +160,11 @@ function SectionHeading({ eyebrow, title, description, action }: {
 function App() {
   const [section, setSection] = useState<Section>("overview");
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
+  const [plans, setPlans] = useState<BookingPlan[]>(loadGuestPlans);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [practicePlanId, setPracticePlanId] = useState<string | null>(null);
+  const [favoritePerformanceIds, setFavoritePerformanceIds] = useState<string[]>([]);
+  const [favoriteSaleIds, setFavoriteSaleIds] = useState<string[]>([]);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
   const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
   const [siteByProvider, setSiteByProvider] = useState<Record<string, string>>({});
@@ -198,6 +200,7 @@ function App() {
   useEffect(() => {
     if (!account) localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
   }, [watchlist, account]);
+  useEffect(() => { if (!account) saveGuestPlans(plans); }, [plans, account]);
 
   useEffect(() => {
     if (!window.tixbam) return;
@@ -321,29 +324,6 @@ function App() {
     matchesSaleFilter(event.sales.map(sale => sale.saleAt), now, mySaleFilter)
   ), [remoteEvents, favoriteEventIds, now, mySaleFilter]);
 
-  const nextTicketDrops = useMemo(() => {
-    const fromCatalog = remoteEvents.flatMap(event => {
-      const eventStatus = eventPerformanceStatus(event.performances);
-      if (eventStatus === "sold_out" || eventStatus === "cancelled" || eventStatus === "postponed") return [];
-      const sale = pickNextSale(event.sales, now);
-      const timestamp = sale && saleTimestamp(sale.saleAt);
-      if (!sale || timestamp === null || timestamp <= now) return [];
-      return [{ key: "catalog-" + event.id, eventId: event.id, artist: event.artist,
-        title: event.title, city: event.city, providerId: sale.providerId,
-        saleType: sale.saleType, saleAt: sale.saleAt, timezone: sale.timezone || event.timezone, timestamp }];
-    });
-    const knownEventIds = new Set(remoteEvents.map(event => event.id));
-    const fromLocal = watchlist.flatMap(item => {
-      if (item.eventId && knownEventIds.has(item.eventId)) return [];
-      const timestamp = saleTimestamp(item.saleAt);
-      if (timestamp === null || timestamp <= now) return [];
-      return [{ key: "saved-" + item.id, eventId: "", artist: item.artist,
-        title: item.title, city: item.city, providerId: item.providerId,
-        saleType: "saved sale", saleAt: item.saleAt, timezone: null, timestamp }];
-    });
-    return [...fromCatalog, ...fromLocal].sort((a, b) => a.timestamp - b.timestamp).slice(0, 4);
-  }, [remoteEvents, watchlist, now]);
-
   function inform(message: string, error = false) {
     setToast({ message, error });
   }
@@ -353,6 +333,13 @@ function App() {
     setWatchlist(snapshot.watchlist);
     setFavoriteArtistIds(snapshot.favoriteArtistIds);
     setFavoriteEventIds(snapshot.favoriteEventIds);
+    setFavoritePerformanceIds(snapshot.favoritePerformanceIds || []);
+    setFavoriteSaleIds(snapshot.favoriteSaleIds || []);
+    setPlans(snapshot.bookingPlans || (snapshot.watchlist || []).map(item => ({
+      ...makePlan({ artist:item.artist, title:item.title, city:item.city, providerId:item.providerId }),
+      id:item.id, bookingUrl:item.url, saleAt:item.saleAt, eventId:item.eventId||null,
+      performanceId:item.performanceId||null
+    })));
     setCloudError("");
   }
 
@@ -408,8 +395,11 @@ function App() {
       await window.tixbam.accountSignOut();
       setAccount(null);
       setWatchlist(loadWatchlist());
+      setPlans(loadGuestPlans());
       setFavoriteArtistIds([]);
       setFavoriteEventIds([]);
+      setFavoritePerformanceIds([]);
+      setFavoriteSaleIds([]);
       setCloudError("");
       inform("Signed out. Guest items remain on this device.");
     } catch (err) {
@@ -426,8 +416,11 @@ function App() {
       else {
         setAccount(null);
         setWatchlist(loadWatchlist());
+        setPlans(loadGuestPlans());
         setFavoriteArtistIds([]);
         setFavoriteEventIds([]);
+        setFavoritePerformanceIds([]);
+        setFavoriteSaleIds([]);
         inform("Session expired. Please sign in again.", true);
       }
     } catch (err) {
