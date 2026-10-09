@@ -160,7 +160,6 @@ function App() {
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [plans, setPlans] = useState<BookingPlan[]>(loadGuestPlans);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [practicePlanId, setPracticePlanId] = useState<string | null>(null);
   const [favoritePerformanceIds, setFavoritePerformanceIds] = useState<string[]>([]);
   const [favoriteSaleIds, setFavoriteSaleIds] = useState<string[]>([]);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
@@ -212,6 +211,29 @@ function App() {
     });
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    if (!window.tixbam) return;
+    const unsubscribe = window.tixbam.onRehearsalSaveRequest(request => {
+      void (async () => {
+        try {
+          if (request.ownerId !== (account?.id || null))
+            throw new Error("Account changed during rehearsal. Return to the original account to save.");
+          const plan = plans.find(item => item.id === request.planId);
+          if (!plan) throw new Error("This Booking Plan is no longer in the current account.");
+          if (accountOffline) throw new Error("Rehearsal cannot sync while the account is offline. Reconnect and retry.");
+          await upsertPlan({ ...plan, lastRehearsalAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString() });
+          await window.tixbam!.ackRehearsalSave(request.requestId, true);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Rehearsal completion could not be saved.";
+          try { await window.tixbam!.ackRehearsalSave(request.requestId, false, message); }
+          catch { /* Window may have been closed. */ }
+        }
+      })();
+    });
+    return unsubscribe;
+  }, [plans, account?.id, accountOffline]);
 
   useEffect(() => {
     if (!account || !window.tixbam) return;
@@ -461,7 +483,12 @@ function App() {
     if (account && window.tixbam) {
       const saved = await window.tixbam.accountRequest("PUT", "/v1/me/plans/" + plan.id, toCloudPayload(plan)) as BookingPlan;
       setPlans(items => [saved, ...items.filter(item => item.id !== plan.id)]);
-    } else setPlans(items => [plan, ...items.filter(item => item.id !== plan.id)]);
+    } else {
+      // Persist a guest rehearsal result before its own window reports success.
+      const next = [plan, ...plans.filter(item => item.id !== plan.id)];
+      saveGuestPlans(next);
+      setPlans(next);
+    }
   }
   async function removePlan(id: string): Promise<void> {
     if (account && window.tixbam) await window.tixbam.accountRequest("DELETE", "/v1/me/plans/" + id);
@@ -495,7 +522,14 @@ function App() {
     } catch (err) { inform(err instanceof Error ? err.message : "Could not save item.", true); }
     finally { setCloudBusy(false); }
   }
-  function practicePlan(id: string) { setSelectedPlanId(id); setPracticePlanId(id); setSection("plans"); }
+  async function practicePlan(plan: BookingPlan): Promise<void> {
+    if (!window.tixbam) throw new Error("Use the TIXBAM desktop app to open a rehearsal window.");
+    const result = await window.tixbam.openRehearsalWindow(plan, account?.id || null);
+    setSelectedPlanId(plan.id);
+    inform(result.reused
+      ? "Existing rehearsal focused. Close it before starting with updated preferences."
+      : "Offline rehearsal opened in a separate window. Ticketing sessions are unchanged.");
+  }
   async function openPlanBooking(plan: BookingPlan): Promise<void> {
     const target = saleUrlProvider(plan.providerId, plan.bookingUrl);
     if (!target) { inform("A supported official ticket link is required. Review this plan.", true); return; }
@@ -687,7 +721,7 @@ function App() {
     try {
       await upsertPlan(plan);
       setEventModal(false);
-      setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans"); setSearch("");
+      setSelectedPlanId(plan.id); setSection("plans"); setSearch("");
       inform("Booking plan saved. Configure and rehearse before tickets open.");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not save booking plan.");
@@ -707,7 +741,7 @@ function App() {
       timezone:event.timezone || ""
     });
     try {
-      await upsertPlan(plan); setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans");
+      await upsertPlan(plan); setSelectedPlanId(plan.id); setSection("plans");
       inform("Booking plan created. Add the official ticket agent and sale details when announced.");
     } catch(err) { inform(err instanceof Error ? err.message : "Could not save the booking plan.", true); }
   }
@@ -720,7 +754,7 @@ function App() {
       inform("This sale does not cover the selected performance.", true); return;
     }
     const existing = plans.find(plan => plan.saleId === sale.id && plan.performanceId === (performance?.id || null));
-    if (existing) { setSelectedPlanId(existing.id); setPracticePlanId(null); setSection("plans"); return; }
+    if (existing) { setSelectedPlanId(existing.id); setSection("plans"); return; }
     const draft = plans.find(plan => plan.eventId === event.id &&
       plan.performanceId === (performance?.id || null) && !plan.saleId &&
       (plan.providerId === "tba" || plan.providerId === sale.providerId));
@@ -738,7 +772,7 @@ function App() {
     } : makePlan(fields);
     try {
       await upsertPlan(plan);
-      setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans");
+      setSelectedPlanId(plan.id); setSection("plans");
       inform("Booking plan created. Set your preferences and rehearse.");
     } catch (err) { inform(err instanceof Error ? err.message : "Could not create booking plan.", true); }
   }
@@ -826,12 +860,15 @@ function App() {
           </div>}
           {section === "overview" && <BookingDashboard plans={plans} addons={addons} now={now}
             onCreate={openCreate} onDiscover={() => setSection("discover")}
-            onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); setSection("plans"); }}
-            onPractice={practicePlan} onBook={openPlanBooking}/>}
+            onSelect={id => { setSelectedPlanId(id); setSection("plans"); }}
+            onPractice={id => {
+              const plan = plans.find(item => item.id === id);
+              if (plan) void practicePlan(plan).catch(err => inform(err instanceof Error ? err.message : "Could not open rehearsal.", true));
+            }} onBook={openPlanBooking}/>}
           {section === "plans" && <BookingPlansWorkspace plans={plans} addons={addons} now={now}
             onCreate={openCreate} selectedId={selectedPlanId}
-            onSelect={id => { setSelectedPlanId(id); setPracticePlanId(null); }}
-            practiceId={practicePlanId} onPracticeId={setPracticePlanId}
+            onSelect={id => { setSelectedPlanId(id); }}
+            onPractice={practicePlan}
             onSave={upsertPlan} onRemove={removePlan} onOpen={openPlanBooking} onConfigure={configurePlan}/>}
           {section === "discover" && <>
             <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover tickets" description="Choose a show, performance and official ticket sale to create a booking plan." />
@@ -1132,7 +1169,8 @@ function App() {
         onRehearse={plans.some(p => p.id === bookingEvent.id) ? () => {
           const currentPlanId = bookingEvent.id;
           setBookingEvent(null);
-          practicePlan(currentPlanId);
+          const plan = plans.find(item => item.id === currentPlanId);
+          if (plan) void practicePlan(plan).catch(err => inform(err instanceof Error ? err.message : "Could not open rehearsal.", true));
         } : undefined}
         onPlanPreferencesSaved={async prefs => {
           const plan = plans.find(p => p.id === bookingEvent.id);
