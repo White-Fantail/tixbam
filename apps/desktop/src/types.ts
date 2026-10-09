@@ -53,6 +53,15 @@ export interface WatchEvent {
   performanceAt?: string;
 }
 
+export type RehearsalTarget = Pick<BookingPlan,
+  "id" | "artist" | "title" | "providerId" | "currency" | "quantity" |
+  "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady">;
+export interface RehearsalBridge {
+  getContext: () => Promise<RehearsalTarget>;
+  complete: () => Promise<{ saved: boolean }>;
+  close: () => Promise<boolean>;
+}
+
 export type LivePhase = "preparing" | "waiting" | "queue" | "selecting" | "checkout" | "verification";
 export interface LiveHistory {
   planId: string;
@@ -98,6 +107,12 @@ export interface DesktopBridge {
   onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
   openSaleWindow: (options: { providerId: string; url: string }) => Promise<{ id: number; providerId: string; url: string }>;
+  openRehearsalWindow: (plan: BookingPlan, accountId: string | null) => Promise<{ reused: boolean; planId: string }>;
+  ackRehearsalSave: (requestId: number, success: boolean, message?: string) => Promise<boolean>;
+  onRehearsalSaveRequest: (listener: (request: {
+    requestId: number; planId: string; ownerId: string | null;
+  }) => void) => () => void;
+  onRehearsalClosed: (listener: (planId: string) => void) => () => void;
   openPlanWindow: (options: { planId: string; providerId: string; url: string }) =>
     Promise<{ id: number; providerId: string; planId: string; reused: boolean; site?: string }>;
   setLivePhase: (windowId: number, phase: LivePhase) => Promise<boolean>;
@@ -117,5 +132,6 @@ export interface DesktopBridge {
 declare global {
   interface Window {
     tixbam?: DesktopBridge;
+    tixbamRehearsal?: RehearsalBridge;
   }
 }
