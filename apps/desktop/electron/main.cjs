@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, safeStorage, shell } = require("electron");
 const path = require("node:path");
-const { MAX_WINDOWS, isSafeWebUrl } = require("./security.cjs");
+const { MAX_WINDOWS, isSafeWebUrl, resolveOfficialSaleUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
 const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 
@@ -127,6 +127,11 @@ app.whenReady().then(() => {
   ipcMain.handle("tixbam:open-window", (event, options) => {
     dashboardOnly(event);
     return openTicketWindow(options);
+  });
+  ipcMain.handle("tixbam:open-sale-window", (event, options) => {
+    dashboardOnly(event);
+    if (!options || typeof options !== "object") throw new Error("Invalid ticket sale link.");
+    return openTicketWindow(resolveOfficialSaleUrl(options.providerId, options.url));
   });
   ipcMain.handle("tixbam:open-ticket-agent", (event, sourceWindowId, agentUrl) => {
     dashboardOnly(event);
