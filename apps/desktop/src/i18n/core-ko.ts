@@ -52,8 +52,7 @@ export const coreKo: Record<string, string> = {
   "Leave the link blank to open the provider's home page. Direct links must belong to that provider.":
     "링크가 없으면 예매처 홈으로 이동해요. 입력하는 링크는 해당 공식 예매처의 것이어야 해요.",
   "Booking preferences & automation": "예매 조건 및 자동화",
-  "No favorite events match the selected sale filter.": "선택한 조건에 맞는 즐겨찾기 공연이 없어요.",
-  "Create plan": "예매 계획 만들기", "No results": "검색 결과 없음",
+  "No results": "검색 결과 없음",
   "Sign in from Settings to follow artists and sync favorites.":
     "아티스트를 팔로우하고 즐겨찾기를 동기화하려면 설정에서 로그인하세요.",
   "This action is only available in the TIXBAM dashboard.": "이 기능은 TIXBAM 대시보드에서만 사용할 수 있어요.",
