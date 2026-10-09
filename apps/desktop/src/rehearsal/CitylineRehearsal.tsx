@@ -47,6 +47,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [discountEligible, setDiscountEligible] = useState(false);
   const [identityReady, setIdentityReady] = useState(false);
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const [requestAdjacent, setRequestAdjacent] = useState(plan.requireTogether);
   const [deliveryId, setDeliveryId] = useState("eticket");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "wallet">("card");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -72,7 +73,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const possible = tierId && !tiers.find(t => t.id === tierId)?.soldOut;
   const offer = tierId ? citylineOfferCheck({
     tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
-    selectedSeatIds, seats, requireTogether: plan.requireTogether,
+    selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
     acceptRestrictedView: restrictedConsent, scenarioId
   }) : null;
   const mismatch = plan.currency !== "HKD";
@@ -105,6 +106,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setScenarioId(id); setStage(0); setMemberReady(false); setPresaleEligible(false);
     setLoginMethod("email"); setTierId(""); setPurchaseMode(id === "express" || id === "presale" ? "express" : "normal");
     setTicketType("adult"); setDiscountEligible(false); setIdentityReady(false); setSelectedSeatIds([]);
+    setRequestAdjacent(plan.requireTogether);
     setDeliveryId("eticket"); setPaymentMethod("card"); setTermsAccepted(false);
     setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false); setChallengeCompleted(false);
     setCheckoutEnds(null); setRemaining(CITYLINE_PRACTICE_HOLD_SECONDS);
@@ -125,11 +127,13 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setFeedback("");
   }
   function seatStepNext() {
+    if (plan.quantity > 1 && plan.requireTogether && !requestAdjacent)
+      return warn("Your Booking Plan requires adjacent seats. Enable the adjacent-seat request before proceeding.");
     if (scenario.mapUnavailable && purchaseMode === "normal")
       return warn("The practice seat map failed to load. Use the organiser's available Express Purchase option or wait for official guidance; do not repeatedly refresh a live queue.");
     if (!possible) return warn("Select an available price zone first.");
     if (purchaseMode === "express") {
-      const proposed = expressSeatOffer(seats, plan.quantity, plan.requireTogether);
+      const proposed = expressSeatOffer(seats, plan.quantity, plan.requireTogether || requestAdjacent);
       if (proposed.length < plan.quantity) return warn("No suitable practice allocation for your conditions. Try a different price zone or scenario.");
       setSelectedSeatIds(proposed.map(s => s.id));
       if (proposed.some(s => s.restrictedView) && !restrictedConsent)
@@ -139,17 +143,17 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     }
     if (selectedSeatIds.length !== plan.quantity)
       return warn("Choose exactly " + plan.quantity + " practice seat" + (plan.quantity === 1 ? "" : "s") + ".");
-    if (plan.requireTogether && selectedSeats.length > 1) {
+    if ((plan.requireTogether || requestAdjacent) && selectedSeats.length > 1) {
       const result = citylineOfferCheck({
         tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
-        selectedSeatIds, seats, requireTogether: true,
+        selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
         acceptRestrictedView: restrictedConsent, scenarioId
       });
       if (!result.ok) return warn(result.reason);
     }
     const result = citylineOfferCheck({
       tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
-      selectedSeatIds, seats, requireTogether: plan.requireTogether,
+      selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
       acceptRestrictedView: restrictedConsent, scenarioId
     });
     if (!result.ok) return warn(result.reason);
@@ -282,7 +286,13 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
           <option value="concession">Concession ticket · eligibility may be required</option>
         </select></label>
       </div>
-      <p className="cl-drill-helper">Target: {plan.quantity} ticket{plan.quantity === 1 ? "" : "s"} · Practice limit: {scenario.maxTickets} · {plan.requireTogether ? "Together required" : "Separate allowed"}</p>
+      <div className="cl-drill-options-line">
+        <p className="cl-drill-helper">Target: {plan.quantity} ticket{plan.quantity === 1 ? "" : "s"} · Practice limit: {scenario.maxTickets}</p>
+        <label className="cl-drill-check"><input type="checkbox" checked={requestAdjacent} disabled={plan.quantity === 1}
+          onChange={e => {setRequestAdjacent(e.target.checked); setSelectedSeatIds([]);}}/>
+          Request adjacent seats {plan.quantity === 1 ? "(not applicable to one ticket)" : plan.requireTogether ? "— required by your plan" : "(optional)"}</label>
+      </div>
+      {ticketType === "concession" && <p className="cl-drill-helper">Concession is an eligibility exercise here; no discount is applied to the invented prices. Actual terms and prices are event-specific.</p>}
       <h5>Price zone <span>Invented prices / sample inventory</span></h5>
       <div className="cl-drill-tiers">
         {tiers.map(tier => {
