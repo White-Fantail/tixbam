@@ -44,7 +44,16 @@ export function getSaleTiming(
 export function formatSaleLocalTime(saleAt: string | null | undefined, timezone?: string | null): string {
   const timestamp = saleTimestamp(saleAt);
   if (timestamp === null) return "Sale date TBA";
-  let zone = timezone || "UTC";
+  // User-created watchlist entries have no venue time zone and were entered
+  // with datetime-local. Retain that local wall-clock interpretation in UI.
+  if (!timezone) {
+    const local = new Intl.DateTimeFormat("en-NZ", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).format(timestamp);
+    return local + " (your time)";
+  }
+  let zone = timezone;
   try {
     new Intl.DateTimeFormat("en-NZ", { timeZone: zone });
   } catch {
@@ -55,6 +64,20 @@ export function formatSaleLocalTime(saleAt: string | null | undefined, timezone?
     hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   }).format(timestamp);
   return display + " (" + zone + ")";
+}
+
+/**
+ * Only show a venue status for the whole event when every performance has
+ * that same confirmed status; otherwise use the selected session's status.
+ */
+export function eventPerformanceStatus(
+  performances: readonly Pick<CatalogPerformance, "id" | "status">[],
+  performanceId?: string
+): PerformanceState {
+  if (performanceId) return performances.find(performance => performance.id === performanceId)?.status;
+  if (!performances.length) return undefined;
+  const confirmed = ["sold_out", "cancelled", "postponed"] as const;
+  return confirmed.find(status => performances.every(performance => performance.status === status));
 }
 
 export function saleAppliesToPerformance(sale: SaleLike, performanceId?: string): boolean {
