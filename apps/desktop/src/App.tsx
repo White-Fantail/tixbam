@@ -808,8 +808,18 @@ function App() {
             <SectionHeading eyebrow="FROM THE TIXBAM SERVER" title="Discover events" description="Concerts and ticket sales published by the TIXBAM platform." />
             <div className="remote-banner"><Globe2 size={17} /><span>API: {apiStatus}</span>
               <button onClick={() => setSection("settings")}>Service status <ArrowUpRight size={15}/></button></div>
-            {remoteEvents.length ? <div className="remote-grid">
-              {remoteEvents.filter(e => [e.title, e.artist, e.city].join(" ").toLowerCase().includes(search.toLowerCase())).map(event => {
+            <div className="sale-filter-toolbar">
+              <label htmlFor="discover-sale-filter">Ticket sale filter</label>
+              <select id="discover-sale-filter" value={discoverSaleFilter}
+                onChange={e => setDiscoverSaleFilter(e.target.value as SaleFilter)}>
+                <option value="all">All events</option>
+                <option value="upcoming">Upcoming sales</option>
+                <option value="week">Next 7 days</option>
+              </select>
+              <span>{filteredRemoteEvents.length} events</span>
+            </div>
+            {filteredRemoteEvents.length ? <div className="remote-grid">
+              {filteredRemoteEvents.map(event => {
                 const sessions = event.performances || [];
                 const selectedSession = sessions.find(p => p.id === chosenPerformances[event.id]) || sessions[0];
                 const sessionTime = (p: RemotePerformance) => {
@@ -821,9 +831,15 @@ function App() {
                     }).format(new Date(p.startsAt));
                   } catch { return "Time zone unavailable"; }
                 };
+                const nextSale = pickNextSale(event.sales, now, selectedSession?.id);
                 return <article key={event.id} className="remote-card">
                   <span className="eyebrow">LIVE CATALOG · {event.country || "GLOBAL"}</span>
                   <h3>{event.artist}</h3><p>{event.title}</p>
+                  <div className="event-sale-summary">
+                    <TicketSaleStatus saleAt={nextSale?.saleAt} timezone={nextSale?.timezone || event.timezone}
+                      performanceStatus={selectedSession?.status} now={now} compact />
+                    {nextSale && <span>{nextSale.saleType.replaceAll("-", " ")} · {providerFor(nextSale.providerId)?.name || nextSale.providerId}</span>}
+                  </div>
                   <div className="favorite-actions"><button className="button button-outline" disabled={cloudBusy} aria-pressed={favoriteEventIds.includes(event.id)} onClick={() => void toggleFavorite("events", event.id)}><Heart size={15} fill={favoriteEventIds.includes(event.id) ? "currentColor" : "none"}/>{favoriteEventIds.includes(event.id) ? "Event saved" : "Favorite event"}</button><button className="button button-outline" disabled={cloudBusy} aria-pressed={favoriteArtistIds.includes(event.artistId)} onClick={() => void toggleFavorite("artists", event.artistId)}><Star size={15} fill={favoriteArtistIds.includes(event.artistId) ? "currentColor" : "none"}/>{favoriteArtistIds.includes(event.artistId) ? "Following artist" : "Follow artist"}</button></div>
                   <div className="sample-place"><Globe2 size={14}/>{event.city || "City TBA"}{event.venue ? " · " + event.venue : ""}</div>
                   <div className="sample-place"><CalendarDays size={14}/>{sessions.length} session{sessions.length === 1 ? "" : "s"}</div>
@@ -845,7 +861,9 @@ function App() {
                       const linkedEventPage = linkProvider && linkProvider.id !== sale.providerId;
                       return <div className="remote-sale" key={sale.id}>
                         <div><strong>{providerFor(sale.providerId)?.name || sale.providerId}</strong>
-                          <span>{sale.saleType} · {sale.saleAt ? new Date(sale.saleAt).toLocaleString() : "Sale TBA"}</span>
+                          <span className="sale-type">{sale.saleType.replaceAll("-", " ")}</span>
+                          <TicketSaleStatus saleAt={sale.saleAt} timezone={sale.timezone || event.timezone}
+                            performanceStatus={eligible ? selectedSession?.status : undefined} now={now} showDate />
                           {!eligible && <span>Not valid for this session</span>}
                           {linkedEventPage && <span>Link: {linkProvider.name} event page (seller: {providerFor(sale.providerId)?.name || sale.providerId})</span>}
                           {!linkProvider && <span>Booking link needs a supported add-on</span>}
@@ -861,7 +879,12 @@ function App() {
                 </article>;
               })}
 
-            </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div><h3>No published events yet.</h3><p>Events appear automatically when published in TIXBAM Admin. You can still create local events manually.</p><button className="button button-primary" onClick={openCreate}>Add local event</button></div>}
+            </div> : <div className="empty-state"><div className="empty-icon"><CalendarDays size={28}/></div>
+              <h3>{remoteEvents.length ? "No events match this filter." : "No published events yet."}</h3>
+              <p>{remoteEvents.length ? "Try All events or another search." : "Events appear when published in TIXBAM Admin."}</p>
+              {remoteEvents.length ? <button className="button button-outline" onClick={() => { setDiscoverSaleFilter("all"); setSearch(""); }}>Show all events</button> :
+                <button className="button button-primary" onClick={openCreate}>Add local event</button>}
+            </div>}
           </>}
 
           {section === "artists" && <>
