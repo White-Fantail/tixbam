@@ -7,9 +7,10 @@ const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
   return ctx.preferences || { schemaVersion: 1, quantity: 2, maxTotalMinor: 200000, currency: ctx.schema.currency, requireTogether: true, allowFallback: true, checkout: 'review', options: Object.fromEntries(ctx.schema.fields.map(f => [f.id, f.type === 'ranked' ? [] : ''])) };
 }
-export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPreferencesSaved }: {
+export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPreferencesSaved, onRehearse }: {
   event: WatchEvent; addon: TicketAddon; windows: TicketWindow[]; onClose: () => void;
   plan?: BookingPlan; onPlanPreferencesSaved?: (prefs: BookingPreferences) => Promise<void>;
+  onRehearse?: () => void;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
@@ -105,8 +106,13 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
     <h2 id="booking-title">{event.title}</h2><p>Quantity, adjacency and total budget are required conditions. Ranked alternatives are used only when you allow them.</p>
     <p className="settings-note">Cityline live options require its actual event booking form. Seat selection and payment pages are not yet verified; real automatic checkout is disabled and payment remains manual.</p>
     {!directProviderUrl && <p className="rehearsal-note" role="note">The saved link is an event/promoter page, not a Cityline booking URL. Live options are unavailable until the direct official Cityline event link is saved. You can still try the offline demo below.</p>}
-    <p className="settings-note">Offline demo uses fixed sample performances, prices, seats and simulated payment. It does not check availability or rehearse this actual concert.</p>
-    <div className="booking-actions"><label>Cityline provider window<select value={windowId ?? ''} disabled={busy || active || !directProviderUrl} onChange={e=> { setWindowId(Number(e.target.value)||undefined); setContext(null); setPrefs(null); }}><option value="">Choose a window</option>{windows.map(w=><option key={w.id} value={w.id}>#{w.id} · {w.title || addon.name}</option>)}</select></label><button className="button button-outline" disabled={busy || active || !windowId || !directProviderUrl} title={!directProviderUrl ? 'A direct Cityline ticket URL is required to read real options.' : undefined} onClick={()=>read()}>Read live options</button><button className="button button-outline" disabled={busy || active} onClick={()=>read(true)}>Run offline demo</button></div>
+    <p className="settings-note">{onRehearse ?
+    "For full Cityline training, open the Booking Plan rehearsal: eight scenarios with ticket limits, seat choices, cart, simulated payment and safe recovery." :
+    "Basic sample adapter demo; for full Cityline rehearsal, create a Booking Plan. No real tickets or payments are involved."}</p>
+    <div className="booking-actions"><label>Cityline provider window<select value={windowId ?? ''} disabled={busy || active || !directProviderUrl} onChange={e=> { setWindowId(Number(e.target.value)||undefined); setContext(null); setPrefs(null); }}><option value="">Choose a window</option>{windows.map(w=><option key={w.id} value={w.id}>#{w.id} · {w.title || addon.name}</option>)}</select></label><button className="button button-outline" disabled={busy || active || !windowId || !directProviderUrl} title={!directProviderUrl ? 'A direct Cityline ticket URL is required to read real options.' : undefined} onClick={()=>read()}>Read live options</button>{onRehearse ? <button className="button button-outline" disabled={busy || active}
+  onClick={onRehearse}>Open Cityline rehearsal scenarios</button> :
+  <button className="button button-outline" disabled={busy || active}
+    onClick={()=>read(true)} title="Legacy sample adapter test; for full training, create a Booking Plan.">Basic sample demo</button>}</div>
     {context && prefs && <>
       {context.providerTitle && <p className="settings-note">Read from provider: {context.providerTitle} · Event #{context.providerEventId}. Check that this is your intended event before starting.</p>}
       {context.rehearsal && <p className="rehearsal-note">OFFLINE DEMO · These are sample Cityline-like options, not this concert's real tickets. No website requests, saved card access or charges.</p>}
