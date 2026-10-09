@@ -1,6 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("tixbam", {
+  getLanguage: () => ipcRenderer.invoke("tixbam:language-get"),
+  setLanguage: code => ipcRenderer.invoke("tixbam:language-set", code),
+  onLanguageChanged: listener => {
+    const handler = (_event, code) => listener(code);
+    ipcRenderer.on("tixbam:language-changed", handler);
+    return () => ipcRenderer.removeListener("tixbam:language-changed", handler);
+  },
   accountStatus: () => ipcRenderer.invoke("tixbam:account-status"),
   accountOAuthStart: (url, provider) => ipcRenderer.invoke("tixbam:account-oauth-start", url, provider),
   accountOAuthPoll: () => ipcRenderer.invoke("tixbam:account-oauth-poll"),
