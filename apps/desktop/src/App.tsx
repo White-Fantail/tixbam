@@ -1152,7 +1152,7 @@ function App() {
                    {!authMethods.google && !authMethods.apple && <div className="settings-note">Social login needs Google / Apple OAuth credentials configured on the TIXBAM API. No test accounts are available.</div>}
                    {!desktop && <div className="settings-note">Social sign-in is available in the Electron desktop app.</div>}
                  </>}
-                 {cloudError && <p className="account-error" role="alert">{cloudError}</p>}
+                 {cloudError && <p className="account-error" role="alert">{tx(cloudError)}</p>}
                  <div className="settings-note">TIXBAM account data is stored on the server. Ticketing site logins and encrypted payment cards remain local to this device.</div>
                </div>
               <CardVaultPanel />
@@ -1179,7 +1179,7 @@ function App() {
             <label>Ticketing provider<select value={form.providerId} onChange={(e) => setForm({ ...form, providerId: e.target.value })}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} — {provider.region}</option>)}</select></label>
             <label>Official ticket link <span className="optional">(optional)</span><div className="field-with-icon"><Link2 size={17} /><input type="url" placeholder={providerFor(form.providerId)?.url} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div></label>
             <p className="input-hint">Leave the link blank to open the provider's home page. Direct links must belong to that provider.</p>
-            {formError && <p className="form-error" role="alert">{formError}</p>}
+            {formError && <p className="form-error" role="alert">{tx(formError)}</p>}
             <div className="modal-actions"><button type="button" className="button button-outline" onClick={() => setEventModal(false)}>Cancel</button><button type="submit" className="button button-primary"><Check size={17} /> Create plan</button></div>
           </form>
         </div>
@@ -1204,7 +1204,7 @@ function App() {
             allowFallback: prefs.allowFallback, preferencesReady: true });
         }}
         onClose={() => setBookingEvent(null)}/>}
-      {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
+      {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{tx(toast.message)}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
 }
