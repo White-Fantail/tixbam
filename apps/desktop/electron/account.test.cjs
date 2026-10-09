@@ -19,6 +19,10 @@ test("renderer may call only scoped self-service account routes", () => {
   assert.equal(allowedAccountEndpoint("GET", "/v1/me"), true);
   assert.equal(allowedAccountEndpoint("PUT", "/v1/me/watchlist/" + id), true);
   assert.equal(allowedAccountEndpoint("DELETE", "/v1/me/artists/" + id), true);
+  assert.equal(allowedAccountEndpoint("PUT", "/v1/me/plans/" + id), true);
+  assert.equal(allowedAccountEndpoint("DELETE", "/v1/me/saved/performance/" + id), true);
+  assert.equal(allowedAccountEndpoint("PUT", "/v1/me/saved/sale/" + id), true);
+  assert.equal(allowedAccountEndpoint("PUT", "/v1/me/saved/admin/" + id), false);
   for (const pair of [["POST", "/v1/admin/artists"], ["DELETE", "/v1/me"],
     ["PUT", "/v1/me/events/../admin"], ["PUT", "/v1/me/sessions/" + id],
     ["GET", "/v1/me/watchlist/" + id], ["POST", "/v1/auth/dev"]]) {
