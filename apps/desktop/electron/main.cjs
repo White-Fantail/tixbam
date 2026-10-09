@@ -69,6 +69,7 @@ function openRehearsalWindow(plan, accountId) {
     rejectRehearsalWrites(target.id);
     if (dashboard && !dashboard.isDestroyed()) {
       dashboard.webContents.send("tixbam:rehearsal-closed", target.id);
+      if (!closingApplication && !dashboard.isVisible()) dashboard.show();
     }
   });
   const devUrl = process.env.VITE_DEV_SERVER_URL;
@@ -211,7 +212,7 @@ function createDashboard() {
   }
   dashboard.on("close", event => {
     if (closingApplication) return;
-    if ([...ticketWindows.values()].some(entry => entry.planId)) {
+    if ([...ticketWindows.values()].some(entry => entry.planId) || rehearsalWindows.size > 0) {
       // Closing the dashboard currently stops booking runs. Hide it instead
       // so the host continues supervising open ticket windows.
       event.preventDefault();
@@ -286,6 +287,11 @@ app.whenReady().then(() => {
   ipcMain.handle("tixbam:rehearsal-close", event => {
     const entry = rehearsalEntry(event);
     entry.win.close();
+    if (dashboard && !dashboard.isDestroyed()) {
+      if (dashboard.isMinimized()) dashboard.restore();
+      dashboard.show();
+      dashboard.focus();
+    }
     return true;
   });
   ipcMain.handle("tixbam:rehearsal-complete", event => {
