@@ -48,7 +48,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
   const finished = checks.filter(check => check.done).length;
   return <article className="plan-card">
     <div className="plan-card-top"><div>
-      <span className="eyebrow">{addon?.name || plan.providerId} · BOOKING PLAN</span>
+      <span className="eyebrow">{addon?.name || (plan.providerId === "tba" ? "Provider TBA" : plan.providerId)} · BOOKING PLAN</span>
       <h3>{plan.artist}</h3><p>{plan.title}{plan.city ? " · " + plan.city : ""}</p>
       {plan.performanceAt && <small>Performance: {new Date(plan.performanceAt).toLocaleString()}</small>}
     </div><TicketCheck size={25} /></div>
@@ -193,7 +193,17 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "currency" in patch || "requireTogether" in patch || "allowFallback" in patch) ? false : current.preferencesReady }));
   };
   const persist = async () => {
-    setSaving(true); setError("");
+    setError("");
+    if (draft.bookingUrl) {
+      try {
+        const url = new URL(draft.bookingUrl);
+        if (url.protocol !== "https:" || url.username || url.password) throw Error("Invalid booking URL");
+      } catch {
+        setError("Use a valid official HTTPS ticket link, or leave the field blank until announced.");
+        return;
+      }
+    }
+    setSaving(true);
     try { await onSave({ ...draft, updatedAt: new Date().toISOString() }); }
     catch (err) { setError(err instanceof Error ? err.message : "Could not save your plan."); }
     finally { setSaving(false); }
@@ -205,7 +215,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
   };
   return <section className="booking-plan-detail">
     <button className="subtle-link" onClick={() => { onSelect(null); onPracticeId(null); }}><ArrowLeft size={16}/> All booking plans</button>
-    <div className="section-heading"><div><span className="eyebrow">{addon?.name || draft.providerId} · BOOKING PLAN</span>
+    <div className="section-heading"><div><span className="eyebrow">{addon?.name || (draft.providerId === "tba" ? "Provider TBA" : draft.providerId)} · BOOKING PLAN</span>
       <h2>{draft.artist}</h2><p>{draft.title}{draft.city ? " · " + draft.city : ""}</p>
     </div></div>
     <div className="booking-detail-columns"><div className="booking-detail-main">
