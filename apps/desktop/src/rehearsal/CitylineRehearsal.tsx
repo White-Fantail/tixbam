@@ -16,7 +16,7 @@ type Report = { scenarioId: string; completedAt: string; durationSeconds: number
   hints?: string[]; outcome: "simulated-receipt" | "unknown-reviewed" };
 const reportsKey = (planId: string) => "tixbam.rehearsal.cityline.v1." + planId;
 
-function budgetLabel(plan: BookingPlan) {
+function budgetLabel(plan: RehearsalTarget) {
   if (!plan.budgetMinor) return "Not set";
   const factor = currencyFactor(plan.currency);
   return plan.currency + " " + (plan.budgetMinor / factor).toLocaleString(undefined, {
