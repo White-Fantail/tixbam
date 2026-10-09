@@ -1,0 +1,51 @@
+# TIXBAM booking-first architecture
+
+## Product goal
+TIXBAM is a ticketing preparation and assistance app, not a fan content app. The
+primary journey is **Prepare → Rehearse → Book → Verify**. Artists, event catalogs,
+favorites and add-ons support this journey rather than dominating navigation.
+
+## Structure
+- Dashboard emphasizes Create Booking Plan and the next actionable plan.
+- My Bookings owns a purchase target, ticket constraints, manual readiness
+  checks, offline rehearsals, and official booking-site launch.
+- Discover creates plans directly from a specific event, performance and sale.
+- Saved contains favorite artists and events, saved performances/sales, and
+  legacy watched tickets retained for compatibility.
+- Sessions keeps provider browser windows and running booking attempts.
+
+## Accounts and migration
+The UserBookingPlan table stores only validated, non-secret plan data, scoped by
+account ID. The API exposes authenticated PUT/DELETE /v1/me/plans/{uuid} and
+adds bookingPlans/favoritePerformanceIds/favoriteSaleIds to GET /v1/me.
+Legacy cloud watchlist records are backfilled once at startup into plans with
+the original record ID; the watchlist is never removed. Guest watchlist data
+is locally imported only when the new store is first created. Guest-to-cloud
+import requires an explicit action.
+
+Cloud payloads never contain card numbers, CVV, provider cookies, ticket-site
+sessions, or bank challenges. Payment and provider-specific dynamic options
+remain local to the desktop host.
+
+## Rehearsal and safety
+The general offline rehearsal simulates queue admission, accepting/rejecting
+offers against a known budget, review and bank verification. It never accesses
+any ticketing website, reserves seats or charges money. Its completion means
+only that an offline walkthrough was finished.
+
+The existing Cityline adapter remains limited to verified public performance
+and price choice controls. Live seat selection and payment are NOT verified.
+A direct provider link is needed to configure live options; promoter/event
+pages are not equivalent. The actual booking site remains the source of truth.
+No CAPTCHA, queue, anti-bot challenge or bank authentication bypass is added.
+Unclear payment outcomes must be verified in provider order history and must
+not trigger automatic payment retry.
+
+## Future implementation (not asserted by this release)
+1. Live booking assistant alongside official provider browser state.
+2. Plan-linked provider-specific seat preference versions and rehearsal reports.
+3. Per-provider capability/terms verification before enabling automation.
+4. Durable session diagnostic history with safe crash recovery.
+5. Verified receipt/charge outcome and explicit recovery paths.
+
+Do not infer a successful actual purchase from rehearsal completion.
