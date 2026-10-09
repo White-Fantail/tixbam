@@ -8,6 +8,18 @@ import { CitylineRehearsal } from "./CitylineRehearsal";
 /** No account/vault/provider APIs are exposed to this separate Electron window. */
 export default function RehearsalApp() {
   const { language, setLanguage } = useLanguage();
+  const changeLanguage = (code: "ko" | "en") => {
+    setLanguage(code);
+    void window.tixbamRehearsal?.setLanguage(code).catch(() => {});
+  };
+  useEffect(() => {
+    const bridge = window.tixbamRehearsal;
+    if (!bridge) return;
+    let active = true;
+    void bridge.getLanguage().then(code => { if (active) setLanguage(code); }).catch(() => {});
+    const off = bridge.onLanguageChanged(code => { if (active) setLanguage(code); });
+    return () => { active = false; off(); };
+  }, [setLanguage]);
   const [plan, setPlan] = useState<RehearsalTarget | null>(null);
   const [error, setError] = useState("");
   const bridge = window.tixbamRehearsal;
@@ -41,7 +53,7 @@ export default function RehearsalApp() {
       </div>
       <div className="language-switcher language-switcher-compact" role="group" aria-label={tx("Display language")}>
         {LANGUAGES.map(option => <button className={"button "+(language === option.code ? "button-primary" : "button-outline")}
-          key={option.code} aria-pressed={language === option.code} onClick={() => setLanguage(option.code)}>{option.nativeName}</button>)}
+          key={option.code} aria-pressed={language === option.code} onClick={() => changeLanguage(option.code)}>{option.nativeName}</button>)}
       </div>
       <span className="rehearsal-window-trust"><ShieldCheck size={15}/> No live purchases</span>
       <button type="button" className="button button-outline"
