@@ -9,7 +9,7 @@ import { BookingPanel } from "./booking/BookingPanel";
 import { BookingRunList } from "./booking/BookingRunList";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
-import { formatSaleLocalTime, matchesSaleFilter, pickNextSale, saleTimestamp, type SaleFilter } from "./ticket-sales";
+import { eventPerformanceStatus, formatSaleLocalTime, matchesSaleFilter, pickNextSale, saleTimestamp, type SaleFilter } from "./ticket-sales";
 import { formatFavoritePerformanceDate } from "./event-dates";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
@@ -319,6 +319,8 @@ function App() {
 
   const nextTicketDrops = useMemo(() => {
     const fromCatalog = remoteEvents.flatMap(event => {
+      const eventStatus = eventPerformanceStatus(event.performances);
+      if (eventStatus === "sold_out" || eventStatus === "cancelled" || eventStatus === "postponed") return [];
       const sale = pickNextSale(event.sales, now);
       const timestamp = sale && saleTimestamp(sale.saleAt);
       if (!sale || timestamp === null || timestamp <= now) return [];
@@ -952,7 +954,8 @@ function App() {
                       {formatFavoritePerformanceDate(event)}
                     </span>
                     <span className="favorite-event-sale">
-                      <TicketSaleStatus saleAt={nextSale?.saleAt} timezone={nextSale?.timezone || event.timezone} now={now} compact />
+                      <TicketSaleStatus saleAt={nextSale?.saleAt} timezone={nextSale?.timezone || event.timezone}
+                        performanceStatus={eventPerformanceStatus(event.performances)} now={now} compact />
                       {nextSale && <small>{nextSale.saleType.replaceAll("-", " ")}</small>}
                     </span>
                   </div>
@@ -980,7 +983,8 @@ function App() {
                     <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{formatSaleLocalTime(item.saleAt, timezone)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
-                    <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now} />
+                    <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now}
+                      performanceStatus={remoteEvent ? eventPerformanceStatus(remoteEvent.performances, item.performanceId) : undefined} />
                     {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" disabled={!installedIds.has(item.providerId)} onClick={()=>setBookingEvent(item)}><Settings2 size={15}/> Booking preferences & automation</button>}
                     <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}{linkProvider && linkProvider.id !== provider.id ? " · via " + linkProvider.name : ""}</span><button className="button button-primary" disabled={!!busy || !linkProvider} onClick={() => launchSaleLink(provider.id, item.url)}><ExternalLink size={15} /> {!linkProvider ? "Link unavailable" : !installedIds.has(linkProvider.id) ? "Install add-on" : linkProvider.id !== provider.id ? "Event page" : "Open site"}</button></div>
                   </article>
