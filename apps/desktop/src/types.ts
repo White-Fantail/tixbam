@@ -53,7 +53,22 @@ export interface WatchEvent {
   performanceAt?: string;
 }
 
+export type LivePhase = "preparing" | "waiting" | "queue" | "selecting" | "checkout" | "verification";
+export interface LiveHistory {
+  planId: string;
+  providerId: string;
+  phase: LivePhase;
+  updatedAt: number;
+  reason: "closed" | "interrupted";
+}
+
 export interface TicketWindow {
+  planId?: string | null;
+  phase?: LivePhase;
+  site?: string;
+  popup?: boolean;
+  parentId?: number | null;
+  loadError?: number | null;
   id: number;
   providerId: string;
   title: string;
@@ -83,6 +98,11 @@ export interface DesktopBridge {
   onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
   openSaleWindow: (options: { providerId: string; url: string }) => Promise<{ id: number; providerId: string; url: string }>;
+  openPlanWindow: (options: { planId: string; providerId: string; url: string }) =>
+    Promise<{ id: number; providerId: string; planId: string; reused: boolean; site?: string }>;
+  setLivePhase: (windowId: number, phase: LivePhase) => Promise<boolean>;
+  listLiveHistory: () => Promise<LiveHistory[]>;
+  dismissLiveHistory: (planId: string) => Promise<LiveHistory[]>;
   openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
