@@ -61,6 +61,9 @@ class BookingOrchestrator {
     this.assertOwner();
     if (this.machine.phase === 'ORDER_REVIEW') this.transition('USER_CONFIRMED', 'Rechecking the final order.');
     if (this.machine.phase === 'WAITING_FOR_USER') this.transition('USER_RESUMED', 'Resuming…');
+    // Synchronous notifications can invoke Stop while resuming. Never start
+    // another adapter operation after a terminal interrupt.
+    if (this.cancelled || this.machine.terminal) return null;
     if (this.machine.phase !== 'OBSERVING') throw new InvalidTransition('Run is not ready to observe');
     const controller = new AbortController();
     const handle = Object.freeze({
