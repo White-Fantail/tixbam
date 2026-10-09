@@ -304,10 +304,11 @@ function App() {
   const filteredEvents = useMemo(() => {
     const query = search.toLowerCase().trim();
     return watchlist.filter(item =>
+      !plans.some(plan => plan.id === item.id) &&
       [item.artist, item.title, item.city, providerFor(item.providerId)?.name || ""].join(" ").toLowerCase().includes(query) &&
       matchesSaleFilter([item.saleAt], now, mySaleFilter)
     );
-  }, [watchlist, search, mySaleFilter, now]);
+  }, [watchlist, plans, search, mySaleFilter, now]);
 
   const filteredRemoteEvents = useMemo(() => remoteEvents.filter(event => {
     const chosen = event.performances.find(performance => performance.id === chosenPerformances[event.id])
@@ -931,7 +932,7 @@ function App() {
             </section>}
             <div className="content-toolbar">
               <label className="search-field"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search artist, event or city..." /></label>
-              <span className="results-label">{filteredEvents.length} SAVED EVENT{filteredEvents.length === 1 ? "" : "S"}</span>
+              <span className="results-label">{filteredEvents.length} LEGACY SAVED LINK{filteredEvents.length === 1 ? "" : "S"}</span>
             </div>
             {filteredEvents.length ? <div className="watchlist-grid">
               {filteredEvents.map((item) => {
@@ -944,7 +945,7 @@ function App() {
                 const timezone = remoteSale?.timezone || remoteEvent?.timezone;
                 return (
                   <article className="watch-card" key={item.id}>
-                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
+                    <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">SAVED LINK • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
                     <div className="watch-divider" />
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{formatSaleLocalTime(item.saleAt, timezone)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now}
@@ -954,12 +955,14 @@ function App() {
                   </article>
                 );
               })}
-            </div> : <div className="empty-state"><div className="empty-icon"><Ticket size={32} /></div>
-              <h3>{watchlist.length ? "No matching saved sales." : "Your next great memory begins here."}</h3>
-              <p>{watchlist.length ? "Try All events or another search." : "Keep track of your favorite artists, ticket launch times and official booking links."}</p>
-              {watchlist.length ? <button className="button button-outline" onClick={() => { setMySaleFilter("all"); setSearch(""); }}>Show all saved sales</button> :
-                <button className="button button-primary" onClick={openCreate}><Plus size={17} /> Add your first event</button>}
-            </div>}
+            </div> : (favoriteArtistIds.length + favoriteEventIds.length +
+              favoritePerformanceIds.length + favoriteSaleIds.length === 0) ?
+              <div className="empty-state"><div className="empty-icon"><Heart size={32} /></div>
+                <h3>No saved favorites yet</h3>
+                <p>Save artists, performances, events or ticket sales in Discover. Booking plans live in My Bookings.</p>
+                <button className="button button-primary" onClick={() => setSection("discover")}>
+                  Browse tickets <ArrowRight size={15}/></button>
+              </div> : null}
           </>}
 
           {section === "sessions" && <>
