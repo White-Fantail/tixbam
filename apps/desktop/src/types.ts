@@ -57,6 +57,9 @@ export type RehearsalTarget = Pick<BookingPlan,
   "id" | "artist" | "title" | "providerId" | "currency" | "quantity" |
   "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady">;
 export interface RehearsalBridge {
+  getLanguage: () => Promise<"ko" | "en">;
+  setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
+  onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;
   getContext: () => Promise<RehearsalTarget>;
   complete: () => Promise<{ saved: boolean }>;
   close: () => Promise<boolean>;
@@ -89,6 +92,9 @@ export interface TicketWindow {
 export interface CloudAccount { id: string; displayName: string; email: string | null; providers: string[]; }
 export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; favoritePerformanceIds: string[]; favoriteSaleIds: string[]; bookingPlans: BookingPlan[]; offline?: boolean; watchlist: WatchEvent[]; }
 export interface DesktopBridge {
+  getLanguage: () => Promise<"ko" | "en">;
+  setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
+  onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;
   accountStatus: () => Promise<CloudSnapshot | null>;
   accountOAuthStart: (url: string, provider: "google" | "apple") => Promise<{ provider: "google" | "apple"; expiresIn: number }>;
   accountOAuthPoll: () => Promise<CloudSnapshot | null>;
