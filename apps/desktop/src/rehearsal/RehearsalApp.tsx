@@ -33,13 +33,18 @@ export default function RehearsalApp() {
     bridge.getContext().then(target => {
       if (!live) return;
       setPlan(target);
-      document.title = "TIXBAM Rehearsal — " + target.artist;
+
     }).catch(err => {
       if (live) setError(err instanceof Error ? err.message : "Could not load the rehearsal.");
     });
     return () => { live = false; };
   }, [bridge]);
 
+  useEffect(() => {
+    if (plan) document.title = language === "ko"
+      ? "TIXBAM 리허설 — " + plan.artist : "TIXBAM Rehearsal — " + plan.artist;
+  }, [language, plan?.artist]);
+  
   async function close() {
     try { await bridge?.close(); }
     catch (err) { setError(err instanceof Error ? err.message : "Could not close this window."); }
