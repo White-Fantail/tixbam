@@ -1125,7 +1125,9 @@ function App() {
 
       {bookingEvent && addons.some(a => a.id === bookingEvent.providerId) && <BookingPanel
         event={bookingEvent} addon={addons.find(a => a.id === bookingEvent.providerId)!}
-        windows={windows.filter(w => w.providerId === bookingEvent.providerId)}
+        windows={windows.filter(w => w.providerId === bookingEvent.providerId &&
+          !w.popup && (plans.some(p => p.id === bookingEvent.id)
+            ? w.planId === bookingEvent.id : !w.planId))}
         plan={plans.find(p => p.id === bookingEvent.id)}
         onPlanPreferencesSaved={async prefs => {
           const plan = plans.find(p => p.id === bookingEvent.id);
