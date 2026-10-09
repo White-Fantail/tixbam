@@ -1,3 +1,4 @@
+import type { BookingPlan } from "./booking-plans";
 import type { BookingSchema, BookingContext, BookingPreferences, BookingRun, CardSummary, CardInput } from "../../../packages/addon-sdk";
 export type AutomationSupportStatus = "available" | "restricted" | "unverified" | "delegated";
 
@@ -23,7 +24,7 @@ export interface TicketAddon extends Provider {
   installed: boolean;
 }
 
-export type Section = "overview" | "discover" | "artists" | "watchlist" | "sessions" | "providers" | "settings";
+export type Section = "overview" | "plans" | "discover" | "artists" | "watchlist" | "sessions" | "providers" | "settings";
 
 export interface Provider {
   id: string;
@@ -62,7 +63,7 @@ export interface TicketWindow {
 }
 
 export interface CloudAccount { id: string; displayName: string; email: string | null; providers: string[]; }
-export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; watchlist: WatchEvent[]; }
+export interface CloudSnapshot { user: CloudAccount; favoriteArtistIds: string[]; favoriteEventIds: string[]; favoritePerformanceIds: string[]; favoriteSaleIds: string[]; bookingPlans: BookingPlan[]; watchlist: WatchEvent[]; }
 export interface DesktopBridge {
   accountStatus: () => Promise<CloudSnapshot | null>;
   accountOAuthStart: (url: string, provider: "google" | "apple") => Promise<{ provider: "google" | "apple"; expiresIn: number }>;
