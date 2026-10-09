@@ -19,6 +19,7 @@ class BookingRunner {
     this.payment = payment;
     this.preferences = structuredClone(preferences);
     this.secret = secret;
+    this.secretCleared = false;
     this.selectionMade = false;
     this.expected = null;
     this.orchestrator = new BookingOrchestrator({
@@ -32,8 +33,14 @@ class BookingRunner {
   get submitted() { return this.orchestrator.machine.commitStarted; }
   setMetadata(patch) { this.orchestrator.setMetadata(patch); }
 
-  stop() {
+  clearSecret() {
+    if (this.secretCleared) return;
+    this.secretCleared = true;
     this.secret?.clear();
+  }
+
+  stop() {
+    this.clearSecret();
     return this.orchestrator.interrupt(STOP_PRE, STOP_POST);
   }
 
@@ -165,7 +172,7 @@ class BookingRunner {
       this.orchestrator.fail(FAIL_PRE, FAIL_POST);
     } finally {
       this.orchestrator.end(handle);
-      if (this.orchestrator.machine.terminal) this.secret?.clear();
+      if (this.orchestrator.machine.terminal) this.clearSecret();
     }
   }
 }
