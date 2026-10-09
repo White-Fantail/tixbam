@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CreditCard,
   FlaskConical, Info, LockKeyhole, RefreshCw, ShieldAlert, Ticket, XCircle } from "lucide-react";
 import type { BookingPlan } from "../booking-plans";
+import { currencyFactor } from "../booking-plans";
 import {
   CITYLINE_SCENARIOS, CITYLINE_STEPS, CITYLINE_PERFORMANCES, CITYLINE_DELIVERY,
   CITYLINE_PRACTICE_HOLD_SECONDS, citylineScenario, citylineAvailableTiers,
@@ -15,7 +16,13 @@ type Report = { scenarioId: string; completedAt: string; durationSeconds: number
   outcome: "simulated-receipt" | "unknown-reviewed" };
 const reportsKey = (planId: string) => "tixbam.rehearsal.cityline.v1." + planId;
 
-function moneyOrEmpty(amount: number) { return amount > 0 ? citylineMoney(amount) : "Not set"; }
+function budgetLabel(plan: BookingPlan) {
+  if (!plan.budgetMinor) return "Not set";
+  const factor = currencyFactor(plan.currency);
+  return plan.currency + " " + (plan.budgetMinor / factor).toLocaleString(undefined, {
+    minimumFractionDigits: factor === 1 ? 0 : 2, maximumFractionDigits: factor === 1 ? 0 : 2
+  });
+}
 function reportHistory(planId: string): Report[] {
   try {
     const item: unknown = JSON.parse(localStorage.getItem(reportsKey(planId)) || "[]");
@@ -35,6 +42,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   plan: BookingPlan; onComplete: () => Promise<void>; onClose: () => void;
 }) {
   const [scenarioId, setScenarioId] = useState("standard");
+  const [practiceBudgetHkd, setPracticeBudgetHkd] = useState("");
   const scenario = citylineScenario(scenarioId);
   const [stage, setStage] = useState<Stage>(0);
   const [loginMethod, setLoginMethod] = useState("email");
@@ -72,13 +80,17 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const quote = citylineQuote({ tierId, quantity: plan.quantity, deliveryId });
   const possible = tierId && !tiers.find(t => t.id === tierId)?.soldOut;
   const offer = tierId ? citylineOfferCheck({
-    tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
+    tierId, quantity: plan.quantity, budgetMinor: trainingBudgetMinor, deliveryId,
     selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
     acceptRestrictedView: restrictedConsent, scenarioId
   }) : null;
   const mismatch = plan.currency !== "HKD";
-  const canBegin = !mismatch && plan.quantity >= 1 &&
-    plan.quantity <= scenario.maxTickets && plan.budgetMinor > 0 && plan.preferencesReady;
+  const enteredHkd = Number(practiceBudgetHkd);
+  const trainingBudgetMinor = mismatch ? Number.isFinite(enteredHkd) && enteredHkd > 0 &&
+    enteredHkd < 100000000 && Number.isSafeInteger(Math.round(enteredHkd * 100))
+      ? Math.round(enteredHkd * 100) : 0 : plan.budgetMinor;
+  const canBegin = plan.quantity >= 1 &&
+    plan.quantity <= scenario.maxTickets && trainingBudgetMinor > 0 && plan.preferencesReady;
 
   useEffect(() => {
     if (stage !== 7 || checkoutEnds === null) return;
@@ -145,14 +157,14 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       return warn("Choose exactly " + plan.quantity + " practice seat" + (plan.quantity === 1 ? "" : "s") + ".");
     if ((plan.requireTogether || requestAdjacent) && selectedSeats.length > 1) {
       const result = citylineOfferCheck({
-        tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
+        tierId, quantity: plan.quantity, budgetMinor: trainingBudgetMinor, deliveryId,
         selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
         acceptRestrictedView: restrictedConsent, scenarioId
       });
       if (!result.ok) return warn(result.reason);
     }
     const result = citylineOfferCheck({
-      tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
+      tierId, quantity: plan.quantity, budgetMinor: trainingBudgetMinor, deliveryId,
       selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
       acceptRestrictedView: restrictedConsent, scenarioId
     });
@@ -169,7 +181,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     if (ticketType === "concession" && !discountEligible)
       return warn("Reduced-price tickets may require valid proof of eligibility. Confirm the required documentation.");
     const result = citylineOfferCheck({
-      tierId, quantity: plan.quantity, budgetMinor: plan.budgetMinor, deliveryId,
+      tierId, quantity: plan.quantity, budgetMinor: trainingBudgetMinor, deliveryId,
       selectedSeatIds, seats, requireTogether: plan.requireTogether,
       acceptRestrictedView: restrictedConsent, scenarioId
     });
@@ -215,7 +227,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     </div>
     <div className="cl-drill-summary"><div><strong>{plan.title}</strong><span>{plan.artist} · Cityline practice target</span></div>
       <div><strong>{plan.quantity} ticket{plan.quantity === 1 ? "" : "s"}</strong><span>Target quantity</span></div>
-      <div><strong>{plan.currency} budget: {moneyOrEmpty(plan.budgetMinor)}</strong><span>Maximum total incl. fees</span></div>
+      <div><strong>{budgetLabel(plan)}</strong><span>Plan maximum, in {plan.currency}</span></div>
     </div>
     <div className="cl-drill-progress" ref={progress}><div><span>Step {stage + 1} of {CITYLINE_STEPS.length}</span>
       <strong>{CITYLINE_STEPS[stage]}</strong><span>{Math.round(pct)}%</span></div>
@@ -236,8 +248,16 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <p><b>Currency:</b> The real Hong Kong Cityline ticketing flow generally lists amounts in HKD. This drill only compares HKD to HKD and does not guess exchange rates.</p>
         <p><b>Seats:</b> {plan.requireTogether ? "Adjacent seats required" : "Separate seats permitted"} · {plan.allowFallback ? "Price-zone fallback allowed only when you choose it" : "No automatic fallback"}.</p>
         <p><b>Account:</b> This drill never asks for your password, bank verification code, or real card details.</p>
-        {mismatch && <div className="cl-drill-block" role="alert"><ShieldAlert size={17}/>
-          Your plan is in {plan.currency}, but this Cityline practice uses HKD. Change the Booking Plan currency and enter your maximum HKD total before continuing. No automatic FX conversion is attempted.</div>}
+        {mismatch && <div className="cl-drill-currency" role="note">
+          <div className="cl-drill-block"><ShieldAlert size={17}/>
+            Your Booking Plan budget is in {plan.currency}, while this simulated Cityline sale quotes HKD. Enter a separate practice-only HKD limit below. No exchange rate is assumed, and your saved Booking Plan is not changed. Update the real plan to the correct sale currency before live booking.</div>
+          <label>Practice-only maximum total (HKD)
+            <input type="number" min="0.01" max="99999999" step="0.01" value={practiceBudgetHkd}
+              placeholder="Enter your manually determined HKD limit"
+              onChange={e => setPracticeBudgetHkd(e.target.value)}/>
+          </label>
+          {trainingBudgetMinor > 0 && <p>Practice ceiling: {citylineMoney(trainingBudgetMinor)} including sample fees.</p>}
+        </div>}
         {plan.quantity > scenario.maxTickets && <div className="cl-drill-block" role="alert">This example event has a practice purchase limit of {scenario.maxTickets} ticket(s). Change your plan quantity or choose another scenario.</div>}
         {!plan.preferencesReady && <div className="cl-drill-block" role="alert">Save your Booking Plan and mark its preferences ready before continuing.</div>}
       </div>
@@ -297,7 +317,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <div className="cl-drill-tiers">
         {tiers.map(tier => {
           const preview = citylineQuote({tierId:tier.id, quantity:plan.quantity, deliveryId:"eticket"});
-          const over = Boolean(preview && preview.totalMinor > plan.budgetMinor);
+          const over = Boolean(preview && preview.totalMinor > trainingBudgetMinor);
           return <button key={tier.id} aria-pressed={tierId === tier.id} type="button"
             className={"cl-drill-tier" + (tier.id === tierId ? " selected" : "")} onClick={() => chooseTier(tier.id)}>
             <span className="cl-drill-tier-label"><strong>{tier.label}</strong><small>Ticket price {citylineMoney(tier.priceMinor)}</small></span>
@@ -319,7 +339,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <div className="cl-drill-nav"><button className="button button-outline" onClick={() => go(2)}><ArrowLeft size={15}/> Back</button>
         <button className="button button-primary" onClick={() => !tierId ? warn("Choose a ticket price zone.") :
           tiers.find(t => t.id === tierId)?.soldOut ? warn("This zone is sold out.") :
-          citylineQuote({tierId, quantity:plan.quantity})!.totalMinor > plan.budgetMinor ?
+          citylineQuote({tierId, quantity:plan.quantity})!.totalMinor > trainingBudgetMinor ?
             warn("The selected price zone exceeds your maximum budget including sample fees. Try a cheaper zone.") : go(4)}>
           Choose tickets <ArrowRight size={15}/></button></div>
     </div>}
@@ -405,7 +425,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <div><span>Illustrative service fees</span><b>{quote ? citylineMoney(quote.feeMinor) : "—"}</b></div>
         <div><span>Illustrative delivery fee</span><b>{quote ? citylineMoney(quote.deliveryMinor) : "—"}</b></div>
         <div className="total"><span>Practice total including fees</span><b>{totalAmount}</b></div>
-        <div><span>Your maximum</span><b>{citylineMoney(plan.budgetMinor)}</b></div>
+        <div><span>Your maximum</span><b>{citylineMoney(trainingBudgetMinor)}</b></div>
       </div>
       <p className="cl-drill-helper">For a real purchase, verify the organiser's delivery cutoff, real-name rules, age eligibility, payment methods and complete fee schedule before confirming.</p>
       <div className="cl-drill-nav"><button className="button button-outline" onClick={() => go(5)}><ArrowLeft size={15}/> Back to cart</button>
@@ -424,7 +444,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <div><span>Fulfillment</span><b>{CITYLINE_DELIVERY.find(item=>item.id===deliveryId)?.label}</b></div>
         <div><span>Practice payment</span><b>{paymentMethod==="card"?"Card / bank verification":"Digital payment"}</b></div>
         <div className="total"><span>All-in total</span><b>{totalAmount}</b></div>
-        <div><span>Budget</span><b>{citylineMoney(plan.budgetMinor)}</b></div>
+        <div><span>Budget</span><b>{citylineMoney(trainingBudgetMinor)}</b></div>
       </div>
       <label className="cl-drill-check"><input type="checkbox" checked={termsAccepted}
         onChange={e => setTermsAccepted(e.target.checked)}/>
