@@ -1,0 +1,269 @@
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
+  FlaskConical, Globe2, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
+import type { TicketAddon } from "./types";
+import { TicketSaleStatus } from "./TicketSaleStatus";
+import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
+import { type BookingPlan, officialLinkKind, planChecks } from "./booking-plans";
+
+type Change = (next: BookingPlan) => Promise<void>;
+type Props = {
+  plans: BookingPlan[];
+  addons: TicketAddon[];
+  now: number;
+  onCreate: () => void;
+  onSelect: (id: string | null) => void;
+  onSave: Change;
+  onRemove: (id: string) => Promise<void>;
+  onOpen: (plan: BookingPlan) => void;
+  onConfigure: (plan: BookingPlan) => void;
+  selectedId: string | null;
+  practiceId: string | null;
+  onPracticeId: (id: string | null) => void;
+};
+
+function addonFor(addons: TicketAddon[], id: string) {
+  return addons.find(addon => addon.id === id);
+}
+
+function readiness(plan: BookingPlan, addons: TicketAddon[]) {
+  return planChecks(plan, addonFor(addons, plan.providerId)?.allowedHosts || []);
+}
+
+function planSort(a: BookingPlan, b: BookingPlan) {
+  const at = saleTimestamp(a.saleAt);
+  const bt = saleTimestamp(b.saleAt);
+  if (at === null && bt === null) return b.updatedAt.localeCompare(a.updatedAt);
+  if (at === null) return 1;
+  if (bt === null) return -1;
+  return at - bt;
+}
+
+function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
+  plan: BookingPlan; addons: TicketAddon[]; now: number;
+  onSelect: () => void; onPractice: () => void; onBook: () => void;
+}) {
+  const addon = addonFor(addons, plan.providerId);
+  const checks = readiness(plan, addons);
+  const finished = checks.filter(check => check.done).length;
+  return <article className="plan-card">
+    <div className="plan-card-top"><div>
+      <span className="eyebrow">{addon?.name || plan.providerId} · BOOKING PLAN</span>
+      <h3>{plan.artist}</h3><p>{plan.title}{plan.city ? " · " + plan.city : ""}</p>
+      {plan.performanceAt && <small>Performance: {new Date(plan.performanceAt).toLocaleString()}</small>}
+    </div><TicketCheck size={25} /></div>
+    <TicketSaleStatus saleAt={plan.saleAt} timezone={plan.timezone} now={now} showDate />
+    <div className="plan-progress"><span>{finished}/{checks.length} preparation checks</span>
+      <progress max={checks.length} value={finished} aria-label="Preparation checks complete" /></div>
+    <div className="plan-actions">
+      <button className="button button-outline" onClick={onSelect}><Settings2 size={15}/> Prepare</button>
+      <button className="button button-outline" onClick={onPractice}><FlaskConical size={15}/> Rehearse</button>
+      <button className="button button-primary" onClick={onBook} disabled={!plan.bookingUrl}><ExternalLink size={15}/> Open tickets</button>
+    </div>
+  </article>;
+}
+
+/** This is an explicitly generic, offline interaction drill; never access a ticketing site. */
+function RehearsalSimulator({ plan, onComplete, onClose }: {
+  plan: BookingPlan; onComplete: () => Promise<void>; onClose: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const [picked, setPicked] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const max = plan.budgetMinor;
+  const good = max > 0 ? Math.round(max * 0.8) : 0;
+  const amount = (minor: number) => plan.currency + " " + (minor / 100).toFixed(2);
+  async function finish() {
+    setBusy(true); setError("");
+    try { await onComplete(); setStep(5); }
+    catch (err) { setError(err instanceof Error ? err.message : "Could not save rehearsal result."); }
+    finally { setBusy(false); }
+  }
+  return <section className="practice-panel" aria-label="Offline rehearsal">
+    <div className="practice-header"><div><span className="eyebrow">GENERIC OFFLINE SIMULATION</span>
+      <h3>Rehearse your booking</h3></div><button className="button button-outline" onClick={onClose}>Close</button></div>
+    <p>This is a generic practice scenario, not the actual {plan.providerId} booking page. It does not verify inventory, enter a queue, reserve seats or charge a card.</p>
+    <div className="practice-steps">Practice step {Math.min(step + 1, 5)} of 5</div>
+    {step === 0 && <div className="practice-stage">
+      <h4>1. Know your booking conditions</h4>
+      <p>{plan.quantity} ticket(s) · {max ? amount(max) : "No budget set"} maximum total · {plan.requireTogether ? "Adjacent seats required" : "Separate seats allowed"}</p>
+      <p>Make sure your real provider account and payment authentication device are ready before the actual sale.</p>
+      <button className="button button-primary" onClick={() => setStep(1)} disabled={!max || !plan.preferencesReady}>
+        Start queue walkthrough <ArrowRight size={16}/></button>
+      {(!max || !plan.preferencesReady) && <small>Set a total budget and save your preferences first.</small>}
+    </div>}
+    {step === 1 && <div className="practice-stage"><h4>2. Waiting room</h4>
+      <p>The official waiting room may put you in a queue. Do not refresh or open extra sessions unless the ticket provider instructs you to.</p>
+      <button className="button button-primary" onClick={() => setStep(2)}>Simulate admission <ArrowRight size={16}/></button>
+    </div>}
+    {step === 2 && <div className="practice-stage"><h4>3. Check the offer</h4>
+      <p>Practice rejecting seats that do not satisfy the quantity, adjacency and maximum total price you chose.</p>
+      <div className="practice-choices">
+        <label><input type="radio" name="practice-offer" checked={picked === "over"} onChange={() => setPicked("over")}/>
+          {plan.quantity} seats · {amount(max + 10000)} including fees</label>
+        <label><input type="radio" name="practice-offer" checked={picked === "good"} onChange={() => setPicked("good")}/>
+          {plan.quantity} {plan.requireTogether ? "adjacent " : ""}seats · {amount(good)} including fees</label>
+      </div>
+      <button className="button button-primary" disabled={!picked} onClick={() => picked === "good" ? (setError(""), setStep(3)) : setError("This total exceeds your limit. Do not accept it.")}>Check selection</button>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>}
+    {step === 3 && <div className="practice-stage"><h4>4. Review before payment</h4>
+      <p>Confirm the artist, performance, ticket quantity and final total including fees. The real payment page might still require bank verification.</p>
+      <button className="button button-primary" onClick={() => setStep(4)}>Proceed to simulated verification</button>
+    </div>}
+    {step === 4 && <div className="practice-stage"><h4>5. Bank challenge and confirmation</h4>
+      <p>Imagine completing 3-D Secure on your phone. Confirm the ticket provider's final order receipt before treating a real booking as successful. No real payment occurs here.</p>
+      <button className="button button-primary" disabled={busy} onClick={() => void finish()}>Finish offline rehearsal</button>
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>}
+    {step === 5 && <div className="practice-stage"><CheckCircle2 size={26}/>
+      <h4>Offline rehearsal completed</h4>
+      <p>This confirms only that you completed the practice walkthrough. Real seat selection, queue placement, card processing and checkout remain unverified.</p>
+      <button className="button button-outline" onClick={() => { setStep(0); setPicked(""); }}>Practice again</button>
+    </div>}
+  </section>;
+}
+
+export function BookingDashboard({ plans, addons, now, onCreate, onSelect, onPractice, onBook }: {
+  plans: BookingPlan[]; addons: TicketAddon[]; now: number;
+  onCreate: () => void; onSelect: (id: string) => void;
+  onPractice: (id: string) => void; onBook: (plan: BookingPlan) => void;
+}) {
+  const upcoming = [...plans].filter(plan => {
+    const sale = saleTimestamp(plan.saleAt);
+    return sale === null || sale >= now - 86400000;
+  }).sort(planSort);
+  const featured = upcoming[0] || [...plans].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  return <section className="booking-dashboard">
+    <div className="booking-hero"><span className="eyebrow">TIXBAM · TICKETING FIRST</span>
+      <h1>Prepare. Practice. Book.</h1>
+      <p>Build your booking plan, rehearse the flow and keep your next ticket drop under control.</p>
+      <button className="button button-primary" onClick={onCreate}><Plus size={18}/> Create Booking Plan</button>
+    </div>
+    <div className="booking-key-actions">
+      <div><ListChecks size={22}/><strong>Prepare</strong><span>Set requirements before tickets open.</span></div>
+      <div><FlaskConical size={22}/><strong>Practice</strong><span>Rehearse without risking a purchase.</span></div>
+      <div><TicketCheck size={22}/><strong>Book</strong><span>Launch the official site with your plan ready.</span></div>
+    </div>
+    <div className="section-heading"><div><div className="eyebrow">NEXT ACTION</div>
+      <h2>{featured ? "Your next booking" : "Start with a booking plan"}</h2>
+      <p>{featured ? "Prepare and rehearse before the official sale opens." : "Choose a concert in Discover or add a ticket link to create a plan."}</p></div></div>
+    {featured ? <PlanCard plan={featured} addons={addons} now={now}
+      onSelect={() => onSelect(featured.id)} onPractice={() => onPractice(featured.id)}
+      onBook={() => onBook(featured)} /> : <button className="button button-outline" onClick={onCreate}>Find tickets <ArrowRight size={15}/></button>}
+    {plans.length > 1 && <p className="booking-more-note">{plans.length - 1} other booking plan(s) in My Bookings.</p>}
+  </section>;
+}
+
+export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, onSave, onRemove,
+  onOpen, onConfigure, selectedId, practiceId, onPracticeId }: Props) {
+  const selected = plans.find(plan => plan.id === selectedId);
+  const [draft, setDraft] = useState<BookingPlan | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { setDraft(selected || null); setError(""); }, [selected]);
+  if (!selected || !draft) {
+    return <section className="booking-plans-page">
+      <div className="section-heading"><div><div className="eyebrow">YOUR TICKET PURCHASE GOALS</div>
+        <h2>My Bookings</h2><p>Every ticket drop has one place for preparation, rehearsal and live booking.</p>
+      </div><button className="button button-primary" onClick={onCreate}><Plus size={16}/> New plan</button></div>
+      {plans.length ? <div className="booking-plans-grid">{[...plans].sort(planSort).map(plan =>
+        <PlanCard key={plan.id} plan={plan} addons={addons} now={now}
+          onSelect={() => onSelect(plan.id)}
+          onPractice={() => { onSelect(plan.id); onPracticeId(plan.id); }}
+          onBook={() => onOpen(plan)}/>)}</div> :
+        <div className="empty-state"><h3>No booking plans yet</h3><p>Start with an official ticket sale in Discover. You can also add your own event and URL.</p>
+          <button className="button button-primary" onClick={onCreate}>Create your first booking plan</button></div>}
+    </section>;
+  }
+  const addon = addonFor(addons, draft.providerId);
+  const kind = officialLinkKind(draft, addon?.allowedHosts || []);
+  const checks = readiness(draft, addons);
+  const change = (patch: Partial<BookingPlan>) => {
+    setDraft(current => current && ({ ...current, ...patch,
+      preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "requireTogether" in patch || "allowFallback" in patch) ? false : current.preferencesReady }));
+  };
+  const persist = async () => {
+    setSaving(true); setError("");
+    try { await onSave({ ...draft, updatedAt: new Date().toISOString() }); }
+    catch (err) { setError(err instanceof Error ? err.message : "Could not save your plan."); }
+    finally { setSaving(false); }
+  };
+  const recordRehearsal = async () => {
+    const next = { ...draft, lastRehearsalAt: new Date().toISOString() };
+    await onSave(next);
+    setDraft(next);
+  };
+  return <section className="booking-plan-detail">
+    <button className="subtle-link" onClick={() => { onSelect(null); onPracticeId(null); }}><ArrowLeft size={16}/> All booking plans</button>
+    <div className="section-heading"><div><span className="eyebrow">{addon?.name || draft.providerId} · BOOKING PLAN</span>
+      <h2>{draft.artist}</h2><p>{draft.title}{draft.city ? " · " + draft.city : ""}</p>
+    </div></div>
+    <div className="booking-detail-columns"><div className="booking-detail-main">
+      <div className="settings-panel">
+        <h3><ListChecks size={19}/> Preparation</h3>
+        <TicketSaleStatus saleAt={draft.saleAt} timezone={draft.timezone} now={now} showDate />
+        <p className="settings-note">Ticket sale: {formatSaleLocalTime(draft.saleAt, draft.timezone || undefined)}{draft.performanceAt ? " · Performance: " + new Date(draft.performanceAt).toLocaleString() : ""}</p>
+        <div className="plan-checklist">{checks.map(check => <div key={check.label}>
+          {check.done ? <CheckCircle2 size={16} className="plan-check-yes"/> : <Circle size={16}/>}
+          <span>{check.label}</span></div>)}</div>
+        {kind !== "direct" && <div className="rehearsal-note"><ShieldAlert size={16}/> {kind === "promoter" ?
+          "This link may lead to an event or promoter page, not the actual ticket checkout. Verify the official ticket agent before live booking." :
+          "A verified direct ticket link is needed before live booking."}</div>}
+      </div>
+      <div className="settings-panel">
+        <h3><Settings2 size={19}/> Booking preferences</h3>
+        <p className="settings-note">Set the non-negotiable limits now. Provider-specific seat tiers and checkout options are configured separately when verified options are available.</p>
+        <div className="form-row"><label>Tickets<input type="number" min={1} max={20} value={draft.quantity}
+          onChange={e => change({ quantity: Number(e.target.value) })}/></label>
+          <label>Maximum total incl. fees ({draft.currency})<input type="number" min={0} step="0.01"
+            value={draft.budgetMinor ? (draft.budgetMinor / 100).toString() : ""}
+            placeholder="Set a maximum budget"
+            onChange={e => change({ budgetMinor: Math.round(Number(e.target.value) * 100) })}/></label></div>
+        <div className="plan-options"><label><input type="checkbox" checked={draft.requireTogether}
+          onChange={e => change({ requireTogether: e.target.checked })}/> Require adjacent seats</label>
+          <label><input type="checkbox" checked={draft.allowFallback}
+            onChange={e => change({ allowFallback: e.target.checked })}/> Allow only explicitly ranked alternatives</label></div>
+        <label className="plan-notes">Notes / preferred sections<textarea rows={3} maxLength={1000} value={draft.notes}
+          onChange={e => change({ notes: e.target.value })} placeholder="e.g. Front section preferred; no restricted-view seats"/></label>
+        <div className="plan-options"><label><input type="checkbox" checked={draft.accountReady}
+          onChange={e => change({ accountReady: e.target.checked })}/> I've checked my ticketing account</label>
+          <label><input type="checkbox" checked={draft.paymentReady}
+            onChange={e => change({ paymentReady: e.target.checked })}/> My payment method and 3-D Secure device are ready</label></div>
+        <div className="booking-actions">
+          <button className="button button-primary" disabled={saving || !draft.quantity || draft.quantity < 1 || draft.quantity > 20 || draft.budgetMinor < 0} onClick={() => void persist()}>Save plan</button>
+          <button className="button button-outline" disabled={saving || !draft.budgetMinor}
+            onClick={() => { const next = { ...draft, preferencesReady: true }; setDraft(next); setSaving(true);
+              void onSave(next).catch(e => setError(String(e))).finally(() => setSaving(false)); }}>Mark preferences ready</button>
+        </div>
+        {error && <p role="alert" className="form-error">{error}</p>}
+      </div>
+    </div><div className="booking-detail-side">
+      <div className="settings-panel">
+        <h3><FlaskConical size={19}/> Rehearsal</h3>
+        <p>Practice the steps using your saved conditions. An offline drill never purchases tickets.</p>
+        {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {new Date(draft.lastRehearsalAt).toLocaleString()}</p>}
+        <button className="button button-primary" onClick={() => onPracticeId(practiceId === selected.id ? null : selected.id)}>
+          {practiceId === selected.id ? "Close rehearsal" : "Start rehearsal"}</button>
+      </div>
+      <div className="settings-panel"><h3><TicketCheck size={19}/> Live booking</h3>
+        <p>Open the official ticketing site. Login, queue entry and human verification remain under your control.</p>
+        <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing"}>
+          <ExternalLink size={16}/> Open official ticket link</button>
+        {addon?.booking && <button className="button button-outline" onClick={() => onConfigure(draft)}
+          disabled={!addon.installed || kind !== "direct"}>Provider options & automation</button>}
+        <p className="settings-note">{addon?.booking ?
+          "Real seat selection and payment are not yet verified. Unsupported steps pause for manual completion." :
+          "This provider currently supports guided/manual ticketing. Booking automation is not enabled."}</p>
+      </div>
+      <button className="button button-outline plan-delete" disabled={saving} onClick={() => {
+        if (window.confirm("Delete this booking plan? Existing watchlist records are not deleted.")) {
+          void onRemove(selected.id).then(() => { onSelect(null); onPracticeId(null); }).catch(e => setError(String(e)));
+        }
+      }}><Trash2 size={15}/> Delete booking plan</button>
+    </div></div>
+    {practiceId === selected.id && <RehearsalSimulator key={selected.id} plan={draft}
+      onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/>}
+  </section>;
+}
