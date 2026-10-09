@@ -82,7 +82,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
     <div className="plan-card-top"><div>
       <span className="eyebrow">{addon?.name || (plan.providerId === "tba" ? "Provider TBA" : plan.providerId)} · BOOKING PLAN</span>
       <h3>{plan.artist}</h3><p>{plan.title}{plan.city ? " · " + plan.city : ""}</p>
-      {plan.performanceAt && <small>Performance: {new Date(plan.performanceAt).toLocaleString()}</small>}
+      {plan.performanceAt && <small>Performance: {localDate(plan.performanceAt)}</small>}
     </div><TicketCheck size={25} /></div>
     <TicketSaleStatus saleAt={plan.saleAt} timezone={plan.timezone} now={now} showDate />
     <SaleCountdown saleAt={plan.saleAt}/>
@@ -251,7 +251,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         <h3><ListChecks size={19}/> Preparation</h3>
         <TicketSaleStatus saleAt={draft.saleAt} timezone={draft.timezone} now={now} showDate />
         <SaleCountdown saleAt={draft.saleAt}/>
-        <p className="settings-note">Ticket sale: {formatSaleLocalTime(draft.saleAt, draft.timezone || undefined)}{draft.performanceAt ? " · Performance: " + new Date(draft.performanceAt).toLocaleString() : ""}</p>
+        <p className="settings-note">Ticket sale: {formatSaleLocalTime(draft.saleAt, draft.timezone || undefined)}{draft.performanceAt ? " · " + tx("Performance:") + " " + localDate(draft.performanceAt) : ""}</p>
         <div className="plan-checklist">{checks.map(check => <div key={check.label}>
           {check.done ? <CheckCircle2 size={16} className="plan-check-yes"/> : <Circle size={16}/>}
           <span>{check.label}</span></div>)}</div>
