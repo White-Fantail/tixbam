@@ -54,6 +54,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [ticketType, setTicketType] = useState<"adult" | "concession">("adult");
   const [discountEligible, setDiscountEligible] = useState(false);
   const [identityReady, setIdentityReady] = useState(false);
+  const [standingRulesChecked, setStandingRulesChecked] = useState(false);
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [requestAdjacent, setRequestAdjacent] = useState(plan.requireTogether);
   const [deliveryId, setDeliveryId] = useState("eticket");
@@ -92,7 +93,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   }) : null;
 
   const canBegin = plan.quantity >= 1 &&
-    plan.quantity <= scenario.maxTickets && trainingBudgetMinor > 0 && plan.preferencesReady;
+    plan.quantity <= scenario.maxTickets && trainingBudgetMinor > 0 && plan.preferencesReady &&
+    !(scenario.standing && plan.requireTogether && plan.quantity > 1);
 
   useEffect(() => {
     if (stage !== 7 || checkoutEnds === null) return;
@@ -120,8 +122,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   function reset(id: string = scenarioId) {
     setScenarioId(id); setStage(0); setMemberReady(false); setPresaleEligible(false);
     setLoginMethod("email"); setTierId(""); setPurchaseMode(id === "express" || id === "presale" ? "express" : "normal");
-    setTicketType("adult"); setDiscountEligible(false); setIdentityReady(false); setSelectedSeatIds([]);
-    setRequestAdjacent(plan.requireTogether);
+    setTicketType("adult"); setDiscountEligible(false); setIdentityReady(false); setStandingRulesChecked(false);
+    setSelectedSeatIds([]); setRequestAdjacent(id === "standing" ? false : plan.requireTogether);
     setDeliveryId("eticket"); setPaymentMethod("card"); setTermsAccepted(false);
     setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false); setChallengeCompleted(false);
     setCheckoutEnds(null); setRemaining(CITYLINE_PRACTICE_HOLD_SECONDS);
@@ -143,6 +145,13 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setFeedback("");
   }
   function seatStepNext() {
+    if (scenario.standing) {
+      const check = citylineOfferCheck({ tierId, quantity: plan.quantity,
+        budgetMinor: trainingBudgetMinor, selectedSeatIds: [], seats: [],
+        requireTogether: false, acceptRestrictedView: false, scenarioId, deliveryId });
+      if (!check.ok) return warn(check.reason);
+      return go(5);
+    }
     if (plan.quantity > 1 && plan.requireTogether && !requestAdjacent)
       return warn("Your Booking Plan requires adjacent seats. Enable the adjacent-seat request before proceeding.");
     if (scenario.mapUnavailable && purchaseMode === "normal")
@@ -180,6 +189,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     go(6);
   }
   function deliveryNext() {
+    if (scenario.standing && !standingRulesChecked)
+      return warn("Confirm the standing area's age/height/admission requirements before proceeding.");
     if (scenario.realName && !identityReady)
       return warn("Real-name ticketing needs matching attendee identification. Check the event's official requirements before proceeding.");
     if (ticketType === "concession" && !discountEligible)
@@ -264,6 +275,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         </div>}
         {plan.quantity > scenario.maxTickets && <div className="cl-drill-block" role="alert">This example event has a practice purchase limit of {scenario.maxTickets} ticket(s). Change your plan quantity or choose another scenario.</div>}
         {!plan.preferencesReady && <div className="cl-drill-block" role="alert">Save your Booking Plan and mark its preferences ready before continuing.</div>}
+        {scenario.standing && plan.requireTogether && plan.quantity > 1 &&
+          <div className="cl-drill-block" role="alert">Your Booking Plan requires adjacent assigned seats, but this scenario has unreserved standing tickets. Choose a seated scenario or change the plan's hard requirement.</div>}
       </div>
       <button className="button button-primary" disabled={!canBegin} onClick={() => go(1)}>Enter practice ticketing site <ArrowRight size={15}/></button>
     </div>}
@@ -312,9 +325,9 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       </div>
       <div className="cl-drill-options-line">
         <p className="cl-drill-helper">Target: {plan.quantity} ticket{plan.quantity === 1 ? "" : "s"} · Practice limit: {scenario.maxTickets}</p>
-        <label className="cl-drill-check"><input type="checkbox" checked={requestAdjacent} disabled={plan.quantity === 1}
+        <label className="cl-drill-check"><input type="checkbox" checked={requestAdjacent} disabled={plan.quantity === 1 || scenario.standing}
           onChange={e => {setRequestAdjacent(e.target.checked); setSelectedSeatIds([]);}}/>
-          Request adjacent seats {plan.quantity === 1 ? "(not applicable to one ticket)" : plan.requireTogether ? "— required by your plan" : "(optional)"}</label>
+          Request adjacent seats {scenario.standing ? "(not applicable to unreserved standing)" : plan.quantity === 1 ? "(not applicable to one ticket)" : plan.requireTogether ? "— required by your plan" : "(optional)"}</label>
       </div>
       {ticketType === "concession" && <p className="cl-drill-helper">Concession is an eligibility exercise here; no discount is applied to the invented prices. Actual terms and prices are event-specific.</p>}
       <p className="cl-drill-helper">This drill uses a strict same-row adjacency check. Cityline's published terms may describe adjacent allocation differently (including different rows); inspect the actual offer before accepting it.</p>
@@ -355,7 +368,10 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <span><i className="sold"/>Unavailable</span><span><i className="restricted"/>Restricted view</span></div>
       <div className="cl-drill-seat-stage">
         <div className="cl-drill-stage-front">STAGE · PRACTICE LAYOUT</div>
-        {scenario.mapUnavailable && purchaseMode === "normal"
+        {scenario.standing ? <div className="cl-drill-express">
+          <Ticket size={27}/><strong>General admission · standing area</strong>
+          <p>Unreserved standing tickets have no assigned seat numbers. A standing zone does not guarantee a position near the stage. Observe the event's age, height, entry and safety rules.</p>
+        </div> : scenario.mapUnavailable && purchaseMode === "normal"
           ? <div className="cl-drill-express" role="alert">
               <ShieldAlert size={26}/>
               <strong>Practice seat map failed to load</strong>
@@ -381,7 +397,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
           }}>Request sample allocation</button>
         </div>}
       </div>
-      <div className="cl-drill-seat-summary"><strong>Selected: {selectedSeatIds.length} / {plan.quantity}</strong>
+      <div className="cl-drill-seat-summary"><strong>{scenario.standing ? plan.quantity + " standing ticket(s) · no reserved seats" : "Selected: " + selectedSeatIds.length + " / " + plan.quantity}</strong>
         <span>{selectedSeatIds.length ? selectedSeatIds.join(", ") : "No seats allocated"}</span>
         <span>{plan.requireTogether ? "Your plan requires adjacent seats" : "Your plan allows non-adjacent seats"}</span></div>
       {(selectedSeats.some(seat => seat.restrictedView) || tiers.find(t => t.id === tierId)?.restrictedView) &&
@@ -398,7 +414,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <div className="cl-drill-receipt-lines">
         <div><span>Performance</span><b>{CITYLINE_PERFORMANCES.find(item => item.id === performance)?.label}</b></div>
         <div><span>Ticket type</span><b>{ticketType === "adult" ? "Standard" : "Concession · verify eligibility"}</b></div>
-        <div><span>Seats</span><b>{selectedSeatIds.join(", ")} · {plan.quantity} ticket{plan.quantity===1?"":"s"}</b></div>
+        <div><span>Allocation</span><b>{scenario.standing ? "Unreserved standing · no assigned seats" : selectedSeatIds.join(", ")} · {plan.quantity} ticket{plan.quantity===1?"":"s"}</b></div>
         <div><span>Zone</span><b>{tiers.find(t => t.id === tierId)?.label}</b></div>
         <div><span>Tickets</span><b>{quote ? citylineMoney(quote.ticketsMinor) : "—"}</b></div>
         <div><span>Illustrative service fees</span><b>{quote ? citylineMoney(quote.feeMinor) : "—"}</b></div>
@@ -420,6 +436,9 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       </div>
       {ticketType === "concession" && <label className="cl-drill-check"><input type="checkbox" checked={discountEligible}
         onChange={e => setDiscountEligible(e.target.checked)}/> I have valid eligibility documentation for this practice concession ticket</label>}
+      {scenario.standing && <label className="cl-drill-check"><input type="checkbox" checked={standingRulesChecked}
+        onChange={e => setStandingRulesChecked(e.target.checked)}/>
+        I have reviewed the event-specific standing-area age, height and safety requirements</label>}
       {scenario.realName && <div className="cl-drill-block"><ShieldAlert size={17}/>
         This practice event has real-name admission. Real ticket holders may need matching government-issued identification.
         Do not type a real attendee name or identity number into TIXBAM.</div>}
@@ -445,7 +464,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <div className="cl-drill-receipt-lines">
         <div><span>Event</span><b>{plan.title} · practice only</b></div>
         <div><span>Performance</span><b>{CITYLINE_PERFORMANCES.find(p => p.id===performance)?.label}</b></div>
-        <div><span>Price zone / seats</span><b>{tiers.find(t => t.id===tierId)?.label} · {selectedSeatIds.join(", ")}</b></div>
+        <div><span>Price zone / seats</span><b>{tiers.find(t => t.id===tierId)?.label} · {scenario.standing ? "Standing, no reserved seat numbers" : selectedSeatIds.join(", ")}</b></div>
         <div><span>Tickets</span><b>{plan.quantity} · {ticketType === "adult"?"Standard":"Concession"}</b></div>
         <div><span>Fulfillment</span><b>{CITYLINE_DELIVERY.find(item=>item.id===deliveryId)?.label}</b></div>
         <div><span>Practice payment</span><b>{paymentMethod==="card"?"Card / bank verification":"Digital payment"}</b></div>
