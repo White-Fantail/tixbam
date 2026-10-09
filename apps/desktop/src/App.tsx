@@ -448,6 +448,59 @@ function App() {
     } finally { setCloudBusy(false); }
   }
 
+
+  async function upsertPlan(plan: BookingPlan): Promise<void> {
+    if (account && window.tixbam) {
+      const saved = await window.tixbam.accountRequest("PUT", "/v1/me/plans/" + plan.id, toCloudPayload(plan)) as BookingPlan;
+      setPlans(items => [saved, ...items.filter(item => item.id !== plan.id)]);
+    } else setPlans(items => [plan, ...items.filter(item => item.id !== plan.id)]);
+  }
+  async function removePlan(id: string): Promise<void> {
+    if (account && window.tixbam) await window.tixbam.accountRequest("DELETE", "/v1/me/plans/" + id);
+    setPlans(items => items.filter(plan => plan.id !== id));
+  }
+  async function importGuestPlans(): Promise<void> {
+    if (!account || !window.tixbam || cloudBusy) return;
+    const pending = loadGuestPlans().filter(p => !plans.some(saved => saved.id === p.id));
+    if (!pending.length || !window.confirm("Import " + pending.length + " guest booking plan(s)?")) return;
+    setCloudBusy(true);
+    try {
+      for (const p of pending) await window.tixbam.accountRequest("PUT", "/v1/me/plans/" + p.id, toCloudPayload(p));
+      const snapshot = await window.tixbam.accountStatus();
+      if (snapshot) applySnapshot(snapshot);
+      inform("Guest booking plans imported.");
+    } catch (err) { inform(err instanceof Error ? err.message : "Could not import all plans.", true); }
+    finally { setCloudBusy(false); }
+  }
+  async function toggleSavedTarget(kind: "performance" | "sale", id: string) {
+    if (!account || !window.tixbam) { setSection("settings"); inform("Sign in to save performances and ticket sales.", true); return; }
+    if (cloudBusy) return;
+    const previous = kind === "performance" ? favoritePerformanceIds : favoriteSaleIds;
+    const exists = previous.includes(id);
+    setCloudBusy(true);
+    try {
+      await window.tixbam.accountRequest(exists ? "DELETE" : "PUT", "/v1/me/saved/" + kind + "/" + id);
+      const next = exists ? previous.filter(value => value !== id) : [...previous, id];
+      if (kind === "performance") setFavoritePerformanceIds(next);
+      else setFavoriteSaleIds(next);
+      inform(exists ? "Removed from saved items." : "Saved to your account.");
+    } catch (err) { inform(err instanceof Error ? err.message : "Could not save item.", true); }
+    finally { setCloudBusy(false); }
+  }
+  function practicePlan(id: string) { setSelectedPlanId(id); setPracticePlanId(id); setSection("plans"); }
+  async function openPlanBooking(plan: BookingPlan) {
+    if (!plan.bookingUrl) { inform("Add an official booking URL first.", true); return; }
+    if (!window.tixbam) { inform("Live booking requires the desktop app.", true); return; }
+    setSelectedPlanId(plan.id);
+    await launchSaleLink(plan.providerId, plan.bookingUrl);
+    setSection("sessions");
+  }
+  function configurePlan(plan: BookingPlan) {
+    const addon = addons.find(item => item.id === plan.providerId);
+    if (!addon?.booking) { inform("Provider-specific booking options are not verified yet.", true); return; }
+    setBookingEvent(toWatchEvent(plan));
+  }
+
   async function toggleFavorite(kind: "artists" | "events", id: string) {
     if (!account || !window.tixbam) {
       setSection("settings");
@@ -600,58 +653,41 @@ function App() {
     if (validation) return setFormError(validation);
     const saleAt = form.saleAt ? new Date(form.saleAt) : null;
     if (saleAt && Number.isNaN(saleAt.getTime())) return setFormError("Enter a valid sale date.");
-    const item: WatchEvent = {
-      id: crypto.randomUUID(),
-      artist: form.artist.trim(),
-      title: form.title.trim(),
-      city: form.city.trim(),
-      providerId: form.providerId,
-      saleAt: saleAt?.toISOString() || "",
-      url: form.url.trim(),
-      addedAt: new Date().toISOString(),
-    };
+    const plan = makePlan({
+      artist: form.artist.trim(), title: form.title.trim(), city: form.city.trim(),
+      providerId: form.providerId, saleAt: saleAt?.toISOString() || "",
+      bookingUrl: form.url.trim()
+    });
     try {
-      await addWatchItem(item);
+      await upsertPlan(plan);
       setEventModal(false);
-      setSection("watchlist");
-      setSearch("");
-      inform(account ? "Event saved to your TIXBAM account." : "Event saved on this device.");
+      setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans"); setSearch("");
+      inform("Booking plan saved. Configure and rehearse before tickets open.");
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save event to cloud");
+      setFormError(err instanceof Error ? err.message : "Could not save booking plan.");
     }
   }
 
   async function saveDiscoveredEvent(event: RemoteEvent, sale: RemoteEvent["sales"][number], performance?: RemotePerformance) {
-    if (performance && (performance.status === "cancelled" || performance.status === "postponed")) {
-      inform("This performance is not available to book.", true);
-      return;
+    if (performance && ["cancelled", "postponed"].includes(performance.status)) {
+      inform("This performance is not available.", true); return;
     }
     if (performance && !sale.appliesToAll && !sale.performanceIds.includes(performance.id)) {
-      inform("This ticket sale does not cover the selected performance.", true);
-      return;
+      inform("This sale does not cover the selected performance.", true); return;
     }
-    if (!providerFor(sale.providerId)) {
-      inform("This ticket provider is not installed in the current app.", true);
-      return;
-    }
-    if (watchlist.some(item => item.url === sale.bookingUrl && item.title === event.title
-      && item.performanceId === performance?.id)) {
-      inform("This event is already in your watchlist.");
-      return;
-    }
-    const item: WatchEvent = {
-      id: crypto.randomUUID(), eventId: event.id, artist: event.artist, title: event.title,
-      city: event.city, providerId: sale.providerId, performanceId: performance?.id,
-      performanceAt: performance?.startsAt || undefined,
-      saleAt: sale.saleAt || "", url: sale.bookingUrl,
-      addedAt: new Date().toISOString()
-    };
+    const existing = plans.find(plan => plan.saleId === sale.id && plan.performanceId === (performance?.id || null));
+    if (existing) { setSelectedPlanId(existing.id); setPracticePlanId(null); setSection("plans"); return; }
+    const plan = makePlan({
+      artist: event.artist, title: event.title, city: event.city, providerId: sale.providerId,
+      eventId: event.id, performanceId: performance?.id || null, performanceAt: performance?.startsAt || "",
+      saleId: sale.id, saleAt: sale.saleAt || "",
+      timezone: sale.timezone || event.timezone || "", bookingUrl: sale.bookingUrl
+    });
     try {
-      await addWatchItem(item);
-      inform(account ? "Added to your cloud watchlist." : "Added to your local watchlist.");
-    } catch (err) {
-      inform(err instanceof Error ? err.message : "Could not save event", true);
-    }
+      await upsertPlan(plan);
+      setSelectedPlanId(plan.id); setPracticePlanId(null); setSection("plans");
+      inform("Booking plan created. Set your preferences and rehearse.");
+    } catch (err) { inform(err instanceof Error ? err.message : "Could not create booking plan.", true); }
   }
 
   async function removeEvent(id: string) {
