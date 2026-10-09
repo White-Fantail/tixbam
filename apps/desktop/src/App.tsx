@@ -1009,6 +1009,11 @@ function App() {
                  {account ? <>
                    <div className="settings-inline"><div className="account-identity"><strong>{account.displayName}</strong><span>{account.email || "No verified email"} · {account.providers.join(", ")}</span></div><button className="button button-outline" onClick={() => void signOut()} disabled={cloudBusy}>Sign out</button></div>
                    <div className="settings-inline"><span>{plans.length} booking plans · {favoriteArtistIds.length} artists · {favoriteEventIds.length} favorite events</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void refreshAccount()}>Sync now</button></div>
+                   {loadGuestPlans().some(plan => !plans.some(saved => saved.id === plan.id)) && <div className="settings-inline">
+                     <span>Guest booking plans stored on this device</span>
+                     <button className="button button-outline" disabled={cloudBusy}
+                       onClick={() => void importGuestPlans()}>Import guest plans</button>
+                   </div>}
                    {loadWatchlist().length > 0 && <div className="settings-inline"><span>{loadWatchlist().length} guest events stored on this device</span><button className="button button-outline" disabled={cloudBusy} onClick={() => void importGuestEvents()}>Import guest events</button></div>}
                  </> : <>
                    <div className="account-options">
