@@ -112,3 +112,44 @@
 .favorite-event-date svg{flex-shrink:0}
 
 .google-mark{font:bold 17px Arial,sans-serif;color:#4285f4}.apple-mark{font-size:18px;line-height:1;color:#eee}.account-options button{min-width:210px}.account-options button:not(:disabled){opacity:1;cursor:pointer}
+
+
+/* One trusted ticket-sale status visual across Discover, My events and Overview. */
+.ticket-sale-status{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;padding:8px 10px;border-radius:9px;background:#2f352a;border:1px solid #45533a;color:#dcfca6;font-size:11px;line-height:1.4}
+.ticket-sale-status-line{display:inline-flex;align-items:center;gap:6px;max-width:100%;color:inherit;font-size:11px;font-weight:800;white-space:normal}
+.ticket-sale-status-line svg{flex:none}
+.ticket-sale-status-date{color:#babfc4;font-size:10px;font-weight:500;overflow-wrap:anywhere;line-height:1.45}
+.ticket-sale-status--soon{color:#e0f69c;background:#343c29;border-color:#586a39}
+.ticket-sale-status--imminent{color:#ffddb0;background:#443423;border-color:#85612f}
+.ticket-sale-status--started{color:#bbb9c9;background:#262633;border-color:#42404f}
+.ticket-sale-status--sold-out,.ticket-sale-status--cancelled,.ticket-sale-status--postponed{color:#edb5b5;background:#422b36;border-color:#714c58}
+.ticket-sale-status--tba{color:#aaa9be;background:#272633;border-color:#454353}
+.ticket-sale-status.is-compact{padding:5px 8px;font-size:10px}
+.ticket-sale-status.is-compact .ticket-sale-status-line{font-size:10px}
+.sale-filter-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:11px;margin:14px 0 20px;font-size:11px;color:#a9a7b7}
+.sale-filter-toolbar>label{font-weight:800}
+.sale-filter-toolbar select{background:#211f2b;border:1px solid #454150;border-radius:8px;color:#f2eff9;min-height:36px;padding:0 12px;font:inherit;cursor:pointer;color-scheme:dark}
+.sale-filter-toolbar>span{font-size:10px;color:#9995ad;margin-left:auto}
+.sale-filter-empty{color:#9c99aa;font-size:11px;margin:10px 0}
+.event-sale-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:-9px 0 14px}
+.event-sale-summary>span:last-child:not(.ticket-sale-status){font-size:10px;color:#a6abc1}
+.remote-sale .ticket-sale-status{align-self:flex-start;margin:4px 0;padding:6px 8px}
+.remote-sale .ticket-sale-status-line{color:inherit;font-size:10px}
+.remote-sale .ticket-sale-status-date{color:#bec7d8;font-size:10px}
+.remote-sale .sale-type{text-transform:capitalize}
+.favorite-event-card .favorite-event-sale{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+.favorite-event-sale>small{color:#8d8ca0;font-size:10px;text-transform:capitalize}
+.favorite-event-sale .ticket-sale-status-line{color:inherit}
+.watch-card>.ticket-sale-status{margin-top:17px}
+.next-ticket-drops{margin-bottom:35px}
+.next-ticket-drop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.next-ticket-drop{display:flex;align-items:center;gap:14px;border:1px solid #363546;border-radius:13px;background:#1d1d29;padding:15px 16px;min-width:0;flex-wrap:wrap}
+.next-ticket-drop-main{display:grid;gap:5px;flex:1;min-width:150px}
+.next-ticket-drop-main strong{font-size:14px;color:#f3f1fc}
+.next-ticket-drop-main>span{font-size:11px;color:#bebacc;line-height:1.5}
+.next-ticket-drop-main small{color:#a1a0b5;text-transform:capitalize;font-size:10px}
+.next-ticket-drop>.ticket-sale-status{max-width:240px}
+.next-ticket-drop>.button{min-height:32px;padding:6px 10px;font-size:11px}
+.next-ticket-drop-empty{color:#9c9aa9;background:#1d1d26;border:1px dashed #454150;padding:22px;border-radius:12px;font-size:12px}
+@media(max-width:1100px){.next-ticket-drop-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.next-ticket-drop{align-items:flex-start}.next-ticket-drop>.ticket-sale-status{order:2}.next-ticket-drop>.button{order:3}.sale-filter-toolbar>span{margin-left:0}}
