@@ -57,6 +57,16 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** unknown/revoked/expired/mismatched region/capability/manifest version/kill switch; existing admin API and crawler tests.
 **Do not:** permission 자체를 임의로 "permitted" 입력하거나 실제 자동 구매 켜기.
 
+**완료 기록 (2026-10-10):**
+- 구현: `provider_automation_policies`, `provider_automation_audit`, `automation_safety_settings` (SQLAlchemy create_all 기반 신규 테이블, 기존 DB 호환); `/v1/admin/automation/providers`, `/{providerId}/policies` GET/PUT, `/kill-switch` PUT, `/v1/automation/capabilities` 공개 상태 조회.
+- Admin: `/automation` 및 `/automation/[providerId]` 정책/근거/감사 이력/안전 스위치. 유효한 관리자 API 키로만 수정 가능; 현재 관리자 키는 개별 작업자 신원을 증명하지 않으므로 reviewer는 참고용 메모.
+- Desktop: 본체가 고정한 Cityline 버전/프로파일의 로컬 기술 검증 목록, 신규 무인 라이브 자동 결제 차단. 기존 수동 검토 및 리허설은 그대로 유지.
+- 강제 기본 정책: 모든 제공업체의 자율 실행 거부. NOL/Ticketmaster/AXS의 기존 제한은 Admin 단순 편집으로 해제 불가; Live Nation은 실제 판매 에이전트로 위임. `permitted` 부여 경로는 제공하지 않으며, 이후 AB-12의 독립 검증/서명 검토가 필요.
+- 동시 수정: revision 기반 CAS와 감사 이력; 정책 기한 만료/오래된 요청은 거부.
+- 검증: `a5cf93d201ee41f64274106a07e47f2bf25e12fb` CI Python-services + desktop-admin **SUCCESS** ([GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38005977295)); 운영 사이트/실제 결제 테스트 없음.
+- **잔여 경계:** 신규 관리 화면은 기록·차단용; 정책 승인 워크플로, 신원별 관리자 감사, 서버-Desktop 권한 배포/서명, 자동 실행 엔진은 후속 단계. Global kill switch를 OFF로 기록해도 자율 실행은 사용 불가.
+
+
 ## AB-02 — BookingOrchestrator FSM 및 이전 Runner 호환
 
 **명령:** "AB-02 구현해. 안전한 상태 머신을 도입하고 기존 BookingRunner/리허설과 호환되도록 해."
@@ -213,9 +223,9 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **design only — no AB implementation started**.
+- 현 단계: **AB-01 완료 (dev) · AB-02 다음 단계**. AB-01은 권한/기술 검증 레지스트리만 구현하며 실제 라이브 자율 구매는 차단 상태.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
-  - [ ] AB-01 Provider Policy
+  - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [ ] AB-02 State Machine
   - [ ] AB-03 Action Validator
   - [ ] AB-04 Observation
