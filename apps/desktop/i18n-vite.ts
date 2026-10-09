@@ -33,7 +33,7 @@ export function localizedJsxPlugin(): Plugin {
             const after = /\s$/.test(raw) && !/\n\s*$/.test(raw) ? " " : "";
             return ts.factory.createJsxExpression(undefined, translateCall(before + trimmed + after));
           }
-          if (ts.isJsxAttribute(node) && jsxProps.has(node.name.text) &&
+          if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && jsxProps.has(node.name.text) &&
               node.initializer && ts.isStringLiteral(node.initializer) &&
               /[A-Za-z]/.test(node.initializer.text) &&
               !/^https?:\/\//.test(node.initializer.text)) {
