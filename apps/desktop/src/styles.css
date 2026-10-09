@@ -275,3 +275,7 @@
 @media(max-width:1150px){.live-workspace-grid{grid-template-columns:1fr}.live-assistant{grid-template-columns:repeat(2,minmax(0,1fr))}.live-assistant-card:last-child{grid-column:span 2}}
 @media(max-width:820px){.live-assistant{grid-template-columns:1fr}.live-assistant-card:last-child{grid-column:span 1}.live-site-head{flex-wrap:wrap}.live-return-button{font-size:0;gap:0}.live-return-button svg{width:18px;height:18px}}
 @media(max-width:580px){.live-site-card,.live-automation-card,.live-assistant-card,.live-recovery,.live-other-windows{padding:15px}.live-browser-status{flex-wrap:wrap}.live-recovery-item{align-items:flex-start;flex-direction:column}.live-actions .button{width:100%}.live-workspace .section-heading{align-items:flex-start}}
+
+.live-sale-time{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 0 13px}
+.live-sale-time>span{font-size:11px;line-height:1.5;color:#b4b3c1}
+.live-sale-time .plan-countdown{margin:0}
