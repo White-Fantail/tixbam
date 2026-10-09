@@ -53,7 +53,7 @@ export function localizedJsxPlugin(): Plugin {
               (ts.isIdentifier(parent.name) && jsxProps.has(parent.name.text))) {
               const translated = visibleLiteral(node.expression);
               if (translated !== node.expression) {
-                return ts.factory.updateJsxExpression(node, node.dotDotDotToken, translated);
+                return ts.factory.updateJsxExpression(node, translated);
               }
             }
           }
