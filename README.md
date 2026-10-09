@@ -1,11 +1,11 @@
 # TIXBAM
 
-Desktop ticketing workspace + concert directory + provider add-on registry + cloud user accounts. Development happens on `dev`. The desktop application opens official ticketing websites for manual login and verification. Cityline now has event-specific booking preferences, verified performance/price selection, a checkout rehearsal and a local encrypted card vault. Live Cityline seat and payment mappings remain pending; no queue bypass or guaranteed purchase. See [Booking workflow](docs/BOOKING.md).
+**Prepare. Practice. Book.** TIXBAM is a ticketing-first desktop assistant focused on reducing preventable mistakes before and during high-demand ticket sales. Dashboard and My Bookings organize each goal as a Booking Plan: target show/performance/sale, hard requirements, readiness checks, offline rehearsal and official booking launch. Artist/event favorites are secondary. Development happens on the dev branch. Cityline's live seat selection and payment automation are not yet verified; no queue/CAPTCHA bypass or guaranteed purchases. See [Booking-first architecture](docs/BOOKING_PLANS.md) and [Booking workflow](docs/BOOKING.md).
 
 ## Repository
 
 ```text
-apps/desktop/         Electron 37 + React 19 + Vite (local sessions and watchlist)
+apps/desktop/         Electron 37 + React 19 + Vite (booking plans and local provider sessions)
 apps/admin/           Next.js 16 protected operations dashboard (Vercel)
 services/api/         FastAPI + SQLAlchemy + PostgreSQL (Railway)
 services/crawler/     Opt-in structured-event ingestion worker (Railway cron)
