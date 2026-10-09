@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { tx } from '../i18n';
 import type { CardInput, CardSummary } from '../../../../packages/addon-sdk';
 const blank = (): CardInput => ({ label: '', name: '', number: '', expiryMonth: 1, expiryYear: new Date().getFullYear() });
 export function CardVaultPanel() {
@@ -31,6 +32,6 @@ export function CardVaultPanel() {
       <div className="form-row"><label>Expiry month<input required type="number" min={1} max={12} value={input.expiryMonth} onChange={e => setInput({...input,expiryMonth:Number(e.target.value)})}/></label><label>Expiry year<input required type="number" min={new Date().getFullYear()} value={input.expiryYear} onChange={e => setInput({...input,expiryYear:Number(e.target.value)})}/></label></div>
       <div className="booking-actions"><button className="button button-primary" disabled={busy}>Save encrypted card</button><button type="button" className="button button-outline" disabled={busy} onClick={() => { setAdding(false); setInput(blank()); }}>Cancel</button></div>
     </form>}
-    {error && <p className="form-error" role="alert">{error}</p>}
+    {error && <p className="form-error" role="alert">{tx(error)}</p>}
   </div>;
 }
