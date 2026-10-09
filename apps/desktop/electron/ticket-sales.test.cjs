@@ -13,7 +13,8 @@ const js = ts.transpileModule(source, {
 const exportsUnderTest = {};
 vm.runInNewContext(js, { exports: exportsUnderTest, Intl, Date });
 const { getSaleTiming: status, pickNextSale: pick, matchesSaleFilter: filter,
-  formatSaleLocalTime: date, saleAppliesToPerformance: applies } = exportsUnderTest;
+  formatSaleLocalTime: date, saleAppliesToPerformance: applies,
+  eventPerformanceStatus: eventStatus } = exportsUnderTest;
 const now = Date.parse("2026-10-09T00:00:00Z");
 const at = (delta) => new Date(now + delta).toISOString();
 const day = 86400000;
@@ -76,4 +77,16 @@ test("on-sale schedule formatting uses sale timezone rather than desktop timezon
   assert.match(date("2026-10-15T07:00:00Z","Asia/Hong_Kong"),/15 Oct 2026, 15:00 \(Asia\/Hong_Kong\)/);
   assert.match(date("2026-10-15T07:00:00Z","Invalid/Zone"),/UTC/);
   assert.equal(date(null,"Asia/Hong_Kong"),"Sale date TBA");
+});
+
+test("confirmed sold-out status is event-wide only if every performance is sold out", () => {
+  assert.equal(eventStatus([{id:"A",status:"sold_out"},{id:"B",status:"sold_out"}]),"sold_out");
+  assert.equal(eventStatus([{id:"A",status:"sold_out"},{id:"B",status:"scheduled"}]),undefined);
+  assert.equal(eventStatus([{id:"A",status:"sold_out"},{id:"B",status:"scheduled"}],"A"),"sold_out");
+  assert.equal(eventStatus([{id:"A",status:"sold_out"}],"missing"),undefined);
+  assert.equal(eventStatus([]),undefined);
+});
+
+test("saved local sale date retains local display rather than defaulting to UTC", () => {
+  assert.match(date("2026-10-15T07:00:00Z"),/your time/);
 });
