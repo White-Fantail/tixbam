@@ -1,3 +1,4 @@
+import { tx } from "./i18n";
 import type { WatchEvent } from "./types";
 
 export interface BookingPlan {
@@ -120,13 +121,13 @@ export function officialLinkKind(plan: BookingPlan, hosts: readonly string[]): "
 
 export function planChecks(plan: BookingPlan, hosts: readonly string[]) {
   return [
-    { label: "Link uses ticket provider domain", done: officialLinkKind(plan, hosts) === "direct" },
+    { label: tx("Link uses ticket provider domain"), done: officialLinkKind(plan, hosts) === "direct" },
     ...(plan.providerId === "cityline" ? [{
-      label: "Cityline budget currency matches HKD ticket prices", done: plan.currency === "HKD"
+      label: tx("Cityline budget currency matches HKD ticket prices"), done: plan.currency === "HKD"
     }] : []),
-    { label: "Ticketing account checked", done: plan.accountReady },
-    { label: "Ticket preferences configured", done: plan.preferencesReady && plan.budgetMinor > 0 },
-    { label: "Payment method prepared", done: plan.paymentReady },
-    { label: "Simulation rehearsed", done: Boolean(plan.lastRehearsalAt) },
+    { label: tx("Ticketing account checked"), done: plan.accountReady },
+    { label: tx("Ticket preferences configured"), done: plan.preferencesReady && plan.budgetMinor > 0 },
+    { label: tx("Payment method prepared"), done: plan.paymentReady },
+    { label: tx("Simulation rehearsed"), done: Boolean(plan.lastRehearsalAt) },
   ];
 }
