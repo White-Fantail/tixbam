@@ -121,6 +121,9 @@ export function officialLinkKind(plan: BookingPlan, hosts: readonly string[]): "
 export function planChecks(plan: BookingPlan, hosts: readonly string[]) {
   return [
     { label: "Link uses ticket provider domain", done: officialLinkKind(plan, hosts) === "direct" },
+    ...(plan.providerId === "cityline" ? [{
+      label: "Cityline budget currency matches HKD ticket prices", done: plan.currency === "HKD"
+    }] : []),
     { label: "Ticketing account checked", done: plan.accountReady },
     { label: "Ticket preferences configured", done: plan.preferencesReady && plan.budgetMinor > 0 },
     { label: "Payment method prepared", done: plan.paymentReady },
