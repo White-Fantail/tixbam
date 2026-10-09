@@ -35,6 +35,26 @@ Actual card details are unnecessary for rehearsal. This release's live Cityline 
 
 ## Execution and payment guards
 
+As of AB-02, `booking/state-machine.cjs` and `booking/orchestrator.cjs`
+are the in-process source of truth for an explicit provider-neutral finite-state
+machine. `BookingRunner` preserves legacy status strings for the existing
+Desktop/Cityline rehearsal, while providing read-only informational `phase`,
+`revision`, and step `generation` fields. Every state transition is
+run-bound, revision-checked and authorized by the host's event transition table.
+The host ignores timer overlap and post-cancellation async completions; browser
+ownership is rechecked before meaningful actions. Cancel/Stop after a payment
+attempt moves to `payment_unknown` rather than pretending the purchase was
+undone. Payment confirmation cannot be smuggled into a manual challenge
+Resume call. Duplicate cleanup of the ephemeral card preparation is avoided.
+
+This FSM is **in memory only**: AB-05 must introduce a durable write-ahead
+payment journal before crash/restart safety or an authorized real payment
+executor can be claimed. No real Cityline seat/checkout integration or vendor
+permission is added by AB-02. Because page-side effects may already have occurred
+before an AbortSignal is received, cancellation prevents further host actions
+but does not guarantee reversing a clicked remote site control.
+
+
 The run captures immutable preferences. Quantity, known adjacency, exact requested performance/mode/collection and the known final total including fees must match. Seat offers are ranked by price-tier preference, section preference, then floor preference; price breaks ties. Unknown totals/fees or adjacency do not satisfy a hard requirement. The final order ID, event, seats, quantity, currency and total are rechecked immediately before payment. Review is the default. Automatic mode requires explicit per-run consent for the selected event and total budget.
 
 Payment is latched before the host service submits and is never automatically retried. If submission errors or the outcome is ambiguous, the terminal `payment_unknown` state directs the user to provider order history. A receipt is not accepted as this run's success unless a submission occurred and the confirmed order matches. CAPTCHA, login, queues and bank authentication pause for manual action; Resume is explicit and cannot restart terminal runs. Stop during in-flight operations clears preparation and prevents subsequent actions, but cannot undo an already submitted payment.

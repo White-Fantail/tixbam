@@ -78,6 +78,16 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** property/transition matrix, concurrency race, cancellation mid-read/mid-execute, payment error, restart mapping.
 **Do not:** Cityline 실사이트 자동화 능력/허가 상태 수정.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/state-machine.cjs`: 이벤트 기반 허용 전이 표, 16개 내부 Phase, 단조 증가 revision, 원 실행 ID 검증, 종료/취소 불변식 및 결제 시도 이후 `PAYMENT_UNKNOWN` 잠금.
+- `apps/desktop/electron/booking/orchestrator.cjs`: 공통 실행 조정 계층, 중복 tick 거부, AbortSignal/실행 generation, 창 소유권 검사, 늦은 비동기 응답 무시, 변경 이벤트 스냅샷. 상태의 외부 `status` 값은 기존 UI 호환.
+- `runner.cjs`와 `controller.cjs`를 호스트 FSM에 연결하고 정확한 plan/window binding을 런 시작과 각 단계에서 다시 확인. CAPTCHA/은행 인증 재개 과정에서 `confirm=true`로 구매 검토를 우회하는 경로 차단.
+- `BookingRun` SDK 타입에 optional `phase/revision/generation` 추가. 기존 시티라인의 공개 옵션 자동화 수준/라이브 결제 비활성 정책은 유지.
+- 결제 시도 완료 여부가 불확실할 때 `STOP/FAIL`은 `PAYMENT_UNKNOWN`; 성공은 실제 주문 일치 + 제공업체 receipt 확인 이후에만 표시. 보안정보 지우기는 종료당 1회.
+- 검증: `b8c090dbdb64cae48bc2731187cf89ec5150a7a5` CI **SUCCESS** ([GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38006854354)); Desktop 85/85, API/MCP 29/29, crawler 3/3, build 성공. 테스트는 offline mocks, 실제 구매 없음.
+- **한계/다음 단계:** 현재 FSM은 프로세스 메모리 상태. 앱 재시작/크래시 간 결제 제출 중복 방지는 AB-05의 fsync Journal 없이는 보장할 수 없다. 다중 프로세스/기기 purchase lock은 AB-06; AI 명령 Validator는 AB-03; 사이트별 실제 seat/payment verification은 후속 단계. 현재 무인 라이브 결제는 차단 상태.
+
+
 ## AB-03 — Host Action Contract / ActionValidator
 
 **명령:** "AB-03 구현해. 모든 AI/애드온 제안은 검증된 ActionProposal만 통과하게 만들어."
@@ -223,10 +233,10 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01 완료 (dev) · AB-02 다음 단계**. AB-01은 권한/기술 검증 레지스트리만 구현하며 실제 라이브 자율 구매는 차단 상태.
+- 현 단계: **AB-01 및 AB-02 완료 (dev) · AB-03 다음 단계**. AI 명령 실행과 실제 라이브 자율 결제는 여전히 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
-  - [ ] AB-02 State Machine
+  - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
   - [ ] AB-03 Action Validator
   - [ ] AB-04 Observation
   - [ ] AB-05 Journal
@@ -241,4 +251,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**첫 명령:** "AB-01 구현해." 그 이후 "AB-02 구현해."처럼 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-03 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
