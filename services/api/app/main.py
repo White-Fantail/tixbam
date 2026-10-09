@@ -12,6 +12,7 @@ from .admin_directory import router as directory_router
 from .ingest import router as ingest_router
 from .accounts import router as account_router, purge_development_accounts
 from .oauth import router as oauth_router
+from .booking_plans import router as booking_plan_router, migrate_watch_items_to_plans
 
 # Local monorepo execution (cd services/api && uvicorn app.main:app) still works.
 # Docker installs this module into /app/tixbam_mcp instead.
@@ -34,6 +35,7 @@ async def lifespan(_app: FastAPI):
     migrate_schedule_columns(engine)
     with SessionLocal() as db:
         purge_development_accounts(db)
+        migrate_watch_items_to_plans(db)
         seed_providers(db)
     if mcp_server:
         # Mounted ASGI apps do not run their own lifespan; the parent must run
@@ -51,6 +53,7 @@ app.include_router(admin_router)
 app.include_router(directory_router)
 app.include_router(ingest_router)
 app.include_router(account_router)
+app.include_router(booking_plan_router)
 app.include_router(oauth_router)
 
 
