@@ -45,6 +45,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   const [purchaseMode, setPurchaseMode] = useState<"normal" | "express">("normal");
   const [ticketType, setTicketType] = useState<"adult" | "concession">("adult");
   const [discountEligible, setDiscountEligible] = useState(false);
+  const [identityReady, setIdentityReady] = useState(false);
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [deliveryId, setDeliveryId] = useState("eticket");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "wallet">("card");
@@ -103,7 +104,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
   function reset(id: string = scenarioId) {
     setScenarioId(id); setStage(0); setMemberReady(false); setPresaleEligible(false);
     setLoginMethod("email"); setTierId(""); setPurchaseMode(id === "express" || id === "presale" ? "express" : "normal");
-    setTicketType("adult"); setDiscountEligible(false); setSelectedSeatIds([]);
+    setTicketType("adult"); setDiscountEligible(false); setIdentityReady(false); setSelectedSeatIds([]);
     setDeliveryId("eticket"); setPaymentMethod("card"); setTermsAccepted(false);
     setRestrictedConsent(false); setOutcome(null); setHistoryChecked(false); setChallengeCompleted(false);
     setCheckoutEnds(null); setRemaining(CITYLINE_PRACTICE_HOLD_SECONDS);
@@ -124,6 +125,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     setFeedback("");
   }
   function seatStepNext() {
+    if (scenario.mapUnavailable && purchaseMode === "normal")
+      return warn("The practice seat map failed to load. Use the organiser's available Express Purchase option or wait for official guidance; do not repeatedly refresh a live queue.");
     if (!possible) return warn("Select an available price zone first.");
     if (purchaseMode === "express") {
       const proposed = expressSeatOffer(seats, plan.quantity, plan.requireTogether);
@@ -157,6 +160,8 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     go(6);
   }
   function deliveryNext() {
+    if (scenario.realName && !identityReady)
+      return warn("Real-name ticketing needs matching attendee identification. Check the event's official requirements before proceeding.");
     if (ticketType === "concession" && !discountEligible)
       return warn("Reduced-price tickets may require valid proof of eligibility. Confirm the required documentation.");
     const result = citylineOfferCheck({
@@ -315,7 +320,16 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         <span><i className="sold"/>Unavailable</span><span><i className="restricted"/>Restricted view</span></div>
       <div className="cl-drill-seat-stage">
         <div className="cl-drill-stage-front">STAGE · PRACTICE LAYOUT</div>
-        {purchaseMode === "normal" ? <div className="cl-drill-seats" role="group" aria-label="Fictional seat map">
+        {scenario.mapUnavailable && purchaseMode === "normal"
+          ? <div className="cl-drill-express" role="alert">
+              <ShieldAlert size={26}/>
+              <strong>Practice seat map failed to load</strong>
+              <p>For a live ticket sale, follow the site's guidance. Do not reload or open extra sessions just to bypass the wait.</p>
+              <button className="button button-outline" onClick={() => {setPurchaseMode("express"); setSelectedSeatIds([]); setFeedback("");}}>
+                Switch to Express Purchase (available in this practice scenario)
+              </button>
+            </div>
+          : purchaseMode === "normal" ? <div className="cl-drill-seats" role="group" aria-label="Fictional seat map">
           {seats.map(seat => <button key={seat.id} type="button" disabled={seat.sold}
             aria-label={"Seat " + seat.id + (seat.sold ? " unavailable" : seat.restrictedView ? " restricted view" : "")}
             aria-pressed={selectedSeatIds.includes(seat.id)} title={"Practice seat " + seat.id}
@@ -370,6 +384,12 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       </div>
       {ticketType === "concession" && <label className="cl-drill-check"><input type="checkbox" checked={discountEligible}
         onChange={e => setDiscountEligible(e.target.checked)}/> I have valid eligibility documentation for this practice concession ticket</label>}
+      {scenario.realName && <div className="cl-drill-block"><ShieldAlert size={17}/>
+        This practice event has real-name admission. Real ticket holders may need matching government-issued identification.
+        Do not type a real attendee name or identity number into TIXBAM.</div>}
+      {scenario.realName && <label className="cl-drill-check"><input type="checkbox" checked={identityReady}
+        onChange={e => setIdentityReady(e.target.checked)}/>
+        I checked the organiser's real-name and attendee ID requirements (no personal details entered)</label>}
       <div className="cl-drill-receipt-lines">
         <div><span>Tickets</span><b>{quote ? citylineMoney(quote.ticketsMinor) : "—"}</b></div>
         <div><span>Illustrative service fees</span><b>{quote ? citylineMoney(quote.feeMinor) : "—"}</b></div>
