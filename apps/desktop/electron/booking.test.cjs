@@ -133,6 +133,10 @@ test('booking IPC authorizes callers, protects duplicate runs, requires payment 
   control.windowClosed(314); // A demo is not bound to any real ticket window.
   const stored=await invoke('save-booking-preferences',promoterDemo.contextId,prepared);
   assert.equal(stored.options.performance,'demo-evening');
+  const promoterRun=await invoke('start-booking',{contextId:promoterDemo.contextId,preferences:prepared,paymentConsent:true});
+  assert.equal(promoterRun.rehearsal,true);
+  assert.equal(promoterRun.status,'running');
+  assert.equal(invoke('stop-booking',promoterRun.id).status,'stopped');
   await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:promoterUrl,windowId:314}),
     /event\/promoter page, not a Cityline booking URL/);
   await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:'https://www.livenation.hk.evil.example/event',rehearsal:true}),
