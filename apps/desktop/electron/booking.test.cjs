@@ -121,6 +121,24 @@ test('booking IPC authorizes callers, protects duplicate runs, requires payment 
   assert.throws(()=>handlers.get('tixbam:vault-status')({authorized:false}));
   const ctx=await invoke('booking-context',{providerId:'cityline',eventUrl:addon.url,rehearsal:true});
   const prepared={...prefs,checkout:'automatic',options:{...prefs.options,performance:'demo-evening'}};
+
+  // Young K's registered Cityline sales currently link to an official
+  // Live Nation event page. The offline demo must work without Cityline
+  // windows, while real booking must never treat that page as Cityline.
+  const promoterUrl='https://www.livenation.hk/en/event/young-k-solo-tour-youngest-in-hong-kong-hong-kong-tickets-edp1702449';
+  const promoterDemo=await invoke('booking-context',{providerId:'cityline',eventUrl:promoterUrl,rehearsal:true,windowId:314});
+  assert.equal(promoterDemo.rehearsal,true);
+  assert.equal(promoterDemo.providerEventId,undefined);
+  assert.equal(promoterDemo.schema.currency,'HKD');
+  control.windowClosed(314); // A demo is not bound to any real ticket window.
+  const stored=await invoke('save-booking-preferences',promoterDemo.contextId,prepared);
+  assert.equal(stored.options.performance,'demo-evening');
+  await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:promoterUrl,windowId:314}),
+    /event\/promoter page, not a Cityline booking URL/);
+  await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:'https://www.livenation.hk.evil.example/event',rehearsal:true}),
+    /No supported TIXBAM add-on/);
+  await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:'https://user:pass@www.livenation.hk/event',rehearsal:true}),
+    /valid HTTPS booking URL/);
   await assert.rejects(()=>invoke('start-booking',{contextId:ctx.contextId,preferences:prepared,paymentConsent:false}));
   const state=await invoke('start-booking',{contextId:ctx.contextId,preferences:prepared,paymentConsent:true});
   await assert.rejects(()=>invoke('start-booking',{contextId:ctx.contextId,preferences:prepared,paymentConsent:true}));
