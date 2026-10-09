@@ -1066,7 +1066,7 @@ function App() {
             currency: prefs.currency, requireTogether: prefs.requireTogether,
             allowFallback: prefs.allowFallback, preferencesReady: true });
         }}
-        onClose={() => setBookingEvent(null)}/>
+        onClose={() => setBookingEvent(null)}/>}
       {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
