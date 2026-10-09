@@ -822,15 +822,20 @@ function App() {
                       const eligible = !selectedSession || (sale.appliesToAll !== false ||
                         (sale.performanceIds || []).includes(selectedSession.id));
                       const active = !selectedSession || !["cancelled", "postponed"].includes(selectedSession.status);
+                      const linkProvider = saleUrlProvider(sale.providerId, sale.bookingUrl);
+                      const linkedEventPage = linkProvider && linkProvider.id !== sale.providerId;
                       return <div className="remote-sale" key={sale.id}>
                         <div><strong>{providerFor(sale.providerId)?.name || sale.providerId}</strong>
                           <span>{sale.saleType} · {sale.saleAt ? new Date(sale.saleAt).toLocaleString() : "Sale TBA"}</span>
                           {!eligible && <span>Not valid for this session</span>}
+                          {linkedEventPage && <span>Link: {linkProvider.name} event page (seller: {providerFor(sale.providerId)?.name || sale.providerId})</span>}
+                          {!linkProvider && <span>Booking link needs a supported add-on</span>}
                         </div>
                         <button className="button button-outline" disabled={!eligible || !active}
                           onClick={() => saveDiscoveredEvent(event, sale, selectedSession)}>Watch</button>
-                        <button className="button button-primary" disabled={!eligible || !active || !installedIds.has(sale.providerId)}
-                          onClick={() => launch(sale.providerId, sale.bookingUrl)}>Open</button>
+                        <button className="button button-primary" disabled={!eligible || !active || !linkProvider || busy === sale.providerId}
+                          title={linkedEventPage ? "Opens the " + linkProvider.name + " event page, not the ticket seller directly." : "Open official ticketing site"}
+                          onClick={() => launchSaleLink(sale.providerId, sale.bookingUrl)}>{linkedEventPage ? "Event page" : "Open"}</button>
                       </div>;
                     }) : <span className="muted">Ticket sale details not published yet.</span>}
                   </div>
@@ -875,6 +880,7 @@ function App() {
               {filteredEvents.map((item) => {
                 const provider = providerFor(item.providerId);
                 if (!provider) return null;
+                const linkProvider = saleUrlProvider(item.providerId, item.url);
                 return (
                   <article className="watch-card" key={item.id}>
                     <div className="watch-head"><div className="watch-poster"><Ticket size={26} /><span>TIXBAM</span></div><div className="watch-title"><span className="watch-label">WATCHING • {provider.country}</span><h3>{item.artist}</h3><p>{item.title}</p>{item.performanceAt && <small>{new Date(item.performanceAt).toLocaleString()}</small>}</div><button className="icon-button danger" aria-label="Remove event" title="Remove event" onClick={() => removeEvent(item.id)}><Trash2 size={16} /></button></div>
@@ -882,7 +888,7 @@ function App() {
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{humanDate(item.saleAt)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <div className="countdown-chip"><Clock3 size={13} />{countdown(item.saleAt, now)}</div>
                     {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" disabled={!installedIds.has(item.providerId)} onClick={()=>setBookingEvent(item)}><Settings2 size={15}/> Booking preferences & automation</button>}
-                    <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}</span><button className="button button-primary" disabled={busy === provider.id} onClick={() => installedIds.has(provider.id) ? launch(provider.id, item.url) : setSection("providers")}><ExternalLink size={15} /> {installedIds.has(provider.id) ? "Open site" : "Install add-on"}</button></div>
+                    <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}{linkProvider && linkProvider.id !== provider.id ? " · via " + linkProvider.name : ""}</span><button className="button button-primary" disabled={!!busy || !linkProvider} onClick={() => launchSaleLink(provider.id, item.url)}><ExternalLink size={15} /> {!linkProvider ? "Link unavailable" : !installedIds.has(linkProvider.id) ? "Install add-on" : linkProvider.id !== provider.id ? "Event page" : "Open site"}</button></div>
                   </article>
                 );
               })}
