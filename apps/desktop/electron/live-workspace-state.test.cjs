@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const {
   PHASES, assertPlanId, assertPhase, publicLocation,
-  readHistory, writeHistory, mergeHistory, activeEntry, isSensitivePhase,
+  readHistory, writeHistory, mergeHistory, activeEntry, isSensitivePhase, findExistingPlanSession,
 } = require("./live-workspace-state.cjs");
 
 test("only safe opaque plan references and manually reported phases are accepted", () => {
@@ -85,5 +85,27 @@ test("invalid, oversized or stale journal rows are ignored", () => {
     assert.equal(readHistory(file, now).length, 16);
     fs.writeFileSync(file, "broken JSON");
     assert.deepEqual(readHistory(file, now), []);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+
+test("reuse existing plan browser without reloading, even if only payment popup remains", () => {
+  const roots = [
+    { planId: "a", popup: false, id: 1 },
+    { planId: "b", popup: false, id: 2 },
+    { planId: "a", popup: true, id: 3 }
+  ];
+  assert.equal(findExistingPlanSession(roots, "a").id, 1);
+  assert.equal(findExistingPlanSession(roots.filter(item => item.id !== 1), "a").id, 3);
+  assert.equal(findExistingPlanSession(roots, "c"), null);
+});
+test("a malformed history row cannot hide otherwise valid recovery records", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tixbam-live-"));
+  const file = path.join(root, "recovery.json");
+  try {
+    const now = Date.now();
+    const valid = { planId: "safe", providerId: "cityline", phase: "queue", updatedAt: now, reason: "interrupted" };
+    fs.writeFileSync(file, JSON.stringify([null, 42, valid, { ...valid, phase: "paid" }]));
+    assert.deepEqual(readHistory(file, now), [valid]);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
