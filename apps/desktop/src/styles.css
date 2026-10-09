@@ -413,3 +413,12 @@
 .language-switcher .button{min-width:110px;min-height:40px;justify-content:center}
 .language-switcher-compact .button{min-width:72px;min-height:32px;font-size:11px;padding:6px 10px}
 @media(max-width:680px){.language-switcher-compact{order:3}.language-switcher-compact .button{min-width:67px}}
+
+/* Hangul-friendly system fallback; never package or distribute font binaries. */
+html:lang(ko){font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans CJK KR",sans-serif}
+html:lang(ko) h1,html:lang(ko) h2,html:lang(ko) h3,
+html:lang(ko) h4,html:lang(ko) .booking-hero h1,
+html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans CJK KR",sans-serif;
+  letter-spacing:-.025em;line-height:1.25
+}
