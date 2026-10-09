@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { tx, localDate } from "./i18n";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
   FlaskConical, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
 import type { TicketAddon, RehearsalTarget } from "./types";
@@ -145,7 +146,7 @@ export function RehearsalSimulator({ plan, onComplete, onClose }: {
           {plan.quantity} {plan.requireTogether ? "adjacent " : ""}seats · {amount(good)} including fees</label>
       </div>
       <button className="button button-primary" disabled={!picked} onClick={() => picked === "good" ? (setError(""), setStep(3)) : setError("This total exceeds your limit. Do not accept it.")}>Check selection</button>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {error && <p className="form-error" role="alert">{tx(error)}</p>}
     </div>}
     {step === 3 && <div className="practice-stage"><h4>4. Review before payment</h4>
       <p>Confirm the artist, performance, ticket quantity and final total including fees. The real payment page might still require bank verification.</p>
@@ -310,7 +311,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       <div className="settings-panel">
         <h3><FlaskConical size={19}/> Rehearsal</h3>
         <p>Practice ticketing steps using your saved conditions. Cityline includes a scenario-based checkout simulation; other providers use a generic walkthrough. No real purchase occurs.</p>
-        {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {new Date(draft.lastRehearsalAt).toLocaleString()}</p>}
+        {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {localDate(draft.lastRehearsalAt)}</p>}
         <button className="button button-primary" disabled={saving} onClick={() => {
           void (async () => {
             setSaving(true);
