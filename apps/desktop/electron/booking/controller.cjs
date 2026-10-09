@@ -6,6 +6,7 @@ const { CitylineAdapter, schemaFor } = require('./cityline.cjs');
 const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
 const { BookingRunner, TERMINAL } = require('./runner.cjs');
 const { resolveOfficialSaleUrl } = require('../security.cjs');
+const { assertBookingWindow } = require('./window-binding.cjs');
 function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send }) {
   const vault = new CardVault(path.join(app.getPath('userData'), 'cards.enc'), safeStorage);
   const preferences = new PreferenceStore(path.join(app.getPath('userData'), 'booking-preferences.json'));
@@ -23,7 +24,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status))) throw new Error('Stop active bookings before removing a card.');
     return vault.remove(id);
   });
-  handle('booking-context', async ({ providerId, eventUrl, windowId, rehearsal = false }) => {
+  handle('booking-context', async ({ providerId, eventUrl, windowId, planId, rehearsal = false }) => {
     const addon = requireInstalled(providerId);
     if (!addon.booking || providerId !== 'cityline') throw new Error('This add-on does not provide booking options yet.');
     // A published sale can link to an official promoter (e.g. Live Nation)
@@ -41,6 +42,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     else {
       const entry = ticketWindows.get(windowId);
       if (!entry || entry.providerId !== providerId) throw new Error('Choose an open window for this provider.');
+      assertBookingWindow(entry, planId);
       // A saved direct booking link must identify the same event. Landing pages are bound
       // only after the user opens their booking form and explicitly reads its options.
       const savedEventId = new URL(url).searchParams.get('event');
