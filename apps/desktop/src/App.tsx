@@ -131,10 +131,10 @@ function AddonAutomationLevels({ addon }: { addon: TicketAddon }) {
           </div>
         );
       })}
-      <p className="automation-support-note">{addon.automation.level2.summary} {addon.automation.level2.sourceUrl &&
+      <p className="automation-support-note">{tx(addon.automation.level2.summary)} {addon.automation.level2.sourceUrl &&
         <a href={addon.automation.level2.sourceUrl} target="_blank" rel="noopener noreferrer">Policy <ArrowUpRight size={11}/></a>}
       </p>
-      <p className="automation-support-note">{addon.automation.level3.summary} {addon.automation.level3.sourceUrl &&
+      <p className="automation-support-note">{tx(addon.automation.level3.summary)} {addon.automation.level3.sourceUrl &&
         <a href={addon.automation.level3.sourceUrl} target="_blank" rel="noopener noreferrer">Policy <ArrowUpRight size={11}/></a>}
       </p>
     </div>
