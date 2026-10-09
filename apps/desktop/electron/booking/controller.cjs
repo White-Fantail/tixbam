@@ -5,6 +5,7 @@ const { PreferenceStore, eventKey, validatePreferences } = require('./preference
 const { CitylineAdapter, schemaFor } = require('./cityline.cjs');
 const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
 const { BookingRunner, TERMINAL } = require('./runner.cjs');
+const { resolveOfficialSaleUrl } = require('../security.cjs');
 function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send }) {
   const vault = new CardVault(path.join(app.getPath('userData'), 'cards.enc'), safeStorage);
   const preferences = new PreferenceStore(path.join(app.getPath('userData'), 'booking-preferences.json'));
@@ -25,7 +26,14 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   handle('booking-context', async ({ providerId, eventUrl, windowId, rehearsal = false }) => {
     const addon = requireInstalled(providerId);
     if (!addon.booking || providerId !== 'cityline') throw new Error('This add-on does not provide booking options yet.');
-    const { url } = resolveAddonUrl(providerId, eventUrl);
+    // A published sale can link to an official promoter (e.g. Live Nation)
+    // instead of the actual Cityline checkout form. The offline demo never
+    // visits that URL, but it must still be a trusted, known HTTPS destination.
+    const destination = resolveOfficialSaleUrl(providerId, eventUrl);
+    if (!rehearsal && destination.providerId !== providerId) {
+      throw new Error('This is an event/promoter page, not a Cityline booking URL. Open the official Cityline event booking form and save its direct URL before reading live options. The offline demo can still run.');
+    }
+    const url = rehearsal ? destination.url : resolveAddonUrl(providerId, eventUrl).url;
     let key = eventKey(providerId, 'rehearsal:' + url);
     if ([...runs.values()].some(r => r.state.eventKey === key && !TERMINAL.has(r.state.status))) throw new Error('Stop this event’s active run before changing its settings.');
     let page, adapter;
@@ -46,7 +54,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     if ([...runs.values()].some(r => r.state.eventKey === key && !TERMINAL.has(r.state.status))) throw new Error('This event already has an active booking. Manage it in Live windows.');
     const schema = schemaFor(addon, page);
     const contextId = require('node:crypto').randomUUID();
-    const ctx = { contextId, eventKey: key, providerId, windowId, rehearsal, schema, adapter };
+    const ctx = { contextId, eventKey: key, providerId, windowId: rehearsal ? undefined : windowId, rehearsal, schema, adapter };
     if (contexts.size >= 100) contexts.delete(contexts.keys().next().value);
     contexts.set(contextId, ctx);
     let saved = null;
