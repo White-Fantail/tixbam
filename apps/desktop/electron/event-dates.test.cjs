@@ -41,8 +41,7 @@ test("multiple performances show an inclusive local date range and session count
     { startsAt: "2026-11-07T08:00:00Z", timezone: "Asia/Tokyo" }
   ];
   const display = format(event(performances, "Asia/Tokyo"));
-  assert.match(display, /6 Nov/);
-  assert.match(display, /8 Nov 2026/);
+  assert.match(display, /6[^0-9]+8 Nov 2026/);
   assert.match(display, /3 sessions/);
 });
 
