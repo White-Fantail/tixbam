@@ -378,3 +378,7 @@
 .cl-drill-footer span{font-weight:400;letter-spacing:0;margin-left:auto}
 @media(max-width:1100px){.cl-drill-scenarios{grid-template-columns:repeat(2,minmax(0,1fr))}.cl-drill-summary{grid-template-columns:1fr 1fr}.cl-drill-summary>div:first-child{grid-column:span 2}}
 @media(max-width:740px){.cityline-drill{padding:16px}.cl-drill-top{flex-direction:column}.cl-drill-scenarios,.cl-drill-tiers,.cl-drill-methods,.cl-drill-fields,.cl-drill-summary{grid-template-columns:1fr}.cl-drill-summary>div:first-child{grid-column:span 1}.cl-drill-preview-top{align-items:flex-start;flex-direction:column}.cl-drill-tier{flex-wrap:wrap}.cl-drill-tier-cost{text-align:left}.cl-drill-nav .button{flex:1}.cl-drill-footer span{margin-left:0}}
+
+.cl-drill-options-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#252633;border:1px solid #474656;border-radius:10px;padding:12px 14px}
+.cl-drill-options-line .cl-drill-check{flex:1;min-width:210px;justify-content:flex-end}
+@media(max-width:740px){.cl-drill-options-line .cl-drill-check{justify-content:flex-start}}
