@@ -138,6 +138,15 @@ function createDashboard() {
   } else {
     dashboard.loadFile(path.join(__dirname, "../dist/index.html"));
   }
+  dashboard.on("close", event => {
+    if (closingApplication) return;
+    if ([...ticketWindows.values()].some(entry => entry.planId)) {
+      // Closing the dashboard currently stops booking runs. Hide it instead
+      // so the host continues supervising open ticket windows.
+      event.preventDefault();
+      dashboard.hide();
+    }
+  });
   dashboard.on("closed", () => { booking?.stopAll(); dashboard = null; });
 }
 
@@ -215,11 +224,15 @@ app.whenReady().then(() => {
     const destination = resolveOfficialSaleUrl(options.providerId, options.url);
     requireInstalled(destination.providerId);
     // Never reload a live plan's browser: a reload can discard a queue position.
-    const existing = [...ticketWindows.values()].filter(entry => entry.planId === planId && !entry.popup).at(-1);
+    const matches = [...ticketWindows.values()].filter(entry => entry.planId === planId);
+    // An orphan payment/login popup still owns this plan. Never create a
+    // replacement window that might trigger duplicate checkout.
+    const existing = matches.filter(entry => !entry.popup).at(-1) || matches.at(-1);
     if (existing) {
       if (existing.win.isMinimized()) existing.win.restore();
       existing.win.show(); existing.win.focus();
-      return { id: existing.win.id, providerId: existing.providerId, planId, reused: true,
+      return { id: existing.win.id, providerId: existing.providerId, planId,
+        reused: true, popup: existing.popup,
         site: publicLocation(existing.win.webContents.getURL()) };
     }
     return { ...openTicketWindow({ ...destination, planId }), reused: false };
@@ -312,7 +325,9 @@ app.whenReady().then(() => {
     quittingConfirmed = true; closingApplication = true;
   });
   app.on("activate", () => {
-    if (!BrowserWindow.getAllWindows().length) createDashboard();
+    // The control room can be hidden while ticket windows remain alive.
+    if (!dashboard || dashboard.isDestroyed()) createDashboard();
+    else { dashboard.show(); dashboard.focus(); }
   });
 });
 
