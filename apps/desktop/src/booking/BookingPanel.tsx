@@ -59,14 +59,28 @@ export function BookingPanel({ event, addon, windows, onClose }: { event: WatchE
     if (to >= 0 && to < list.length) { [list[from],list[to]]=[list[to],list[from]]; option(id,list); }
   }
   const active = Boolean(run && !terminal.has(run.status));
+  // A promoter's event page can describe a Cityline sale without being
+  // Cityline's own event booking form. The demo is independent of either site.
+  const directProviderUrl = (() => {
+    try {
+      const parsed = new URL(event.url);
+      return parsed.protocol === 'https:' && !parsed.username && !parsed.password &&
+        addon.allowedHosts.some(host => parsed.hostname.toLowerCase() === host ||
+          parsed.hostname.toLowerCase().endsWith('.' + host));
+    } catch {
+      return false;
+    }
+  })();
   return <div className="modal-backdrop"><div className="modal booking-modal" ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="booking-title">
     <div className="modal-top"><span className="eyebrow">{addon.name} · BOOKING PREFERENCES</span><button className="icon-button" aria-label="Close booking settings" onClick={() => { setCvv(''); onClose(); }}>×</button></div>
     <h2 id="booking-title">{event.title}</h2><p>Quantity, adjacency and total budget are required conditions. Ranked alternatives are used only when you allow them.</p>
-    <p className="settings-note">Cityline performance and price selection is connected. Live seat and payment pages still need verification; the run pauses at those pages.</p>
-    <div className="booking-actions"><label>Provider window<select value={windowId ?? ''} disabled={busy || active} onChange={e=> { setWindowId(Number(e.target.value)||undefined); setContext(null); setPrefs(null); }}><option value="">Choose a window</option>{windows.map(w=><option key={w.id} value={w.id}>#{w.id} · {w.title || addon.name}</option>)}</select></label><button className="button button-outline" disabled={busy || active || !windowId} onClick={()=>read()}>Read event options</button><button className="button button-outline" disabled={busy || active} onClick={()=>read(true)}>Try rehearsal</button></div>
+    <p className="settings-note">Cityline live options require its actual event booking form. Seat selection and payment pages are not yet verified and require manual attention.</p>
+    {!directProviderUrl && <p className="rehearsal-note" role="note">The saved link is an event/promoter page, not a Cityline booking URL. Live options are unavailable until the direct official Cityline event link is saved. You can still try the offline demo below.</p>}
+    <p className="settings-note">Offline demo uses fixed sample performances, prices, seats and simulated payment. It does not check availability or rehearse this actual concert.</p>
+    <div className="booking-actions"><label>Cityline provider window<select value={windowId ?? ''} disabled={busy || active || !directProviderUrl} onChange={e=> { setWindowId(Number(e.target.value)||undefined); setContext(null); setPrefs(null); }}><option value="">Choose a window</option>{windows.map(w=><option key={w.id} value={w.id}>#{w.id} · {w.title || addon.name}</option>)}</select></label><button className="button button-outline" disabled={busy || active || !windowId || !directProviderUrl} title={!directProviderUrl ? 'A direct Cityline ticket URL is required to read real options.' : undefined} onClick={()=>read()}>Read live options</button><button className="button button-outline" disabled={busy || active} onClick={()=>read(true)}>Run offline demo</button></div>
     {context && prefs && <>
       {context.providerTitle && <p className="settings-note">Read from provider: {context.providerTitle} · Event #{context.providerEventId}. Check that this is your intended event before starting.</p>}
-      {context.rehearsal && <p className="rehearsal-note">REHEARSAL · Simulated seats and checkout. No website requests, saved card access or charges.</p>}
+      {context.rehearsal && <p className="rehearsal-note">OFFLINE DEMO · These are sample Cityline-like options, not this concert's real tickets. No website requests, saved card access or charges.</p>}
       <fieldset disabled={busy || active}><legend>Booking conditions</legend>
         <div className="form-row"><label>Tickets<input type="number" min={1} max={context.schema.maxTickets} value={prefs.quantity} onChange={e=> { setPrefs({...prefs,quantity:Number(e.target.value)}); setConsent(false); }}/></label><label>Total budget including fees ({prefs.currency})<input type="number" min="0.01" step="0.01" value={prefs.maxTotalMinor/100} onChange={e=> { setPrefs({...prefs,maxTotalMinor:Math.round(Number(e.target.value)*100)}); setConsent(false); }}/></label></div>
         <label className="booking-check"><input type="checkbox" checked={prefs.requireTogether} onChange={e=>{ setPrefs({...prefs,requireTogether:e.target.checked}); setConsent(false); }}/>Adjacent seats required (when buying multiple seats)</label>
