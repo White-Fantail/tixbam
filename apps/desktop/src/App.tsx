@@ -158,6 +158,17 @@ function SectionHeading({ eyebrow, title, description, action }: {
 
 function App() {
   const { language, setLanguage } = useLanguage();
+  const changeLanguage = (code: "ko" | "en") => {
+    setLanguage(code);
+    void window.tixbam?.setLanguage(code).catch(() => {});
+  };
+  useEffect(() => {
+    if (!window.tixbam) return;
+    let active = true;
+    void window.tixbam.getLanguage().then(code => { if (active) setLanguage(code); }).catch(() => {});
+    const off = window.tixbam.onLanguageChanged(code => { if (active) setLanguage(code); });
+    return () => { active = false; off(); };
+  }, [setLanguage]);
   const [section, setSection] = useState<Section>("overview");
   const [watchlist, setWatchlist] = useState<WatchEvent[]>(loadWatchlist);
   const [plans, setPlans] = useState<BookingPlan[]>(loadGuestPlans);
@@ -1118,7 +1129,7 @@ function App() {
                    {LANGUAGES.map(option => <button key={option.code} type="button"
                      aria-pressed={language === option.code}
                      className={"button " + (language === option.code ? "button-primary" : "button-outline")}
-                     onClick={() => setLanguage(option.code)}>{option.nativeName}</button>)}
+                     onClick={() => changeLanguage(option.code)}>{option.nativeName}</button>)}
                  </div>
                </div>
                <div className="settings-panel account-panel">
