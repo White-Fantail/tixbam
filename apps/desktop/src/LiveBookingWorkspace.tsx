@@ -87,6 +87,7 @@ export function LiveBookingWorkspace({
   const orphanRuns = runs.filter(run => !run.rehearsal && (!run.windowId ||
     !windows.some(win => win.id === run.windowId)));
   const standalone = windows.filter(item => !item.planId);
+  const unknownLinked = windows.filter(item => item.planId && !plans.some(p => p.id === item.planId) && !item.popup);
   const planHistory = history.filter(item => plans.some(p => p.id === item.planId));
 
   async function invoke(key: string, operation: () => Promise<unknown>) {
@@ -102,7 +103,7 @@ export function LiveBookingWorkspace({
     if (action === "resume" && run.status === "review") {
       const order = run.order;
       if (!order) { setError("No verifiable order to review."); return; }
-      const amount = (order.totalMinor / (["KRW", "JPY"].includes(order.currency) ? 1 : 100)).toFixed(["KRW", "JPY"].includes(order.currency) ? 0 : 2);
+      const amount = (order.totalMinor / currencyFactor(order.currency)).toFixed(currencyFactor(order.currency) === 1 ? 0 : 2);
       if (!window.confirm("Authorize the exact displayed order and submit payment once?\n" +
         order.quantity + " ticket(s), " + order.currency + " " + amount +
         " including fees.\nVerify the official provider page first.")) return;
@@ -193,7 +194,7 @@ export function LiveBookingWorkspace({
             const status = summarizeRun(run);
             return <div key={run.id} className={"live-run"+(status.dangerous ? " live-run-alert" : "")}>
               <strong>{status.heading}</strong><p>{run.message}</p><p>{status.action}</p>
-              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {run.order.totalMinor / (["JPY", "KRW"].includes(run.order.currency) ? 1 : 100)} including fees · {run.order.seats.join(", ")}</p>}
+              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {run.order.totalMinor / currencyFactor(run.order.currency)} including fees · {run.order.seats.join(", ")}</p>}
               {run.receipt && <p>Receipt reference reported by provider: {run.receipt}</p>}
               <div className="booking-actions">
                 {["review", "awaiting_user"].includes(run.status) && <button className="button button-primary"
@@ -236,6 +237,15 @@ export function LiveBookingWorkspace({
       <button className="button button-outline" onClick={() => plans[0] && onSelectPlan(plans[0].id)}
         disabled={!plans.length}>Select first plan</button>
     </div>}
+    {unknownLinked.length > 0 && <section className="live-other-windows">
+      <h3>Windows from another or unavailable plan</h3>
+      <p>Ticket-site logins remain on this device after TIXBAM account changes. These windows are not assigned to the current account's plans; do not assume they represent the current target.</p>
+      {unknownLinked.map(win => <div key={win.id} className="live-other-row">
+        <span>#{win.id} · {addons.find(a => a.id === win.providerId)?.name || win.providerId} · {win.site || "Loading"}</span>
+        <button className="button button-outline" disabled={Boolean(busy)} onClick={() => void invoke("focus"+win.id, () => onFocus(win.id))}>Focus</button>
+        <button className="button button-outline" disabled={Boolean(busy)} onClick={() => void invoke("close"+win.id, () => onClose(win.id))}>Close…</button>
+      </div>)}
+    </section>}
     {standalone.length > 0 && <section className="live-other-windows"><h3>Other provider windows</h3>
       <p>These browser windows were not launched from a Booking Plan. Avoid confusing them with your active ticket target.</p>
       {standalone.map(win => <div key={win.id} className="live-other-row">
