@@ -5,6 +5,7 @@ import type { TicketAddon } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
 import { type BookingPlan, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
+import { CitylineRehearsal } from "./rehearsal/CitylineRehearsal";
 
 type Change = (next: BookingPlan) => Promise<void>;
 type Props = {
@@ -314,7 +315,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
     </div><div className="booking-detail-side">
       <div className="settings-panel">
         <h3><FlaskConical size={19}/> Rehearsal</h3>
-        <p>Practice the steps using your saved conditions. An offline drill never purchases tickets.</p>
+        <p>Practice ticketing steps using your saved conditions. Cityline includes a scenario-based checkout simulation; other providers use a generic walkthrough. No real purchase occurs.</p>
         {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {new Date(draft.lastRehearsalAt).toLocaleString()}</p>}
         <button className="button button-primary" onClick={() => onPracticeId(practiceId === selected.id ? null : selected.id)}>
           {practiceId === selected.id ? "Close rehearsal" : "Start rehearsal"}</button>
@@ -340,7 +341,10 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         }
       }}><Trash2 size={15}/> Delete booking plan</button>
     </div></div>
-    {practiceId === selected.id && <RehearsalSimulator key={selected.id} plan={draft}
-      onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/>}
+    {practiceId === selected.id && (draft.providerId === "cityline"
+      ? <CitylineRehearsal key={selected.id} plan={draft}
+          onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/>
+      : <RehearsalSimulator key={selected.id} plan={draft}
+          onComplete={recordRehearsal} onClose={() => onPracticeId(null)}/> )}
   </section>;
 }
