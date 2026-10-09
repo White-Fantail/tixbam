@@ -89,7 +89,7 @@ export interface DesktopBridge {
   vaultStatus: () => Promise<{ available: boolean; cards: CardSummary[] }>;
   saveCard: (input: CardInput) => Promise<CardSummary[]>;
   removeCard: (id: string) => Promise<CardSummary[]>;
-  bookingContext: (input: { providerId: string; eventUrl: string; windowId?: number; rehearsal?: boolean }) => Promise<BookingContext>;
+  bookingContext: (input: { providerId: string; eventUrl: string; windowId?: number; planId?: string; rehearsal?: boolean }) => Promise<BookingContext>;
   saveBookingPreferences: (id: string, input: BookingPreferences) => Promise<BookingPreferences>;
   startBooking: (input: { contextId: string; preferences: BookingPreferences; cardId?: string; cvv?: string; paymentConsent: boolean }) => Promise<BookingRun>;
   listBookings: () => Promise<BookingRun[]>;
