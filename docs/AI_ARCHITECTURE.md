@@ -1,3 +1,5 @@
+> Next-stage design (not implemented): [Autonomous Booking Design](AUTONOMOUS_BOOKING_DESIGN.md) · [Execution Runbook (AB-01–AB-15)](AUTONOMOUS_BOOKING_RUNBOOK.md) · [Contracts](AUTONOMOUS_BOOKING_CONTRACTS.md)
+
 # TIXBAM provider-neutral AI advisor
 
 The deterministic booking engine and reviewed provider adapters remain the only entities allowed to navigate, reserve, validate orders or submit checkout. AI never executes actions. Any future add-on can send the typed `AIAdvisoryRequest` from `packages/addon-sdk/index.d.ts` for the relevant supported task. Desktop shows advice only.
