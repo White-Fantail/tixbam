@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CircleHelp, Clock3,
 import type { BookingRun } from "../../../packages/addon-sdk";
 import type { BookingPlan } from "./booking-plans";
 import { currencyFactor } from "./booking-plans";
+import { tx, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
 import { formatSaleLocalTime } from "./ticket-sales";
 import type { LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
@@ -131,7 +132,7 @@ export function LiveBookingWorkspace({
       </div>
       <span className="counter-badge"><Monitor size={14}/>{windows.length} browser window(s)</span>
     </div>
-    {error && <p role="alert" className="form-error">{error}</p>}
+    {error && <p role="alert" className="form-error">{tx(error)}</p>}
     {planHistory.length > 0 && <div className="live-recovery" role="alert">
       <div className="live-recovery-head"><AlertTriangle size={21}/>
         <div><strong>Review previous ticketing sessions</strong>
@@ -140,7 +141,7 @@ export function LiveBookingWorkspace({
       {planHistory.map(item => {
         const previous = plans.find(p => p.id === item.planId);
         return <div className="live-recovery-item" key={item.planId}>
-          <span><b>{previous?.artist || "Booking plan"}</b> · {item.reason === "interrupted" ? "Session interrupted" : "Window closed"} · {new Date(item.updatedAt).toLocaleString()}
+          <span><b>{previous?.artist || "Booking plan"}</b> · {item.reason === "interrupted" ? "Session interrupted" : "Window closed"} · {localDate(item.updatedAt)}
             {riskStages.has(item.phase) ? " · Checkout may need verification" : ""}</span>
           <button className="button button-outline" disabled={busy !== ""} onClick={() => void invoke("dismiss-" + item.planId, () => onDismissHistory(item.planId))}>
             Dismiss reminder</button>
@@ -208,7 +209,7 @@ export function LiveBookingWorkspace({
           {relatedRuns.length ? relatedRuns.map(run => {
             const status = summarizeRun(run);
             return <div key={run.id} className={"live-run"+(status.dangerous ? " live-run-alert" : "")}>
-              <strong>{status.heading}</strong><p>{run.message}</p><p>{status.action}</p>
+              <strong>{tx(status.heading)}</strong><p>{run.message}</p><p>{tx(status.action)}</p>
               {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(", ")}</p>}
               {run.receipt && <p>Receipt reference reported by provider: {run.receipt}</p>}
               <div className="booking-actions">
@@ -237,9 +238,9 @@ export function LiveBookingWorkspace({
             <label htmlFor="live-step">My current stage</label>
             <select id="live-step" value={selectedWindow.phase || "preparing"} disabled={Boolean(busy)}
               onChange={e => void invoke("stage", () => onPhase(selectedWindow.id, e.target.value as LivePhase))}>
-              {steps.map(step => <option key={step.id} value={step.id}>{step.name}</option>)}
+              {steps.map(step => <option key={step.id} value={step.id}>{tx(step.name)}</option>)}
             </select>
-            <p className="live-next-action">{steps.find(s => s.id === (selectedWindow.phase || "preparing"))?.help}</p>
+            <p className="live-next-action">{tx(steps.find(s => s.id === (selectedWindow.phase || "preparing"))?.help || "")}</p>
             {riskStages.has(selectedWindow.phase || "preparing") && <p className="live-warning"><AlertTriangle size={15}/> Never retry an uncertain payment automatically.</p>}
           </> : <p>Open the official browser first. Its exact stage will not be inferred by TIXBAM.</p>}
         </div>
