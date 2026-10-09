@@ -325,6 +325,11 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
           "Real seat selection and payment are not yet verified. Unsupported steps pause for manual completion." :
           "This provider currently supports guided/manual ticketing. Booking automation is not enabled."}</p>
       </div>
+      <div className="settings-panel">
+        <h3><ShieldAlert size={19}/> Verify purchase</h3>
+        <p>After checkout, verify the ticket provider's confirmation page, receipt or order history. If payment status is unclear, do not attempt another charge until you confirm the result.</p>
+        <p className="settings-note">Provider receipt verification and durable booking history are not available in this release. An offline rehearsal is never proof of purchase.</p>
+      </div>
       <button className="button button-outline plan-delete" disabled={saving} onClick={() => {
         if (window.confirm("Delete this booking plan? Existing watchlist records are not deleted.")) {
           void onRemove(selected.id).then(() => { onSelect(null); onPracticeId(null); }).catch(e => setError(String(e)));
