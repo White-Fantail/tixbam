@@ -149,6 +149,8 @@ test('booking IPC authorizes callers, protects duplicate runs, requires payment 
   const flush=()=>new Promise(resolve=>setImmediate(resolve));
   tick();await flush();tick();await flush();tick();await flush();
   assert.equal(events.at(-1).status,'awaiting_user');
+  await assert.rejects(()=>invoke('resume-booking',state.id,true),
+    /Payment confirmation is only available at final order review/);
   const complete=await invoke('resume-booking',state.id);assert.equal(complete.status,'completed');
   await assert.rejects(()=>invoke('resume-booking',state.id));
   assert.equal(invoke('vault-status').available,false);
