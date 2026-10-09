@@ -7,7 +7,7 @@ const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 const { registerBooking } = require("./booking/controller.cjs");
 const { registerAccount } = require("./account.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
-  activeEntry, mergeHistory, isSensitivePhase } = require("./live-workspace-state.cjs");
+  activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
 let dashboard = null;
 const ticketWindows = new Map();
@@ -224,10 +224,9 @@ app.whenReady().then(() => {
     const destination = resolveOfficialSaleUrl(options.providerId, options.url);
     requireInstalled(destination.providerId);
     // Never reload a live plan's browser: a reload can discard a queue position.
-    const matches = [...ticketWindows.values()].filter(entry => entry.planId === planId);
     // An orphan payment/login popup still owns this plan. Never create a
     // replacement window that might trigger duplicate checkout.
-    const existing = matches.filter(entry => !entry.popup).at(-1) || matches.at(-1);
+    const existing = findExistingPlanSession([...ticketWindows.values()], planId);
     if (existing) {
       if (existing.win.isMinimized()) existing.win.restore();
       existing.win.show(); existing.win.focus();
@@ -313,7 +312,7 @@ app.whenReady().then(() => {
   createDashboard();
   app.on("before-quit", event => {
     if (quittingConfirmed) { closingApplication = true; return; }
-    const active = [...ticketWindows.values()].filter(entry => entry.planId && !entry.popup);
+    const active = [...ticketWindows.values()].filter(entry => entry.planId);
     if (!active.length) { closingApplication = true; return; }
     const response = dialog.showMessageBoxSync({
       type: "warning", title: "Quit TIXBAM during ticketing?",
