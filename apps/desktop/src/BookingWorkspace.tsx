@@ -81,7 +81,10 @@ function RehearsalSimulator({ plan, onComplete, onClose }: {
   async function finish() {
     setBusy(true); setError("");
     try { await onComplete(); setStep(5); }
-    catch (err) { setError(err instanceof Error ? err.message : "Could not save rehearsal result."); }
+    catch (err) {
+      setError("Practice finished, but your rehearsal result could not be saved. Reconnect and try again.");
+      setStep(5);
+    }
     finally { setBusy(false); }
   }
   return <section className="practice-panel" aria-label="Offline rehearsal">
@@ -122,8 +125,9 @@ function RehearsalSimulator({ plan, onComplete, onClose }: {
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>}
     {step === 5 && <div className="practice-stage"><CheckCircle2 size={26}/>
-      <h4>Offline rehearsal completed</h4>
+      <h4>Offline rehearsal finished</h4>
       <p>This confirms only that you completed the practice walkthrough. Real seat selection, queue placement, card processing and checkout remain unverified.</p>
+      {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button button-outline" onClick={() => { setStep(0); setPicked(""); }}>Practice again</button>
     </div>}
   </section>;
