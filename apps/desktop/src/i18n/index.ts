@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { ko } from "./ko";
+import { dynamicKo } from "./dynamic-ko";
 
 export const LANGUAGE_STORAGE_KEY = "tixbam.desktop.language.v1";
 export const LANGUAGES = [
@@ -40,7 +41,7 @@ export function tx(source: string): string {
   const trailing = source.match(/\s*$/)?.[0] || "";
   const key = source.trim().replace(/\s+/g, " ");
   if (!key) return source;
-  return leading + ((ko as Record<string,string>)[key] || key) + trailing;
+  return leading + ((ko as Record<string,string>)[key] || dynamicKo(key) || key) + trailing;
 }
 export function tr(source: string, vars?: Record<string, string | number>): string {
   const translated = tx(source);
