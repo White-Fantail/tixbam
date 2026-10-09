@@ -122,11 +122,12 @@
     "country": "KR",
     "url": "https://world.nol.com/en",
     "allowedHosts": [
-      "world.nol.com"
+      "world.nol.com",
+      "nol.yanolja.com"
     ],
     "color": "#8decd6",
     "initials": "NW",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "capabilities": [
       "browser",
       "persistent-session"
@@ -192,11 +193,20 @@
     "country": "GL",
     "url": "https://www.ticketmaster.com/",
     "allowedHosts": [
-      "ticketmaster.com"
+      "ticketmaster.com",
+      "ticketmaster.ca",
+      "ticketmaster.co.uk",
+      "ticketmaster.co.th",
+      "ticketmaster.sg",
+      "ticketmaster.dk",
+      "ticketmaster.de",
+      "ticketmaster.es",
+      "ticketmaster.com.au",
+      "ticketmaster.co.nz"
     ],
     "color": "#77b8ff",
     "initials": "TM",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "capabilities": [
       "browser",
       "persistent-session"
