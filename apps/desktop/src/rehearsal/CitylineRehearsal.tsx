@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CreditCard,
   FlaskConical, Info, LockKeyhole, RefreshCw, ShieldAlert, Ticket, XCircle } from "lucide-react";
 import type { RehearsalTarget } from "../types";
 import { currencyFactor } from "../booking-plans";
+import { tx, localDate } from "../i18n";
 import {
   CITYLINE_SCENARIOS, CITYLINE_STEPS, CITYLINE_PERFORMANCES, CITYLINE_DELIVERY,
   CITYLINE_PRACTICE_HOLD_SECONDS, citylineScenario, citylineAvailableTiers,
@@ -245,10 +246,10 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <div><strong>{budgetLabel(plan)}</strong><span>Plan maximum, in {plan.currency}</span></div>
     </div>
     <div className="cl-drill-progress" ref={progress}><div><span>Step {stage + 1} of {CITYLINE_STEPS.length}</span>
-      <strong>{CITYLINE_STEPS[stage]}</strong><span>{Math.round(pct)}%</span></div>
+      <strong>{tx(CITYLINE_STEPS[stage])}</strong><span>{Math.round(pct)}%</span></div>
       <progress max={100} value={pct} aria-label="Rehearsal progress"/>
     </div>
-    {feedback && <div className="cl-drill-feedback" role="alert"><AlertCircle size={18}/>{feedback}</div>}
+    {feedback && <div className="cl-drill-feedback" role="alert"><AlertCircle size={18}/>{tx(feedback)}</div>}
     {stage === 0 && <div className="cl-drill-stage">
       <h4>Choose a Cityline practice scenario</h4>
       <p>Different events support different booking methods. Choose the situation you need to rehearse.</p>
@@ -256,7 +257,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
         {CITYLINE_SCENARIOS.map(item => <button type="button" key={item.id} aria-pressed={scenarioId === item.id}
           className={"cl-drill-scenario" + (scenarioId === item.id ? " selected" : "")}
           onClick={() => reset(item.id)}>
-          <span>{item.difficulty}</span><strong>{item.title}</strong><small>{item.description}</small>
+          <span>{tx(item.difficulty)}</span><strong>{tx(item.title)}</strong><small>{tx(item.description)}</small>
         </button>)}
       </div>
       <div className="cl-drill-rules"><h5>Booking Plan readiness</h5>
@@ -316,7 +317,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <h4>Select performance, price zone and ticket type</h4>
       <div className="cl-drill-fields">
         <label>Performance (fictional session)<select value={performance} onChange={e => {setPerformance(e.target.value); setSelectedSeatIds([]);}}>
-          {CITYLINE_PERFORMANCES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+          {CITYLINE_PERFORMANCES.map(item => <option key={item.id} value={item.id}>{tx(item.label)}</option>)}
         </select></label>
         <label>Ticket type<select value={ticketType} onChange={e => {setTicketType(e.target.value as "adult" | "concession"); setDiscountEligible(false);}}>
           <option value="adult">Standard ticket</option>
@@ -338,7 +339,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
           const over = Boolean(preview && preview.totalMinor > trainingBudgetMinor);
           return <button key={tier.id} aria-pressed={tierId === tier.id} type="button"
             className={"cl-drill-tier" + (tier.id === tierId ? " selected" : "")} onClick={() => chooseTier(tier.id)}>
-            <span className="cl-drill-tier-label"><strong>{tier.label}</strong><small>Ticket price {citylineMoney(tier.priceMinor)}</small></span>
+            <span className="cl-drill-tier-label"><strong>{tx(tier.label)}</strong><small>Ticket price {citylineMoney(tier.priceMinor)}</small></span>
             <span className="cl-drill-tier-cost"><b>{preview ? citylineMoney(preview.totalMinor) : "—"}</b>
               <small>{tier.soldOut ? "SOLD OUT · PRACTICE" : over ? "Over max incl. sample fees" : tier.restrictedView ? "Restricted view · practice" : "Total incl. sample fees"}</small></span>
           </button>;
@@ -429,7 +430,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       <p>Cityline's available delivery and payment methods vary by event. These are examples only; no real information is collected.</p>
       <div className="cl-drill-fields">
         <label>Ticket delivery / pickup<select value={deliveryId} onChange={e => {setDeliveryId(e.target.value); setFeedback("");}}>
-          {CITYLINE_DELIVERY.map(method => <option key={method.id} value={method.id}>{method.label} · {citylineMoney(method.feeMinor)}</option>)}
+          {CITYLINE_DELIVERY.map(method => <option key={method.id} value={method.id}>{tx(method.label)} · {citylineMoney(method.feeMinor)}</option>)}
         </select></label>
         <label>Payment method to rehearse<select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as "card" | "wallet")}>
           <option value="card">Credit card / bank verification</option><option value="wallet">Digital payment / app confirmation</option>
@@ -511,7 +512,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
       </div>}
       <div className="cl-drill-report">
         <h5>Training report</h5>
-        <div><span>Scenario</span><b>{scenario.title}</b></div>
+        <div><span>Scenario</span><b>{tx(scenario.title)}</b></div>
         <div><span>Practice errors / recovery hints</span><b>{errors}</b></div>
         <div><span>Time used</span><b>{Math.max(1, Math.round((Date.now()-startAt)/1000))} sec</b></div>
         <div><span>Outcome</span><b>{outcome==="unknown"?"Uncertain charge — history check required":"Offline receipt only"}</b></div>
@@ -529,7 +530,7 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     </div>}
     {history.length > 0 && stage === 0 && <div className="cl-drill-history">
       <h4>Previous Cityline practice on this device</h4>
-      {history.slice(0,3).map((r,i)=><p key={i}>{new Date(r.completedAt).toLocaleString()} · {citylineScenario(r.scenarioId).title} · {r.errors} recovery hint(s) · {r.outcome==="unknown-reviewed"?"Uncertain charge response":"Simulated receipt"}</p>)}
+      {history.slice(0,3).map((r,i)=><p key={i}>{localDate(r.completedAt)} · {tx(citylineScenario(r.scenarioId).title)} · {r.errors} recovery hint(s) · {r.outcome==="unknown-reviewed"?"Uncertain charge response":"Simulated receipt"}</p>)}
     </div>}
     <div className="cl-drill-footer"><XCircle size={16}/> NOT CITYLINE · NOT LIVE · NO INVENTORY, PAYMENT OR QUEUE ACCESS
       <span>Reference: Cityline public purchase guide and FAQs (Dec 2025)</span></div>
