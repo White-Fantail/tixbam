@@ -292,7 +292,18 @@ app.whenReady().then(() => {
   desktopLanguage = readLanguage(app.getPath("userData"));
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
-  registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
+  const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
+  ipcMain.handle("tixbam:ai-advice", (event, payload) => {
+    if (event.sender === dashboard?.webContents) dashboardOnly(event);
+    else {
+      const entry = rehearsalEntry(event);
+      if (!payload || payload.provider_id !== entry.target.providerId ||
+          payload.task !== "rehearsal_guidance") {
+        throw new Error("Rehearsal AI may analyze only its own provider and practice task.");
+      }
+    }
+    return account.aiAdvice(payload);
+  });
   ipcMain.handle("tixbam:language-get", event => {
     if (event.sender === dashboard?.webContents) dashboardOnly(event);
     else rehearsalEntry(event);

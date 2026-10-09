@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, FlaskConical, ShieldCheck } from "lucide-react";
-import type { RehearsalTarget } from "../types";
+import type { RehearsalTarget, AIAdvisoryContext } from "../types";
+import { RehearsalAIAdvisor } from "./AIAdvisor";
 import { useLanguage, LANGUAGES, tx } from "../i18n";
 import { RehearsalSimulator } from "../BookingWorkspace";
 import { CitylineRehearsal } from "./CitylineRehearsal";
@@ -21,6 +22,7 @@ export default function RehearsalApp() {
     return () => { active = false; off(); };
   }, [setLanguage]);
   const [plan, setPlan] = useState<RehearsalTarget | null>(null);
+  const [aiSnapshot, setAiSnapshot] = useState<Partial<AIAdvisoryContext> | null>(null);
   const [error, setError] = useState("");
   const bridge = window.tixbamRehearsal;
 
@@ -68,9 +70,10 @@ export default function RehearsalApp() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {!error && !plan && <div className="empty-state"><h3>Loading your booking rehearsal…</h3></div>}
       {plan && (plan.providerId === "cityline"
-        ? <CitylineRehearsal plan={plan} onComplete={async () => { await bridge!.complete(); }} onClose={() => void close()}/>
+        ? <CitylineRehearsal plan={plan} onContextChange={setAiSnapshot} onComplete={async () => { await bridge!.complete(); }} onClose={() => void close()}/>
         : <RehearsalSimulator plan={plan} onComplete={async () => { await bridge!.complete(); }}
             onClose={() => void close()}/>)}
+      {plan && <RehearsalAIAdvisor plan={plan} language={language} snapshot={aiSnapshot}/>}
     </div>
   </main>;
 }

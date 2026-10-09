@@ -192,3 +192,24 @@ class CrawlRun(Base):
     found: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str] = mapped_column(Text, default="")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+class AIModelPolicy(Base):
+    """Admin-configured model per stable AI task. No API keys in the database."""
+    __tablename__ = "ai_model_policies"
+    task: Mapped[str] = mapped_column(String(60), primary_key=True)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, default=6, nullable=False)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, default=450, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AIUsageLog(Base):
+    """Quota / operational status only; never store sent contexts or completions."""
+    __tablename__ = "ai_usage_logs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    task: Mapped[str] = mapped_column(String(60), nullable=False)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)

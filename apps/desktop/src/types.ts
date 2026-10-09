@@ -1,5 +1,5 @@
 import type { BookingPlan } from "./booking-plans";
-import type { BookingSchema, BookingContext, BookingPreferences, BookingRun, CardSummary, CardInput } from "../../../packages/addon-sdk";
+import type { BookingSchema, BookingContext, BookingPreferences, BookingRun, CardSummary, CardInput, AIAdvisoryRequest, AIAdvisoryResponse, AIAdvisoryContext } from "../../../packages/addon-sdk";
 export type AutomationSupportStatus = "available" | "restricted" | "unverified" | "delegated";
 
 export interface AutomationLevelSupport {
@@ -53,6 +53,7 @@ export interface WatchEvent {
   performanceAt?: string;
 }
 
+export type { AIAdvisoryRequest, AIAdvisoryResponse, AIAdvisoryContext };
 export type RehearsalTarget = Pick<BookingPlan,
   "id" | "artist" | "title" | "providerId" | "currency" | "quantity" |
   "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady">;
@@ -61,6 +62,7 @@ export interface RehearsalBridge {
   setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
   onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;
   getContext: () => Promise<RehearsalTarget>;
+  aiAdvice: (input: AIAdvisoryRequest) => Promise<AIAdvisoryResponse>;
   complete: () => Promise<{ saved: boolean }>;
   close: () => Promise<boolean>;
 }
@@ -101,6 +103,7 @@ export interface DesktopBridge {
   accountOAuthCancel: () => Promise<boolean>;
   accountSignOut: () => Promise<boolean>;
   accountRequest: (method: "GET" | "PUT" | "DELETE", endpoint: string, body?: unknown) => Promise<unknown>;
+  aiAdvice: (input: AIAdvisoryRequest) => Promise<AIAdvisoryResponse>;
   vaultStatus: () => Promise<{ available: boolean; cards: CardSummary[] }>;
   saveCard: (input: CardInput) => Promise<CardSummary[]>;
   removeCard: (id: string) => Promise<CardSummary[]>;

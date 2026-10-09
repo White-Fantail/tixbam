@@ -63,13 +63,13 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
       throw new Error("Could not unlock this device's account session. Sign out to reset it.");
     }
   }
-  async function request(apiUrl, endpoint, method = "GET", body, token) {
+  async function request(apiUrl, endpoint, method = "GET", body, token, timeoutMs = 8500) {
     if (!allowedApi(apiUrl, app.isPackaged)) throw new Error("Untrusted TIXBAM account API.");
     const response = await fetch(apiUrl.replace(/\/$/, "") + endpoint, {
       method, headers: { "Content-Type": "application/json",
         ...(token ? { Authorization: "Bearer " + token } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(8500)
+      signal: AbortSignal.timeout(timeoutMs)
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -197,6 +197,14 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
       throw error;
     }
   });
+  return {
+    async aiAdvice(payload) {
+      const active = load();
+      if (!active) throw new Error("Sign in to TIXBAM to use AI guidance.");
+      // The API origin and bearer token always come from the encrypted main-process session.
+      return request(active.apiUrl, "/v1/ai/advice", "POST", payload, active.token, 16000);
+    }
+  };
 }
 
 module.exports = { registerAccount, allowedApi, allowedAccountEndpoint, PRODUCTION_API };

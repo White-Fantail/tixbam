@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("tixbamRehearsal", {
     return () => ipcRenderer.removeListener("tixbam:language-changed", handler);
   },
   getContext: () => ipcRenderer.invoke("tixbam:rehearsal-context"),
+  aiAdvice: input => ipcRenderer.invoke("tixbam:ai-advice", input),
   complete: () => ipcRenderer.invoke("tixbam:rehearsal-complete"),
   close: () => ipcRenderer.invoke("tixbam:rehearsal-close")
 });

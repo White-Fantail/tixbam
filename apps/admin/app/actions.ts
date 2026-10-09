@@ -129,3 +129,36 @@ export async function editAddon(f:FormData) {
      artifact_url:opt(f,"artifact_url"),artifact_sha256:opt(f,"artifact_sha256")},
     "PUT","addons","/addons/"+id(f)+"/edit",val(f,"id"));
 }
+
+/** AI settings are written server-to-server; browser never sees OpenRouter credentials. */
+export async function saveAiPolicy(f: FormData) {
+  const task = val(f, "task");
+  if (!["rehearsal_guidance", "page_recovery", "seat_review"].includes(task)) {
+    redirect("/ai?error=Unknown+AI+feature");
+  }
+  const payload = {
+    model: val(f, "model"), enabled: bool(f, "enabled"),
+    timeout_seconds: Number(val(f, "timeout_seconds")),
+    max_output_tokens: Number(val(f, "max_output_tokens")),
+  };
+  const base = process.env.TIXBAM_API_URL;
+  const token = process.env.TIXBAM_ADMIN_API_KEY;
+  let error = "";
+  if (!base || !token) error = "Admin API is not configured";
+  else {
+    try {
+      const response = await fetch(base.replace(/\\/$/, "") + "/v1/admin/ai/tasks/" + task, {
+        method: "PUT", cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": token },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        error = typeof data.detail === "string" ? data.detail : "Could not save AI settings (" + response.status + ")";
+      }
+    } catch { error = "Could not reach the API"; }
+  }
+  if (error) redirect("/ai?error=" + encodeURIComponent(error));
+  revalidatePath("/ai");
+  redirect("/ai?ok=" + encodeURIComponent("Saved " + task.replaceAll("_", " ")));
+}

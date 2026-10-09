@@ -64,3 +64,21 @@ export interface BookingRun {
 }
 export interface CardSummary { id: string; label: string; last4: string; expiryMonth: number; expiryYear: number }
 export interface CardInput { label: string; name: string; number: string; expiryMonth: number; expiryYear: number }
+
+/** Host-level AI advisory interface; shared by every ticketing provider add-on.
+ * Add-ons provide coarse, non-sensitive state only; never executable instructions.
+ * Model selection and OpenRouter credentials remain on the server. */
+export type AIAdvisoryTask = "rehearsal_guidance" | "page_recovery" | "seat_review";
+export interface AIAdvisoryContext {
+  stage: string; issue?: string; quantity: number; currency: string;
+  budget_minor: number; total_minor?: number | null; require_together: boolean;
+  allow_fallback: boolean; locale?: "ko" | "en";
+  signals?: Record<string, string | number | boolean>;
+}
+export interface AIAdvisoryRequest { task: AIAdvisoryTask; provider_id: string; context: AIAdvisoryContext }
+export interface AIAdvisoryResponse {
+  task: AIAdvisoryTask; providerId: string; model: string; summary: string; tips: string[];
+  risk: "info" | "caution" | "block";
+  nextStep: "continue" | "review" | "wait" | "ask_user" | "stop";
+  advisoryOnly: true;
+}

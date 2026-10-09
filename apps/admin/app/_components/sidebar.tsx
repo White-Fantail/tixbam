@@ -14,6 +14,7 @@ const groups = [
   {title: "Platform", links: [
     {href: "/providers", label: "Providers", icon: "◎"},
     {href: "/addons", label: "Add-ons", icon: "⬡"},
+    {href: "/ai", label: "AI Models", icon: "✧"},
   ]},
   {title: "Operations", links: [
     {href: "/crawlers", label: "Crawlers", icon: "⌘"},

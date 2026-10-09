@@ -422,3 +422,15 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
   font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans CJK KR",sans-serif;
   letter-spacing:-.025em;line-height:1.25
 }
+
+.rehearsal-ai-advisor{margin:22px 0 30px;padding:20px;background:#161e30;border:1px solid #394868;border-radius:14px;color:#e5edff}
+.rehearsal-ai-head,.rehearsal-ai-head>div,.rehearsal-ai-head>span{display:flex;gap:9px;align-items:center}
+.rehearsal-ai-head{justify-content:space-between;flex-wrap:wrap}
+.rehearsal-ai-head strong{font-size:17px}
+.rehearsal-ai-head>span{font-size:12px;color:#abd4c5}
+.rehearsal-ai-advisor>p{font-size:13px;color:#aabbd5;line-height:1.6}
+.rehearsal-ai-error{color:#ffd0b3!important}
+.rehearsal-ai-error small{display:block;margin-top:8px}
+.rehearsal-ai-result{margin-top:17px;background:#212d43;border-radius:10px;padding:16px;line-height:1.6}
+.rehearsal-ai-result ul{padding-left:20px;margin:10px 0}
+.rehearsal-ai-result small{color:#b8cce2}

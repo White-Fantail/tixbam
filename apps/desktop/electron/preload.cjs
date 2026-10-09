@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("tixbam", {
   accountOAuthCancel: () => ipcRenderer.invoke("tixbam:account-oauth-cancel"),
   accountSignOut: () => ipcRenderer.invoke("tixbam:account-sign-out"),
   accountRequest: (method, endpoint, body) => ipcRenderer.invoke("tixbam:account-request", method, endpoint, body),
+  aiAdvice: input => ipcRenderer.invoke("tixbam:ai-advice", input),
   vaultStatus: () => ipcRenderer.invoke("tixbam:vault-status"),
   saveCard: input => ipcRenderer.invoke("tixbam:save-card", input),
   removeCard: id => ipcRenderer.invoke("tixbam:remove-card", id),

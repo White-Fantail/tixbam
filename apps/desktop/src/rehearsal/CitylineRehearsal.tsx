@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CreditCard,
   FlaskConical, Info, LockKeyhole, RefreshCw, ShieldAlert, Ticket, XCircle } from "lucide-react";
-import type { RehearsalTarget } from "../types";
+import type { RehearsalTarget, AIAdvisoryContext } from "../types";
 import { currencyFactor } from "../booking-plans";
 import { tx, localDate } from "../i18n";
 import {
@@ -39,8 +39,9 @@ function saveReport(planId: string, report: Report) {
   } catch { /* private-browsing storage is optional; never block completing a drill */ }
 }
 
-export function CitylineRehearsal({ plan, onComplete, onClose }: {
+export function CitylineRehearsal({ plan, onComplete, onClose, onContextChange }: {
   plan: RehearsalTarget; onComplete: () => Promise<void>; onClose: () => void;
+  onContextChange?: (snapshot: Partial<AIAdvisoryContext>) => void;
 }) {
   const [scenarioId, setScenarioId] = useState("standard");
   const [practiceBudgetHkd, setPracticeBudgetHkd] = useState("");
@@ -92,6 +93,21 @@ export function CitylineRehearsal({ plan, onComplete, onClose }: {
     selectedSeatIds, seats, requireTogether: plan.requireTogether || requestAdjacent,
     acceptRestrictedView: restrictedConsent, scenarioId
   }) : null;
+
+  useEffect(() => {
+    onContextChange?.({
+      stage: CITYLINE_STEPS[stage], issue: feedback.slice(0, 240),
+      currency: mismatch ? "HKD" : plan.currency,
+      budget_minor: trainingBudgetMinor,
+      total_minor: tierId && quote ? quote.totalMinor : null,
+      signals: {
+        scenarioId, stageIndex: stage, selectedSeatCount: selectedSeatIds.length,
+        hasPriceTier: Boolean(tierId), checkoutReady: Boolean(offer?.ok),
+        outcome: outcome || "none",
+      }
+    });
+  }, [onContextChange, stage, feedback, mismatch, plan.currency, trainingBudgetMinor,
+      tierId, quote?.totalMinor, scenarioId, selectedSeatIds.length, offer?.ok, outcome]);
 
   const canBegin = plan.quantity >= 1 &&
     plan.quantity <= scenario.maxTickets && trainingBudgetMinor > 0 && plan.preferencesReady &&

@@ -8,10 +8,11 @@ const items = [
   {name:"Ticket Sales",path:"sales",subtitle:"Presales, providers and booking URLs"},
   {name:"Providers",path:"providers",subtitle:"Ticketing agents and metadata"},
   {name:"Crawlers",path:"sources",url:"crawlers",subtitle:"Approved discovery feeds"},
+  {name:"AI Models",path:"ai",url:"ai",subtitle:"Admin-controlled models for each AI task"},
 ];
 export default async function Dashboard() {
   const values = await Promise.allSettled(items.map(x =>
-    apiRead("/v1/admin/directory/"+x.path+"?limit=1")));
+    x.path === "ai" ? apiRead("/v1/admin/ai/tasks") : apiRead("/v1/admin/directory/"+x.path+"?limit=1")));
   const connected=values.some(result=>result.status==="fulfilled");
   return <div className="page-content">
     <div className="page-heading"><div>
@@ -23,7 +24,7 @@ export default async function Dashboard() {
     <div className="dashboard-grid">
       {items.map((entry,i)=><Link className="stat dashboard-tile" key={entry.path} href={"/"+(entry.url||entry.path)}>
         <span className="kicker">{entry.name}</span>
-        <strong>{values[i].status==="fulfilled" ? (values[i].value.total ?? "—") : "—"}</strong>
+        <strong>{values[i].status==="fulfilled" ? (values[i].value.total ?? (entry.path === "ai" ? values[i].value.items?.filter((row:{enabled:boolean})=>row.enabled).length + " active" : "—")) : "—"}</strong>
         <span className="muted">{entry.subtitle} →</span>
       </Link>)}
     </div>
