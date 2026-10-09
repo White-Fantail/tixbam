@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Clock3,
+import { AlertTriangle, ArrowLeft, ArrowRight, CircleHelp, Clock3,
   ExternalLink, Globe2, Layers3, LockKeyhole, Monitor, ShieldAlert, TicketCheck, X } from "lucide-react";
 import type { BookingRun } from "../../../packages/addon-sdk";
 import type { BookingPlan } from "./booking-plans";
