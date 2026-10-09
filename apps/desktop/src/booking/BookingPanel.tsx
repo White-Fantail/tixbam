@@ -68,10 +68,14 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
       }
       setContext(ctx);
       const previous = defaults(ctx);
+      // The payment mapping is not verified for live Cityline. Never let
+      // a persisted demo setting imply that real automatic checkout is ready.
+      const safe = !rehearsal && addon.booking?.implementation.payment !== 'verified'
+        ? { ...previous, checkout: 'review' as const } : previous;
       // The plan's hard limits override saved dynamic options; no implicit budget defaults.
-      const initial = plan ? { ...previous, quantity: plan.quantity,
+      const initial = plan ? { ...safe, quantity: plan.quantity,
         maxTotalMinor: plan.budgetMinor, requireTogether: plan.requireTogether,
-        allowFallback: plan.allowFallback } : previous;
+        allowFallback: plan.allowFallback } : safe;
       setPrefs(initial);
       setTextOptions(Object.fromEntries(ctx.schema.fields.filter(f=>f.type==='ranked'&&!f.choices).map(f=>[f.id,(initial.options[f.id] as string[]).join('\n')])));
       setConsent(false); setCvv('');
@@ -99,7 +103,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
   return <div className="modal-backdrop"><div className="modal booking-modal" ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="booking-title">
     <div className="modal-top"><span className="eyebrow">{addon.name} · BOOKING PREFERENCES</span><button className="icon-button" aria-label="Close booking settings" onClick={() => { setCvv(''); onClose(); }}>×</button></div>
     <h2 id="booking-title">{event.title}</h2><p>Quantity, adjacency and total budget are required conditions. Ranked alternatives are used only when you allow them.</p>
-    <p className="settings-note">Cityline live options require its actual event booking form. Seat selection and payment pages are not yet verified and require manual attention.</p>
+    <p className="settings-note">Cityline live options require its actual event booking form. Seat selection and payment pages are not yet verified; real automatic checkout is disabled and payment remains manual.</p>
     {!directProviderUrl && <p className="rehearsal-note" role="note">The saved link is an event/promoter page, not a Cityline booking URL. Live options are unavailable until the direct official Cityline event link is saved. You can still try the offline demo below.</p>}
     <p className="settings-note">Offline demo uses fixed sample performances, prices, seats and simulated payment. It does not check availability or rehearse this actual concert.</p>
     <div className="booking-actions"><label>Cityline provider window<select value={windowId ?? ''} disabled={busy || active || !directProviderUrl} onChange={e=> { setWindowId(Number(e.target.value)||undefined); setContext(null); setPrefs(null); }}><option value="">Choose a window</option>{windows.map(w=><option key={w.id} value={w.id}>#{w.id} · {w.title || addon.name}</option>)}</select></label><button className="button button-outline" disabled={busy || active || !windowId || !directProviderUrl} title={!directProviderUrl ? 'A direct Cityline ticket URL is required to read real options.' : undefined} onClick={()=>read()}>Read live options</button><button className="button button-outline" disabled={busy || active} onClick={()=>read(true)}>Run offline demo</button></div>
@@ -118,7 +122,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
             })}</div>}
           </label>{field.hint && <p className="input-hint">{field.hint}</p>}
         </div>)}
-        <label>Checkout<select value={prefs.checkout} onChange={e=> { setPrefs({...prefs,checkout:e.target.value as 'review'|'automatic'}); setConsent(false); }}><option value="review">Confirm final order before payment</option><option value="automatic">Automatically pay within my conditions</option></select></label>
+        <label>Checkout<select value={prefs.checkout} onChange={e=> { setPrefs({...prefs,checkout:e.target.value as 'review'|'automatic'}); setConsent(false); }}><option value="review">Confirm final order before payment</option><option value="automatic" disabled={!context.rehearsal && addon.booking?.implementation.payment !== "verified"}>Automatic checkout (verified providers only)</option></select></label>
         {!context.rehearsal && <><label>Local payment card<select value={cardId} onChange={e=>setCardId(e.target.value)}><option value="">No card prepared</option>{cards.map(c=><option key={c.id} value={c.id}>{c.label} · •••• {c.last4}</option>)}</select></label>{cardId&&<label>CVV for this run<input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={cvv} onChange={e=>setCvv(e.target.value)}/><small>Kept in memory for up to 30 minutes. Cleared at completion, stop or failure.</small></label>}</>}
         {prefs.checkout==='automatic' && <label className="booking-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I authorize payment for this event, up to {prefs.currency} {(prefs.maxTotalMinor/currencyFactor(prefs.currency)).toFixed(currencyFactor(prefs.currency) === 1 ? 0 : 2)}, when all required conditions match.</label>}
       </fieldset>
