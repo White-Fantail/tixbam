@@ -153,3 +153,50 @@
 .next-ticket-drop-empty{color:#9c9aa9;background:#1d1d26;border:1px dashed #454150;padding:22px;border-radius:12px;font-size:12px}
 @media(max-width:1100px){.next-ticket-drop-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.next-ticket-drop{align-items:flex-start}.next-ticket-drop>.ticket-sale-status{order:2}.next-ticket-drop>.button{order:3}.sale-filter-toolbar>span{margin-left:0}}
+
+
+/* Ticket-first workflow: booking plans, rehearsal and live preparation. */
+.booking-hero{background:linear-gradient(118deg,#d6f992,#b6dcbb 58%,#d7c1f6);border-radius:20px;padding:37px 40px;color:#182019;margin-bottom:20px}
+.booking-hero .eyebrow{color:#495b34}.booking-hero h1{font:700 clamp(32px,4vw,54px)/1.08 'Space Grotesk',sans-serif;letter-spacing:-2px;margin:8px 0 12px}
+.booking-hero p{font-size:13px;line-height:1.65;max-width:520px;color:#3e4c3d;font-weight:650}
+.booking-hero .button-primary{background:#16241d;color:#efffdb;margin-top:8px}
+.booking-key-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:0 0 37px}
+.booking-key-actions>div{border:1px solid #393947;background:#1a1b27;padding:20px;display:flex;flex-direction:column;gap:9px;border-radius:14px}
+.booking-key-actions svg{color:#dbff91}.booking-key-actions strong{font-size:14px}.booking-key-actions span{font-size:11px;line-height:1.5;color:#aaa9bc}
+.booking-more-note{font-size:12px;color:#a5a4b5;margin:13px 0 0}
+.booking-plans-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.plan-card{min-width:0;display:grid;align-content:start;gap:16px;background:#1b1c29;border:1px solid #393949;border-radius:16px;padding:22px}
+.plan-card-top{display:flex;justify-content:space-between;gap:16px}.plan-card-top>svg{color:#d8ff83;flex:none}
+.plan-card h3{font:700 23px 'Space Grotesk',sans-serif;letter-spacing:-.6px;margin:0 0 4px}
+.plan-card p{font-size:12px;color:#bbbaca;line-height:1.45;margin:0}
+.plan-card small{font-size:10px;color:#b2b1c3;display:block;margin-top:8px}
+.plan-progress{display:grid;gap:7px}.plan-progress span{font-size:11px;color:#c0becc}
+.plan-progress progress{width:100%;height:7px;accent-color:#d9fa8d;border:0}
+.plan-actions{display:flex;gap:8px;flex-wrap:wrap}.plan-actions .button{padding:0 12px;min-height:36px;font-size:11px}
+.booking-plan-detail>.subtle-link{margin:0 0 22px}
+.booking-detail-columns{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(255px,1fr);align-items:start;gap:18px}
+.booking-detail-main,.booking-detail-side{display:grid;gap:16px;min-width:0}
+.booking-plan-detail .settings-panel{padding:22px;border-radius:15px;background:#191924;border:1px solid #393747;overflow:visible}
+.booking-plan-detail .settings-panel h3{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:17px}
+.booking-plan-detail .settings-panel>p{color:#b9b7c8;font-size:12px;line-height:1.65}
+.booking-plan-detail .settings-note{border:0;padding:10px 0;margin:0}
+.plan-checklist{display:grid;gap:11px;margin:22px 0}
+.plan-checklist>div{display:flex;align-items:center;gap:10px;color:#aaa8bb;font-size:12px}
+.plan-checklist .plan-check-yes{color:#d4f995}
+.booking-plan-detail .form-row label,.plan-notes{display:grid;gap:8px;font-size:12px;color:#e4e2ef;font-weight:700}
+.booking-plan-detail input:not([type=checkbox]),.booking-plan-detail textarea{width:100%;background:#23232f;border:1px solid #444353;border-radius:9px;color:#f5f3ff;padding:11px;font:inherit;color-scheme:dark}
+.booking-plan-detail input[type=checkbox],.practice-panel input[type=radio]{accent-color:#d7fc81}
+.plan-options{display:grid;gap:12px;margin:19px 0}.plan-options label{display:flex;align-items:center;gap:9px;font-size:12px;color:#d0cedd;line-height:1.4}
+.plan-notes{margin:16px 0}.booking-detail-side .button{width:100%;white-space:normal;margin-top:9px}
+.booking-detail-side .settings-note{margin-top:11px}
+.booking-plan-detail .rehearsal-note{display:flex;gap:8px;align-items:flex-start;font-size:11px;line-height:1.6}
+.plan-delete{width:100%;color:#e4a3a8}
+.practice-panel{background:#191d28;border:1px solid #677650;border-radius:17px;padding:24px;margin-top:22px}
+.practice-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.practice-header h3{font-size:21px}.practice-panel>p,.practice-stage p{color:#b4b4c2;font-size:12px;line-height:1.7}
+.practice-steps{font-size:10px;color:#daf9a1;letter-spacing:1px;font-weight:800;margin:23px 0 10px}
+.practice-stage{border-top:1px solid #353847;padding-top:19px}
+.practice-stage h4{font-size:17px;margin:0 0 8px}.practice-stage small{display:block;color:#f1cf98;margin-top:10px;font-size:11px}
+.practice-choices{display:grid;gap:12px;margin:19px 0}.practice-choices label{display:flex;align-items:center;gap:9px;background:#252838;border:1px solid #414557;border-radius:9px;padding:12px;font-size:12px}
+@media(max-width:1180px){.booking-plans-grid,.booking-detail-columns{grid-template-columns:1fr}}
+@media(max-width:660px){.booking-hero{padding:27px}.booking-key-actions{grid-template-columns:1fr}.booking-hero h1{font-size:32px}.plan-card{padding:17px}.booking-plan-detail .form-row{grid-template-columns:1fr}.booking-detail-side .button{width:100%}}
