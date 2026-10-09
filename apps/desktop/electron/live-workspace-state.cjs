@@ -33,7 +33,9 @@ function publicLocation(value) {
     return "Ticket site loading";
   }
 }
-function historyRow({ planId, providerId, phase, updatedAt, reason }) {
+function historyRow(value) {
+  if (!value || typeof value !== "object") return null;
+  const { planId, providerId, phase, updatedAt, reason } = value;
   if (!validPlanId(planId) || !/^[a-z0-9_-]{1,60}$/.test(providerId || "") ||
       !PHASES.includes(phase) || !Number.isFinite(updatedAt) ||
       !["interrupted", "closed"].includes(reason)) return null;
@@ -70,10 +72,14 @@ function mergeHistory(rows, entry, now = Date.now()) {
   const keep = rows.filter(row => !(next && row.planId === next.planId));
   return (next ? [...keep, next] : keep).filter(row => row.updatedAt > now - MAX_AGE_MS).slice(-MAX_HISTORY);
 }
+function findExistingPlanSession(entries, planId) {
+  const matches = entries.filter(entry => entry.planId === planId);
+  return matches.filter(entry => !entry.popup).at(-1) || matches.at(-1) || null;
+}
 function isSensitivePhase(phase) {
   return phase === "checkout" || phase === "verification";
 }
 module.exports = {
   PHASES, assertPlanId, assertPhase, publicLocation, validPlanId, readHistory,
-  writeHistory, mergeHistory, activeEntry, isSensitivePhase,
+  writeHistory, mergeHistory, activeEntry, isSensitivePhase, findExistingPlanSession,
 };
