@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import {
   ArrowRight, ArrowUpRight, Bell, CalendarDays, Check, ChevronRight,
   Clock3, ExternalLink, Globe2, Heart, LayoutDashboard, Layers3,
-  Link2, LockKeyhole, Monitor, Plus, Radio, Search, Settings2, ShieldCheck,
+  Link2, LockKeyhole, Monitor, Plus, Search, Settings2, ShieldCheck,
   Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
@@ -522,13 +522,6 @@ function App() {
     } finally { setCloudBusy(false); }
   }
 
-  async function addWatchItem(item: WatchEvent) {
-    if (account && window.tixbam) {
-      await window.tixbam.accountRequest("PUT", "/v1/me/watchlist/" + item.id, item);
-    }
-    setWatchlist(items => [item, ...items]);
-  }
-
   async function toggleAddon(addon: TicketAddon) {
     if (!window.tixbam) {
       inform("Install and remove add-ons in the desktop app.", true);
@@ -820,6 +813,12 @@ function App() {
                       </option>)}
                     </select>
                   </label>}
+                  {selectedSession && <button className="button button-outline" disabled={cloudBusy}
+                    aria-pressed={favoritePerformanceIds.includes(selectedSession.id)}
+                    onClick={() => void toggleSavedTarget("performance", selectedSession.id)}>
+                    <Heart size={14} fill={favoritePerformanceIds.includes(selectedSession.id) ? "currentColor" : "none"}/>
+                    {favoritePerformanceIds.includes(selectedSession.id) ? "Session saved" : "Save session"}
+                  </button>}
                   <div className="remote-sales">
                     {event.sales.length ? event.sales.map(sale => {
                       const eligible = !selectedSession || (sale.appliesToAll !== false ||
@@ -841,6 +840,12 @@ function App() {
                         <button className="button button-primary" disabled={!eligible || !active || !linkProvider || busy === sale.providerId}
                           title={linkedEventPage ? "Opens the " + linkProvider.name + " event page, not the ticket seller directly." : "Open official ticketing site"}
                           onClick={() => launchSaleLink(sale.providerId, sale.bookingUrl)}>{linkedEventPage ? "Event page" : "Open"}</button>
+                        <button className="button button-outline" disabled={cloudBusy}
+                          aria-label={favoriteSaleIds.includes(sale.id) ? "Unsave this ticket sale" : "Save this ticket sale"}
+                          aria-pressed={favoriteSaleIds.includes(sale.id)}
+                          onClick={() => void toggleSavedTarget("sale", sale.id)}>
+                          <Heart size={15} fill={favoriteSaleIds.includes(sale.id) ? "currentColor" : "none"}/>
+                        </button>
                       </div>;
                     }) : <span className="muted">Ticket sale details not published yet.</span>}
                   </div>
@@ -881,6 +886,25 @@ function App() {
                 <option value="week">Next 7 days</option>
               </select>
             </div>
+            {(favoriteArtistIds.length > 0 || favoritePerformanceIds.length > 0 || favoriteSaleIds.length > 0) && <section className="saved-favorites">
+              <h3><Heart size={18}/> Saved targets</h3>
+              <div className="favorite-events-grid">
+                {remoteArtists.filter(a => favoriteArtistIds.includes(a.id)).map(a =>
+                  <article key={a.id} className="favorite-event-card"><div><strong>{a.name}</strong><span>Artist</span></div>
+                    <button className="icon-button" aria-label={"Unfollow " + a.name} disabled={cloudBusy}
+                      onClick={() => void toggleFavorite("artists", a.id)}><Heart size={16} fill="currentColor"/></button></article>)}
+                {remoteEvents.flatMap(e => e.performances.filter(p => favoritePerformanceIds.includes(p.id)).map(p =>
+                  <article key={p.id} className="favorite-event-card"><div><strong>{e.artist} · {e.title}</strong>
+                    <span>{p.label || p.sessionKey} · {p.startsAt ? new Date(p.startsAt).toLocaleString() : "Date TBA"}</span></div>
+                    <button className="icon-button" aria-label="Remove saved session" disabled={cloudBusy}
+                      onClick={() => void toggleSavedTarget("performance", p.id)}><Heart size={16} fill="currentColor"/></button></article>))}
+                {remoteEvents.flatMap(e => e.sales.filter(sale => favoriteSaleIds.includes(sale.id)).map(sale =>
+                  <article key={sale.id} className="favorite-event-card"><div><strong>{e.artist} · {e.title}</strong>
+                    <span>{sale.saleType} · {sale.saleAt ? formatSaleLocalTime(sale.saleAt, sale.timezone) : "Sale TBA"}</span></div>
+                    <button className="icon-button" aria-label="Remove saved ticket sale" disabled={cloudBusy}
+                      onClick={() => void toggleSavedTarget("sale", sale.id)}><Heart size={16} fill="currentColor"/></button></article>))}
+              </div>
+            </section>}
             {favoriteEventIds.length > 0 && <section className="saved-favorites">
               <h3><Heart size={18} fill="currentColor" /> Favorite events <span>({favoriteRemoteEvents.length}{mySaleFilter !== "all" ? " of " + favoriteEventIds.length : ""})</span></h3>
               <div className="favorite-events-grid">{favoriteRemoteEvents.map(event => {
