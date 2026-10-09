@@ -2,7 +2,7 @@
  * AB-01 host-only capability decision. This intentionally cannot grant new
  * live autonomy: server flags, downloaded manifests and AI are not sufficient.
  */
-const catalog = require('../addons/catalog.json');
+const catalog = require('../../addons/catalog.json');
 
 // Locked to host-owned, locally reviewed adapter code, not downloaded metadata.
 const LOCAL_REVIEWED = Object.freeze({
