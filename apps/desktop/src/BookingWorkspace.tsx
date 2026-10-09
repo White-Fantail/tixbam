@@ -58,7 +58,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
     <div className="plan-actions">
       <button className="button button-outline" onClick={onSelect}><Settings2 size={15}/> Prepare</button>
       <button className="button button-outline" onClick={onPractice}><FlaskConical size={15}/> Rehearse</button>
-      <button className="button button-primary" onClick={onBook} disabled={!plan.bookingUrl}><ExternalLink size={15}/> Open tickets</button>
+      <button className="button button-primary" onClick={onBook} disabled={!plan.bookingUrl || !addon?.installed}><ExternalLink size={15}/> Open tickets</button>
     </div>
   </article>;
 }
@@ -288,7 +288,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       </div>
       <div className="settings-panel"><h3><TicketCheck size={19}/> Live booking</h3>
         <p>Open the official ticketing site. Login, queue entry and human verification remain under your control.</p>
-        <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing"}>
+        <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing" || !addon?.installed}>
           <ExternalLink size={16}/> Open official ticket link</button>
         {addon?.booking && <button className="button button-outline" onClick={() => onConfigure(draft)}
           disabled={!addon.installed || kind !== "direct"}>Provider options & automation</button>}
