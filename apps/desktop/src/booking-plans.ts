@@ -29,6 +29,12 @@ export interface BookingPlan {
 
 export const PLANS_KEY = "tixbam.booking-plans.v1";
 
+export function currencyForProvider(providerId: string): string {
+  return providerId === "cityline" ? "HKD" :
+    ["nol", "yes24"].includes(providerId) ? "KRW" :
+    providerId === "kktix" ? "TWD" : "USD";
+}
+
 export function currencyFactor(currency: string): number {
   // Zero-decimal currencies are stored as integer smallest units.
   return ["KRW", "JPY", "VND"].includes(currency) ? 1 : 100;
@@ -41,10 +47,7 @@ export function planFromWatch(item: WatchEvent): BookingPlan {
     providerId: item.providerId, bookingUrl: item.url || "",
     eventId: item.eventId || null, performanceId: item.performanceId || null, saleId: null,
     saleAt: item.saleAt || "", performanceAt: item.performanceAt || "", timezone: "",
-    quantity: 2, budgetMinor: 0,
-    currency: item.providerId === "cityline" ? "HKD" :
-      ["nol", "yes24"].includes(item.providerId) ? "KRW" :
-      item.providerId === "kktix" ? "TWD" : "USD",
+    quantity: 2, budgetMinor: 0, currency: currencyForProvider(item.providerId),
     requireTogether: true, allowFallback: true,
     preferencesReady: false, accountReady: false, paymentReady: false,
     lastRehearsalAt: null, notes: "",
