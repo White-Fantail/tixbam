@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock3, CreditCard,
   FlaskConical, Info, LockKeyhole, RefreshCw, ShieldAlert, Ticket, XCircle } from "lucide-react";
-import type { BookingPlan } from "../booking-plans";
+import type { RehearsalTarget } from "../types";
 import { currencyFactor } from "../booking-plans";
 import {
   CITYLINE_SCENARIOS, CITYLINE_STEPS, CITYLINE_PERFORMANCES, CITYLINE_DELIVERY,
@@ -39,7 +39,7 @@ function saveReport(planId: string, report: Report) {
 }
 
 export function CitylineRehearsal({ plan, onComplete, onClose }: {
-  plan: BookingPlan; onComplete: () => Promise<void>; onClose: () => void;
+  plan: RehearsalTarget; onComplete: () => Promise<void>; onClose: () => void;
 }) {
   const [scenarioId, setScenarioId] = useState("standard");
   const [practiceBudgetHkd, setPracticeBudgetHkd] = useState("");
