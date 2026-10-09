@@ -1057,7 +1057,17 @@ function App() {
         </div>
       </div>}
 
-      {bookingEvent && addons.some(a => a.id === bookingEvent.providerId) && <BookingPanel event={bookingEvent} addon={addons.find(a=>a.id===bookingEvent.providerId)!} windows={windows.filter(w=>w.providerId===bookingEvent.providerId)} onClose={()=>setBookingEvent(null)}/>}
+      {bookingEvent && addons.some(a => a.id === bookingEvent.providerId) && <BookingPanel
+        event={bookingEvent} addon={addons.find(a => a.id === bookingEvent.providerId)!}
+        windows={windows.filter(w => w.providerId === bookingEvent.providerId)}
+        plan={plans.find(p => p.id === bookingEvent.id)}
+        onPlanPreferencesSaved={async prefs => {
+          const plan = plans.find(p => p.id === bookingEvent.id);
+          if (plan) await upsertPlan({ ...plan, quantity: prefs.quantity, budgetMinor: prefs.maxTotalMinor,
+            currency: prefs.currency, requireTogether: prefs.requireTogether,
+            allowFallback: prefs.allowFallback, preferencesReady: true });
+        }}
+        onClose={() => setBookingEvent(null)}/>
       {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
