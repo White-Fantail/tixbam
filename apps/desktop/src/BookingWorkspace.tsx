@@ -57,13 +57,17 @@ function readiness(plan: BookingPlan, addons: TicketAddon[]) {
   return planChecks(plan, addonFor(addons, plan.providerId)?.allowedHosts || []);
 }
 
-function planSort(a: BookingPlan, b: BookingPlan) {
-  const at = saleTimestamp(a.saleAt);
-  const bt = saleTimestamp(b.saleAt);
-  if (at === null && bt === null) return b.updatedAt.localeCompare(a.updatedAt);
-  if (at === null) return 1;
-  if (bt === null) return -1;
-  return at - bt;
+function planSort(a: BookingPlan, b: BookingPlan, now: number) {
+  const pa = saleTimestamp(a.saleAt), pb = saleTimestamp(b.saleAt);
+  // Upcoming first, then recently opened, unannounced, and older sales.
+  const group = (time: number | null) => time === null ? 2 :
+    time > now ? 0 : time >= now - 86400000 ? 1 : 3;
+  const priority = group(pa) - group(pb);
+  if (priority) return priority;
+  if (pa !== null && pb !== null && pa !== pb) {
+    return group(pa) === 0 ? pa - pb : pb - pa;
+  }
+  return b.updatedAt.localeCompare(a.updatedAt);
 }
 
 function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
@@ -169,7 +173,7 @@ export function BookingDashboard({ plans, addons, now, onCreate, onSelect, onPra
   const upcoming = [...plans].filter(plan => {
     const sale = saleTimestamp(plan.saleAt);
     return sale === null || sale >= now - 86400000;
-  }).sort(planSort);
+  }).sort((a,b) => planSort(a,b,now));
   const featured = upcoming[0] || [...plans].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   return <section className="booking-dashboard">
     <div className="booking-hero"><span className="eyebrow">TIXBAM · TICKETING FIRST</span>
@@ -204,7 +208,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       <div className="section-heading"><div><div className="eyebrow">YOUR TICKET PURCHASE GOALS</div>
         <h2>My Bookings</h2><p>Every ticket drop has one place for preparation, rehearsal and live booking.</p>
       </div><button className="button button-primary" onClick={onCreate}><Plus size={16}/> New plan</button></div>
-      {plans.length ? <div className="booking-plans-grid">{[...plans].sort(planSort).map(plan =>
+      {plans.length ? <div className="booking-plans-grid">{[...plans].sort((a,b) => planSort(a,b,now)).map(plan =>
         <PlanCard key={plan.id} plan={plan} addons={addons} now={now}
           onSelect={() => onSelect(plan.id)}
           onPractice={() => { onSelect(plan.id); onPracticeId(plan.id); }}
