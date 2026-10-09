@@ -8,14 +8,14 @@ import {
 import { BookingPanel } from "./booking/BookingPanel";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
-import { BookingRunList } from "./booking/BookingRunList";
+import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { eventPerformanceStatus, formatSaleLocalTime, matchesSaleFilter, pickNextSale, type SaleFilter } from "./ticket-sales";
 import { formatFavoritePerformanceDate } from "./event-dates";
 import providerData from "../addons/catalog.json";
 import { getPublicData, initialApiUrl, type AuthMethods, type RemoteArtist, type RemoteEvent, type RemotePerformance, type RemoteAddon } from "./api";
-import type { CloudAccount, CloudSnapshot, Provider, TicketAddon, Section, TicketWindow, WatchEvent, AutomationSupportStatus } from "./types";
+import type { CloudAccount, CloudSnapshot, Provider, TicketAddon, Section, TicketWindow, WatchEvent, LivePhase, LiveHistory, AutomationSupportStatus } from "./types";
 
 const catalog = providerData as unknown as Omit<TicketAddon, "installed">[];
 const providers: Provider[] = catalog;
@@ -165,6 +165,7 @@ function App() {
   const [favoritePerformanceIds, setFavoritePerformanceIds] = useState<string[]>([]);
   const [favoriteSaleIds, setFavoriteSaleIds] = useState<string[]>([]);
   const [windows, setWindows] = useState<TicketWindow[]>([]);
+  const [liveHistory, setLiveHistory] = useState<LiveHistory[]>([]);
   const [addons, setAddons] = useState<TicketAddon[]>(() => catalog.map(p => ({ ...p, installed: true })));
   const [siteByProvider, setSiteByProvider] = useState<Record<string, string>>({});
   const installedIds = new Set(addons.filter(a => a.installed).map(a => a.id));
@@ -247,11 +248,15 @@ function App() {
   useEffect(() => {
     if (!window.tixbam) return;
     let mounted = true;
-    window.tixbam.listWindows().then((list) => {
-      if (mounted) setWindows(list);
-    }).catch(() => {});
-    const unsubscribe = window.tixbam.onWindowsChanged((list) => {
-      if (mounted) setWindows(list);
+    window.tixbam.listWindows().then(list => { if (mounted) setWindows(list); }).catch(() => {});
+    const refreshHistory = () => {
+      void window.tixbam?.listLiveHistory().then(list => {
+        if (mounted) setLiveHistory(list);
+      }).catch(() => { /* Live browser remains usable without recovery history. */ });
+    };
+    refreshHistory();
+    const unsubscribe = window.tixbam.onWindowsChanged(list => {
+      if (mounted) { setWindows(list); refreshHistory(); }
     });
     return () => { mounted = false; unsubscribe(); };
   }, []);
@@ -492,12 +497,46 @@ function App() {
     finally { setCloudBusy(false); }
   }
   function practicePlan(id: string) { setSelectedPlanId(id); setPracticePlanId(id); setSection("plans"); }
-  async function openPlanBooking(plan: BookingPlan) {
-    if (!plan.bookingUrl) { inform("Add an official booking URL first.", true); return; }
+  async function openPlanBooking(plan: BookingPlan): Promise<void> {
+    const target = saleUrlProvider(plan.providerId, plan.bookingUrl);
+    if (!target) { inform("A supported official ticket link is required. Review this plan.", true); return; }
+    if (!installedIds.has(target.id)) {
+      inform("Install the " + target.name + " add-on before opening this ticket site.", true);
+      setSection("providers"); return;
+    }
     if (!window.tixbam) { inform("Live booking requires the desktop app.", true); return; }
-    setSelectedPlanId(plan.id);
-    if (await launchSaleLink(plan.providerId, plan.bookingUrl)) setSection("sessions");
+    setBusy("plan-" + plan.id);
+    try {
+      const opened = await window.tixbam.openPlanWindow({
+        planId: plan.id, providerId: plan.providerId, url: plan.bookingUrl
+      });
+      setSelectedPlanId(plan.id);
+      setSection("sessions");
+      inform(opened.reused
+        ? "Existing ticketing window focused. No reload was performed; your current page was preserved."
+        : "Official ticketing window opened. Sign in and follow the provider's waiting room instructions.");
+    } catch (err) { inform(err instanceof Error ? err.message : "Could not open the ticket site.", true); }
+    finally { setBusy(""); }
   }
+  async function setLiveStage(windowId: number, phase: LivePhase): Promise<void> {
+    if (!window.tixbam) throw new Error("Live sessions require the desktop app.");
+    await window.tixbam.setLivePhase(windowId, phase);
+  }
+  async function dismissLiveReminder(planId: string): Promise<void> {
+    if (!window.tixbam) return;
+    setLiveHistory(await window.tixbam.dismissLiveHistory(planId));
+  }
+  async function focusLiveWindow(id: number): Promise<void> {
+    if (!window.tixbam) throw new Error("Desktop browser is unavailable.");
+    await window.tixbam.focusWindow(id);
+  }
+  async function closeLiveWindow(id: number): Promise<void> {
+    if (!window.tixbam) throw new Error("Desktop browser is unavailable.");
+    // The Electron host prompts even when users close the native window frame.
+    const didClose = await window.tixbam.closeWindow(id);
+    if (!didClose) inform("Browser remains open. Your session was preserved.");
+  }
+
   function configurePlan(plan: BookingPlan) {
     const addon = addons.find(item => item.id === plan.providerId);
     if (!addon?.booking) { inform("Provider-specific booking options are not verified yet.", true); return; }
@@ -780,6 +819,10 @@ function App() {
         <header className="topbar">
           <div className="breadcrumb"><span>WORKSPACE</span><ChevronRight size={14} /><strong>{navItems.find((item) => item.id === section)?.label}</strong></div>
           <div className="top-actions">
+            {windows.some(win => Boolean(win.planId) && !win.popup) && section !== "sessions" &&
+              <button className="live-return-button" onClick={() => setSection("sessions")}>
+                <Monitor size={15}/> Return to Live Booking
+              </button>}
             <div className="top-time"><Clock3 size={14} />{localClock}<span>{localZone}</span></div>
             <span className="top-divider" />
             <span className="preview-tag"><span /> PROTOTYPE V0.1</span>
@@ -1005,22 +1048,13 @@ function App() {
               </div> : null}
           </>}
 
-          {section === "sessions" && <>
-             {selectedPlanId && plans.some(p => p.id === selectedPlanId) && <div className="remote-banner"><Ticket size={16}/> Ticketing target: {plans.find(p => p.id === selectedPlanId)?.artist} — {plans.find(p => p.id === selectedPlanId)?.title}<button onClick={() => setSection("plans")}>Back to plan <ArrowRight size={14}/></button></div>}
-            <SectionHeading eyebrow="THE CONTROL ROOM" title="Live windows" description="Manage the ticketing browsers you have opened."
-              action={<span className="counter-badge"><span className="tiny-green-dot" />{windows.length} / {MAX_WINDOWS} WINDOWS OPEN</span>} />
-            <div className="desktop-explainer"><div className="desktop-explainer-icon"><Monitor size={23} /></div><div><strong>{desktop ? "Each window is a real ticketing browser." : "Live ticketing windows require the desktop app."}</strong><p>Windows for the same provider share sign-in cookies. Keep track of provider queues yourself; opening more windows does not create extra queue positions.</p></div><button onClick={() => setSection("providers")}>Open a provider <ArrowUpRight size={17} /></button></div>
-            <BookingRunList />
-            {windows.length ? <div className="session-list">
-              {windows.map((item) => {
-                const provider = providerFor(item.providerId);
-                if (!provider) return null;
-                return <div key={item.id} className="session-row"><ProviderMark provider={provider} /><div className="session-meta"><strong>{provider.name} <span>· Window #{item.id}</span></strong><p title={item.url}>{item.title || item.url || provider.url}</p></div><span className={"session-state" + (item.loading ? " is-loading" : "")}><span />{item.loading ? "LOADING" : "OPEN"}</span>{provider.kind === "event-presale" && <button className="button button-outline" onClick={() => handoffToTicketAgent(item.id)}><ArrowRight size={15} /> Ticket agent</button>}<button className="button button-outline" onClick={() => controlWindow("focus", item.id)}><ExternalLink size={15} /> Focus</button><button className="icon-button" aria-label={"Close window " + item.id} onClick={() => controlWindow("close", item.id)}><X size={18} /></button></div>;
-              })}
-            </div> : <div className="empty-state sessions-empty"><div className="empty-icon"><Layers3 size={31} /></div><h3>No active windows yet.</h3><p>Open a provider to start a manual ticketing session. Your sign-in storage is kept separately for each provider.</p><button className="button button-primary" onClick={() => setSection("providers")}>Browse providers <ArrowRight size={16} /></button></div>}
-            <div className="session-footnote"><LockKeyhole size={17} /> Windows are local to this device. Passwords and verification stay in the provider window. Saved cards are encrypted locally and used only for prepared booking runs.</div>
-          </>}
-
+          {section === "sessions" && <LiveBookingWorkspace
+            plans={plans} windows={windows} addons={addons} history={liveHistory}
+            selectedPlanId={selectedPlanId} onSelectPlan={setSelectedPlanId}
+            onBackToPlan={id => { setSelectedPlanId(id); setSection("plans"); }}
+            onStart={openPlanBooking} onFocus={focusLiveWindow} onClose={closeLiveWindow}
+            onPhase={setLiveStage} onDismissHistory={dismissLiveReminder}
+            onTicketAgent={handoffToTicketAgent}/>}
           {section === "providers" && <>
             {remoteAddons.length > 0 && <div className="remote-banner"><Globe2 size={17}/><span>Server registry connected. {remoteAddons.filter(remote => { const local = addons.find(a => a.id === remote.id); return local && local.version !== remote.version; }).length} version updates available as metadata. Remote executable installation is not enabled yet.</span></div>}
 
