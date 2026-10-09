@@ -39,7 +39,14 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     if (!safeStorage.isEncryptionAvailable()) throw new Error("Encrypted account storage is unavailable on this device.");
     const bytes = safeStorage.encryptString(JSON.stringify(session));
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, bytes, { mode: 0o600 });
+    const tempFile = file + ".tmp";
+    try {
+      fs.writeFileSync(tempFile, bytes, { mode: 0o600 });
+      fs.renameSync(tempFile, file);
+    } catch (error) {
+      try { fs.unlinkSync(tempFile); } catch { /* Ignore missing temporary file. */ }
+      throw error;
+    }
   }
   function load() {
     if (session) return session;
