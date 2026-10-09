@@ -6,7 +6,7 @@ import {
   Sparkles, Star, Ticket, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { BookingPanel } from "./booking/BookingPanel";
-import { LANGUAGES, useLanguage, tx, localDate } from "./i18n";
+import { LANGUAGES, useLanguage, tx } from "./i18n";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
@@ -1109,6 +1109,18 @@ function App() {
           {section === "settings" && <>
             <SectionHeading eyebrow="MAKE IT YOURS" title="Settings & privacy" description="A transparent look at what TIXBAM stores and how it works." />
             <div className="settings-grid"><div className="settings-main">
+               <div className="settings-panel language-settings">
+                 <div className="settings-panel-title"><Globe2 size={20}/><div>
+                   <h3>{tx("App language")}</h3>
+                   <p>{tx("The language changes immediately and is saved on this device.")}</p>
+                 </div></div>
+                 <div className="language-switcher" role="group" aria-label={tx("Display language")}>
+                   {LANGUAGES.map(option => <button key={option.code} type="button"
+                     aria-pressed={language === option.code}
+                     className={"button " + (language === option.code ? "button-primary" : "button-outline")}
+                     onClick={() => setLanguage(option.code)}>{option.nativeName}</button>)}
+                 </div>
+               </div>
                <div className="settings-panel account-panel">
                  <div className="settings-panel-title"><UserRound size={20}/><div><h3>TIXBAM account</h3><p>{account ? "Your artist favorites, event favorites and watchlist sync to the cloud." : "Sign in to save favorites and events to your account."}</p></div></div>
                  {account ? <>
