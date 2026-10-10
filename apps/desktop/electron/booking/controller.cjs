@@ -7,10 +7,12 @@ const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
 const { BookingRunner, TERMINAL } = require('./runner.cjs');
 const { resolveOfficialSaleUrl } = require('../security.cjs');
 const { assertBookingWindow } = require('./window-binding.cjs');
+const { ObservationPipeline } = require('./observation.cjs');
 function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send }) {
   const vault = new CardVault(path.join(app.getPath('userData'), 'cards.enc'), safeStorage);
   const preferences = new PreferenceStore(path.join(app.getPath('userData'), 'booking-preferences.json'));
   const contexts = new Map(), runs = new Map();
+  const observations = new ObservationPipeline();
   function emit(state) {
     send('tixbam:booking-changed', state);
     if (['awaiting_user', 'review', 'completed', 'payment_unknown', 'failed'].includes(state.status) && Notification.isSupported()) {
@@ -52,6 +54,12 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
       adapter = new CitylineAdapter(entry.win.webContents, addon, key, currentEventId);
       page = await adapter.read();
       if (page.challenge || page.stage !== 'options') throw new Error(page.challenge || 'Performance and price options are not visible. Open the booking form first.');
+      observations.watchWindow({
+        windowId,webContents:entry.win.webContents,providerId,planId:planId||null,
+        expectedEventId:currentEventId,allowedHosts:addon.allowedHosts,
+        eventQueryParam:'event',pathSuffix:'/eventDetail'
+      });
+      observations.noteRead({windowId,providerId,page});
     }
     if ([...runs.values()].some(r => r.state.eventKey === key && !TERMINAL.has(r.state.status))) throw new Error('This event already has an active booking. Manage it in Live windows.');
     const schema = schemaFor(addon, page);
@@ -98,7 +106,9 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     else if (cardId) secret = new RunSecret(vault.unlock(cardId), cvv);
     else if (prefs.checkout === 'automatic') throw new Error('Choose a local card and enter its security code before starting automatic checkout.');
     const adapter = ctx.rehearsal ? new RehearsalAdapter(ctx.eventKey, prefs) : ctx.adapter;
-    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow });
+    const onPageRead=ctx.rehearsal?null:(page,state)=>
+      observations.noteRead({windowId:ctx.windowId,providerId:ctx.providerId,page,runId:state.id});
+    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow, onPageRead });
     // Provider-neutral, non-secret AI context. No cards, CVV, cookies or page content.
     runner.setMetadata({
       providerId: ctx.providerId,
@@ -128,8 +138,8 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   });
   handle('stop-booking', id => { const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.'); runner.stop(); return runner.state; });
   const timer = setInterval(() => { for (const r of runs.values()) if (r.state.status === 'running') void r.step(); }, 2000);
-  const stopAll = () => { for (const r of runs.values()) if (!TERMINAL.has(r.state.status)) r.stop(); };
+  const stopAll = () => { for (const r of runs.values()) if (!TERMINAL.has(r.state.status)) r.stop(); observations.invalidateAll(); };
   app.on('before-quit', () => { clearInterval(timer); stopAll(); });
-  return { stopAll, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
+  return { stopAll, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { observations.unwatchWindow(id); for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
 }
 module.exports = { registerBooking };

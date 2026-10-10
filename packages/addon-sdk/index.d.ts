@@ -167,3 +167,37 @@ export interface IssuedActionSnapshotV1 {
   observedAtMs: number; expiresAtMs: number;
   handles: ReadonlyArray<{ref:string;kind:'performance'|'price_tier'|'offer'|'delivery'|'navigation'}>;
 }
+
+
+/** AB-04 observational types; these interfaces are host-private and
+ * MUST NOT be sent to OpenRouter verbatim or exposed by renderer IPC.
+ * Page labels / DOM / hidden fields / screenshots never enter AIObservationV1.
+ */
+export type ObservationChallenge =
+  | 'none' | 'captcha' | 'queue' | 'login' | '3ds' | 'consent' | 'unknown';
+export type ObservationTargetKind =
+  | 'performance' | 'price_tier' | 'offer' | 'delivery' | 'navigation';
+export interface HostObservationV1 {
+  schemaVersion: 1;
+  snapshotId: string; runId: string; accountId: string; planId: string;
+  windowId: number; providerId: string; providerEventId: string | null;
+  pageGeneration: number;
+  stage: ProposedPageStage; challenge: ObservationChallenge;
+  observedAtMs: number; expiresAtMs: number;
+  trustedSource: 'verified_adapter' | 'official_api' | 'observed_only' | 'unknown';
+  confidence: 'verified' | 'partial' | 'unknown';
+  handles: ReadonlyArray<{ ref:string;kind:ObservationTargetKind;label:string;available:boolean }>;
+  orderSummary: null | {
+    ticketCount: number | null; currency: string | null;
+    allInTotalMinor: number | null; feesIncluded: boolean; merchantVerified: false;
+  };
+}
+export interface AIObservationV1 {
+  schemaVersion:1;
+  stage:ProposedPageStage;
+  challenge:ObservationChallenge;
+  confidence:'verified' | 'partial' | 'unknown';
+  optionCounts:Readonly<Record<ObservationTargetKind,number>>;
+  /** Task-local opaque token, not an ActionValidator ref, DOM ID or booking identity. */
+  targets:ReadonlyArray<{token:string;kind:ObservationTargetKind}>;
+}

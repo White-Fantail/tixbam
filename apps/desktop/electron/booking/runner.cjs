@@ -15,8 +15,9 @@ const FAIL_POST = 'Payment outcome is unknown. Check the provider order history;
  */
 class BookingRunner {
   constructor({adapter, preferences, eventKey, windowId, secret,
-               notify, payment = null, rehearsal = false, assertWindow = null}) {
+               notify, payment = null, rehearsal = false, assertWindow = null, onPageRead = null}) {
     this.adapter = adapter;
+    this.onPageRead = onPageRead;
     this.payment = payment;
     this.preferences = structuredClone(preferences);
     this.secret = secret;
@@ -52,6 +53,7 @@ class BookingRunner {
       if (!handle) return;
       const page = await this.adapter.read({signal:handle.signal});
       if (!this.orchestrator.check(handle)) return;
+      if (this.onPageRead) this.onPageRead(page, this.state);
       const extra = ['options','offers','payment','confirmation','unknown'].includes(page?.stage)
         ? {aiPageStage:page.stage} : {};
       this.orchestrator.transition('OBSERVED', 'Evaluating booking page.', extra);
@@ -142,6 +144,7 @@ class BookingRunner {
         if (!this.orchestrator.check(handle)) return;
         const fresh = await this.adapter.read({signal:handle.signal});
         if (!this.orchestrator.check(handle)) return;
+        if (this.onPageRead) this.onPageRead(fresh, this.state);
         if (fresh?.eventKey !== this.state.eventKey || fresh.challenge ||
             fresh.stage !== 'payment' || !validOrder(fresh.order, this.preferences, this.expected)) {
           this.orchestrator.transition('NEED_USER', 'The payment page changed. Review the provider window.');
