@@ -161,6 +161,15 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** windows concurrent, stale IPC sender, app crash + lease timeout, account switch.
 **Do not:** lease expiry를 결제 재제출 근거로 사용.
 
+**완료 기록 (2026-10-10):**
+- FastAPI: purchase_intent_leases 테이블과 인증된 /v1/me/automation/leases/acquire, renew, release, claim, GET 구현. 소유자 계정의 등록 Booking Plan, 업체, 판매 및 연결된 회차 검증. 브라우저 쿠키·카드·세션·주문 원문은 서버에 저장하지 않음.
+- DB에서 user/provider/sale/performance 유니크 키와 compare-and-swap을 사용. 결제 전 만료 lease만 takeover 가능하며 fencingToken 단조 증가. 이전 owner/lease token/fencing 번호의 renew/release/claim은 거부.
+- 서버 claim은 영구 claimed 상태: 임대 만료 또는 앱 재실행 시에도 새 결제 시도 불허. 구매 전 서버 claim 확인 -> AB-05 로컬 fsync -> 결제 실행 순서. 실패하거나 응답이 불분명하면 자동 재시도 금지.
+- Desktop SessionCoordinator: 창+실제 공연/판매 단위 단일 소유권, 비동기 중복 시작 차단, 45초 lease/갱신, Stop/계정 전환/창 닫힘 시 무효화. 인증된 계정의 Booking Plan을 매번 온라인 조회. 서버 장애/불일치 시 자동 수행 중단, 실제 사이트 수동 이용만 가능. 큐/로그인 브라우저 창은 닫지 않음.
+- 기존 오프라인 리허설은 로컬에서 동작하며 서버 lease가 필요하지 않음. 운영 환경의 무인 자동 결제는 계속 차단.
+- 검증: 다중 창/기기 간 중복, 사용자 격리, 다른 공연의 독립 소유권, stale fencing, lease 만료 takeover, 서버 claim 고정, 네트워크 장애, 동시 시작, 중단·후행 응답, 기존 리허설 회귀.
+- 한계: 동일 TixBam 사용자 계정의 자동 실행만 조정. 다른 계정이나 예매처에서 직접 구매하는 행위는 막지 못함. 네트워크 분할 시 판매처 수준 exactly-once를 보장하지 않으며 결제 결과 검증은 AB-14 책임.
+
 ## AB-07 — 모든 애드온 공통 오프라인 리허설
 
 **명령:** "AB-07 구현해. 검증된 Action/FSM을 사용하는 공통 Rehearsal Driver를 만들어."
@@ -262,14 +271,14 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-05 완료 (dev) · AB-06 다음 단계**. 라이브 자율 결제는 비활성.
+- 현 단계: **AB-01~AB-06 완료 (dev) · AB-07 다음 단계**. 라이브 자율 결제는 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
   - [x] AB-03 Action Validator — `9a0563b` (strict proposals/host registry, rehearsal mock & regression verified)
   - [x] AB-04 Observation — `9c531b8` (redacted, navigation-aware host snapshots; CI verified)
   - [x] AB-05 Journal — `53086d9` (durable write-ahead ledger, restart recovery, CI verified)
-  - [ ] AB-06 Session Coordinator
+  - [x] AB-06 Session Coordinator — server leases, fencing and host window ownership
   - [ ] AB-07 Offline Rehearsal
   - [ ] AB-08 AI Planner
   - [ ] AB-09 Recovery Engine
@@ -280,4 +289,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-06 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-07 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

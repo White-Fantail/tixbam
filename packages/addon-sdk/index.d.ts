@@ -224,3 +224,14 @@ export interface RecoveredPurchaseAttemptV1 {
   eventKey:'unverified';rehearsal:boolean;
   message:string;startedAt:number;storageRecovered:true;
 }
+
+
+/** AB-06: browser-private cloud coordination status, not payment permission. */
+export interface BookingLeaseStatusV1 {
+  leaseId:string;providerId:string;saleId:string;performanceId:string;
+  fencingToken:number;status:'leased'|'claimed';expiresAt:string;
+  claimedAt:string|null;autonomousCheckoutAvailable:false;
+}
+export interface BookingLeaseAcquireV1 extends BookingLeaseStatusV1 {
+  leaseToken:string;leaseSeconds:number;
+}

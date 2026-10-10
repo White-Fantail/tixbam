@@ -253,7 +253,11 @@ Rules:
 
 Property-based tests may generate near-boundary quantities, currencies and repeated transitions. Include deterministic fixtures and mock payment; do not use an actual ticket purchase to satisfy CI.
 
-## G. API and DB migration sketch (no code yet)
+## G. API and DB — AB-06 leases
+
+**AB-06 implemented (2026-10-10):** Authenticated lease endpoints enforce a unique user/provider/sale/performance scope, registered ownership and monotonic fencing token. Renew/release/claim use SQL compare-and-swap. Only unclaimed expired leases can be acquired again. A server payment claim is irreversible and must be acknowledged before the local AB-05 fsync record; an ambiguous claim is not retried. Electron SessionCoordinator owns the browser window and lease token. Offline rehearsal remains local. No live AI payment capability or vendor authorization is granted by lease issuance.
+
+
 
 API added through FastAPI routers, preserving existing /v1/admin/ai/tasks and /v1/ai/advice:
 - GET /v1/automation/capabilities (minimal UI metadata; user identity when personalized)

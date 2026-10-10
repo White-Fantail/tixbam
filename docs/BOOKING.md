@@ -33,6 +33,13 @@ CVV is never persisted. It is entered once when preparing a run and kept with th
 
 Actual card details are unnecessary for rehearsal. This release's live Cityline payment service is unavailable, even if a card has been prepared.
 
+## AB-06 Multi-window and multi-device coordination
+
+Live automated selection requires a host-owned window, current signed-in account, registered Booking Plan, verified sale/performance and an authenticated server lease. The host reserves local execution ownership before asynchronous acquisition, prevents other windows from using the same run target, and periodically renews a 45-second lease. Invalid identity, remote outage, stale fencing, failure to renew, and changed browser ownership abort automation without closing the official queue/login browser window. Rehearsals remain offline.
+
+The API has a unique user/provider/sale/performance lease with monotonically increasing fencing token. Expired **pre-commit** leases can be taken over only via conditional database updates. A server-side claim is permanent even after lease expiry or crash. Every live purchase commit would require acknowledgement of this cloud claim followed by the AB-05 fsynced local journal before any actual payment call. Lost claim responses never justify retrying payment. The cloud lease is a coordination mechanism, not permission to buy; actual live autonomous purchasing remains disabled. Official order reconciliation belongs to AB-14.
+
+Different TixBam user accounts and manual provider-site purchases cannot be deduplicated by this mechanism. No cards, CVV, provider browser sessions or full order details are synchronized.
 ## AB-05 Durable Booking Journal and purchase safety
 
 The Electron main process owns `booking/journal.cjs` and `booking/payment-attempts.cjs`, creating an append-only v1 Journal under the application's local userData `booking-safety/` directory. Every real payment attempt is required to write an exclusive, fsynced `COMMIT_INTENT_RECORDED` before a payment executor is called. The journal stores a sequential integrity hash chain and HMAC digests of allowed purchase data; no payment card, CVV, OTP, raw personal information, seat/order links or provider cookies are written. On POSIX systems the local journal uses 0700 directory / 0600 files.
