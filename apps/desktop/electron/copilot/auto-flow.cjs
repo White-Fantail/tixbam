@@ -25,7 +25,9 @@ function actionPermission({session,entry,addon,target,developerEnabled,now=Date.
   if(entry.phase==='preparing'){
     if(target.kind!=='continue' || target.confidence<ENTRY_CONFIDENCE)
       return {allowed:false,reason:'Only a clearly identified booking-entry control is eligible during preparation.'};
-  }else if(entry.phase!=='selecting' || !DEV_CLICK_KINDS.includes(target.kind)){
+  }else if(entry.phase!=='selecting' ||
+           (target.kind!=='continue' && !DEV_CLICK_KINDS.includes(target.kind)) ||
+           (target.kind==='continue' && target.confidence<ENTRY_CONFIDENCE)){
     return {allowed:false,reason:'User must handle this step; checkout and payment are never automatic.'};
   }
   if(session.mode==='dev_single_click' || session.mode==='dev_flow'){
