@@ -3,7 +3,6 @@ const { contextBridge, ipcRenderer } = require("electron");
 // account requests, arbitrary filesystem/network access and booking runner.
 contextBridge.exposeInMainWorld("tixbamRehearsal", {
   getLanguage: () => ipcRenderer.invoke("tixbam:language-get"),
-  setLanguage: code => ipcRenderer.invoke("tixbam:language-set", code),
   onLanguageChanged: listener => {
     const handler = (_event, code) => listener(code);
     ipcRenderer.on("tixbam:language-changed", handler);

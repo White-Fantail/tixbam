@@ -95,7 +95,6 @@ export interface RehearsalBridge {
   labRestart:()=>Promise<RehearsalLabState>;
   labReviewUnknown:(outcome:'reported_paid'|'reported_not_paid'|'inconclusive',confirmed:boolean)=>Promise<RehearsalLabState>;
   getLanguage: () => Promise<"ko" | "en">;
-  setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
   onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;
   getContext: () => Promise<RehearsalTarget>;
   aiAdvice: (input: AIAdvisoryRequest) => Promise<AIAdvisoryResponse>;

@@ -342,8 +342,8 @@ app.whenReady().then(() => {
     return desktopLanguage;
   });
   ipcMain.handle("tixbam:language-set", (event, code) => {
-    if (event.sender === dashboard?.webContents) dashboardOnly(event);
-    else rehearsalEntry(event);
+    // The main app owns the language preference. Rehearsal windows only read it.
+    dashboardOnly(event);
     if (code !== "ko" && code !== "en") throw new Error("Unsupported language.");
     desktopLanguage = persistLanguage(app.getPath("userData"), code);
     notifyLanguage();
