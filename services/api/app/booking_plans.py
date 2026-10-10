@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, StrictBool
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -37,10 +37,10 @@ class SeatSelections(BaseModel):
 
 class SeatConsent(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    allowRestrictedView: bool = False
-    allowRealName: bool = False
-    allowAgeRestricted: bool = False
-    allowAccessibilityRestricted: bool = False
+    allowRestrictedView: StrictBool = False
+    allowRealName: StrictBool = False
+    allowAgeRestricted: StrictBool = False
+    allowAccessibilityRestricted: StrictBool = False
     allowedExtraIds: list[str] = Field(default_factory=list, max_length=20)
 
     @field_validator("allowedExtraIds")

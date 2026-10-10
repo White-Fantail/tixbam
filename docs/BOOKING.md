@@ -130,3 +130,13 @@ The host `offer-policy.cjs` normalizes legacy v1 and strict v2 seat offers acros
 Before ranking, the host excludes incompatible event/provider/performance, quantity, budget, currency, mode, seat adjacency, unresolved automatic allocation, mandatory consent, restricted view and unapproved optional extras. Remaining offers are ranked deterministically by explicitly ordered price tier, section and floor before all-in amount. Final order verification compares the entire canonical purchase fingerprint, rejecting new fees, extras, seats, mode or seller even if the headline total is unchanged.
 
 `chooseOffer` and `validOrder` still accept existing v1 Cityline/BookingRunner inputs, but the new verified rehearsal simulator uses strict v2 evidence. This does not enable live provider seat mapping, official cart mutation or autonomous payment. See [Rehearsal Lab guide](REHEARSAL_LAB.md).
+
+## AB-11 Desktop booking preferences & explicit review consent
+
+The Booking Plan editor now exposes **price tier/section/floor ranking**, assigned/standing/automatic seating, ticket fulfillment, exact all-in budget and quantity/adjacency/fallback rules. Restricted-view, real-name, age/accessibility restrictions and optional-extra allowlists are **separate, unchecked by default**. Editing any of these rules invalidates the plan's prepared status.
+
+Optional `seatPreferences`/`terms` are serialized into signed-in account Booking Plans and guest plans. Server validation enforces typed booleans, duplicate-free bounded lists and strict field allowlists. No card, CVV, queue session or bank challenge is uploaded. The Cityline options panel loads plan choices through the provider's actual available options and persists the approved policy, not arbitrary HTML.
+
+The booking review screen and the live control room show the *current* order conditions and demand a new user checkbox before each review continuation. The check is bound to the exact order, expires after **60 seconds**, and is removed after use. The host still re-reads and validates the exact order through AB-10 before any allowed fixture submission. An unknown payment prevents another UI start while provider order history is being verified. CAPTCHA, 3DS and queue remain manual.
+
+**Provider live checkout remains manual/supervised only**. Automatic checkout is not offered for real providers, even if an add-on describes a pending payment integration. The review checkbox does not create a production purchase permit or bypass AB-01 provider policy. A real consent/permit and payment integration require AB-12–AB-14.

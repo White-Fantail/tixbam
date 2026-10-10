@@ -77,3 +77,9 @@ Run a normal, standing or automatic-seating drill to review a fully validated mo
 The host ranks only *eligible* candidates. It uses ordered price tier, section and floor preferences before the cheapest all-in total, then a stable ID tie-break. The preference fallback flag is never bypassed by AI. Standing group admission uses an explicitly identified GA area rather than requiring numbered adjacent seats; assigned seats require exact seat references; automatically assigned seats require verified allocation and exact final seats before a payment could be contemplated.
 
 Consent for risky visibility, identity/age/accessibility requirements and optional extras must be explicitly provided in the host booking plan. Those permissions default to false and are not inferred from model advice or provider page labels. The extra consent UI is an AB-11 follow-up.
+
+## AB-11 explicit review before mock checkout
+
+In the separate Safety Stress Lab window, the final synthetic order review now requires an unchecked confirmation of ticket quantity and all-in amount. The **Approve reviewed MOCK order** button remains disabled until the user marks this checkbox. Advancing or restarting a drill resets the approval state.
+
+The main Desktop Booking Plan also supports optional per-seat priorities (price tier, section, floor), designated standing/assigned/automatic allocation modes, and **unchecked** restricted-view/real-name/age/accessibility and extras consents. Those values are stored for later verified booking contexts, not inferred from model output. The Stress Lab still uses isolated synthetic seller/fee fixtures; its results are not provider seat availability or proof of payment.

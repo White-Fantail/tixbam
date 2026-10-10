@@ -267,6 +267,17 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** renderer type/build, consent expiry, challenge/3DS, closing app during payment, signout, screen reader labels.
 **Do not:** accept unchecked prefilled unconditional consent.
 
+**완료 기록 (2026-10-10):**
+- Desktop `BookingPlansWorkspace`에 가격 등급·구역·층 우선순위, 지정석/스탠딩/자동 배정, 수령 방식, 시야 제한/실명/연령/접근성 제한과 선택형 추가 상품 ID의 **개별 명시 동의**를 추가. 기본값은 모두 미동의. 수량·예산·좌석·동의 변경 시 `preferencesReady=false`로 재설정.
+- `BookingPlan`의 선택적 `seatPreferences`/`terms`를 기존 guest 저장 및 로그인 계정 `/v1/me/plans/{planId}` JSON payload에 연결. Pydantic `extra=forbid`, StrictBool, 중복/잘못된 ID 거부; 이전 계획/오래된 클라이언트와 호환. 카드/CVV/웹 세션은 클라우드에 저장하지 않음.
+- `BookingPanel`은 계획 우선순위 및 위험 조건을 안전하게 불러와 `BookingPreferences`에 반영하고, 예매처의 실제 선택 가능한 옵션만 허용. Save Preferences는 사용자 계획에도 반영. 라이브 checkout은 **review 모드만 표시**하고 자동 checkout은 오프라인 리허설에서만 선택 가능.
+- `BookingPanel`, `LiveBookingWorkspace`: 실제 `review` 주문의 수량·총액·좌석·등급·시야·실명·추가 상품·확인 가능한 수수료 등을 먼저 보여줌. 별도 미체크 사용자 승인 체크가 있어야 다음 버튼 활성화. 주문 세부사항 변경 또는 60초 경과 시 승인 무효화. 1회 사용 후 삭제. API/Host가 실제 페이지를 재조회하여 AB-10 가격·조건 일치를 재검증하며, 미확인 결제는 재시작 차단/공식 구매 내역 확인 안내.
+- Live 컨트롤룸에 저장된 좌석·동의 조건 요약, 수동/검토된 보조 모드 안내, 제공업체 허가 전 무인 결제 비활성 명시. 기존 프로세스/시간 순서·대기열/CAPTCHA/3DS 사용자 인계는 유지.
+- 별도 Stress Lab에서도 최종 모의 주문에 사용자 체크와 수동 승인 버튼을 추가. 기존 결제/복구 상태 기계와 가상 저널을 유지하며 공식 예매처에 구매 요청하지 않음.
+- Desktop 기본 한국어 + 영어 전환을 위해 새 필드/경고/승인 문구의 `tx` 번역을 추가, screen-reader용 fieldset/legend/label, 명시적 disabled 상태, 모바일 좁은 폭 1열 CSS 제공. 사용자 대상 AI 모델 선택 설정 없음.
+- **범위 제한:** AB-11은 사용자의 의도/동의 입력 UX와 비가역적 구매 전 한 번 더 확인하는 표시 계층. 공식 제공업체 권한 검증, 실제 유료 결제 실행, 서명된 conditional-auto 구매 허가는 활성화하지 않음. AB-12/13/14 검증 전에 라이브 자동 결제 허용 금지.
+
+
 ## AB-12 — 제공업체 Adapter 인증 절차와 템플릿
 
 **명령:** "AB-12 구현해. 새로운 티켓팅 애드온을 인증된 capability 단위로 추가할 수 있는 도구·테스트 템플릿을 만들어."
@@ -313,7 +324,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-10 완료 (dev) · AB-11 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-11 완료 (dev) · AB-12 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -325,10 +336,10 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-08 AI Planner — strict OpenRouter proposal-only pipeline, privacy and quota, rehearsal manual trigger (CI verified)
   - [x] AB-09 Recovery Engine — explicit rehearsal approval, fresh host validation, one-shot synthetic selection/reobserve, deadline & loop guard (CI verified)
   - [x] AB-10 Seat/Offer Policy — strict all-in fee normalization, deterministic seat ranking, v1 compatibility and 17 offline drills (CI verified)
-  - [ ] AB-11 Desktop UX
+  - [x] AB-11 Desktop UX — Korean/English seat/consent, plan sync, one-shot final review, offline mock consent (CI verified)
   - [ ] AB-12 Provider Onboarding
   - [ ] AB-13 Gated Payment Executor (mock)
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-11 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-12 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

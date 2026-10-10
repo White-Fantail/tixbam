@@ -63,6 +63,13 @@ export function LiveBookingWorkspace({
   const [runs, setRuns] = useState<BookingRun[]>([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [reviewApprovals,setReviewApprovals]=useState<Record<string,{signature:string;at:number}>>({});
+  const reviewKey=(run:BookingRun)=>JSON.stringify({id:run.id,order:run.order});
+  const isReviewApproved=(run:BookingRun)=>{
+    const approved=reviewApprovals[run.id];
+    return run.status==="review"&&!!run.order&&!!approved&&
+      approved.signature===reviewKey(run)&&Date.now()-approved.at<60_000;
+  };
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -110,6 +117,10 @@ export function LiveBookingWorkspace({
     if (action === "resume" && run.status === "review") {
       const order = run.order;
       if (!order) { setError("No verifiable order to review."); return; }
+      if (!isReviewApproved(run)){
+        setError(tx("Approval expired or order changed. Review and confirm the exact order again."));
+        return;
+      }
       const amount = (order.totalMinor / currencyFactor(order.currency)).toFixed(currencyFactor(order.currency) === 1 ? 0 : 2);
       if (!window.confirm("Authorize the exact displayed order and submit payment once?\n" +
         order.quantity + " ticket(s), " + order.currency + " " + amount +
@@ -119,6 +130,7 @@ export function LiveBookingWorkspace({
       const updated = action === "stop"
         ? await window.tixbam!.stopBooking(run.id)
         : await window.tixbam!.resumeBooking(run.id, run.status === "review");
+      setReviewApprovals(current=>{const next={...current};delete next[run.id];return next;});
       setRuns(previous => [...previous.filter(item => item.id !== updated.id), updated]);
     });
   }
@@ -210,11 +222,32 @@ export function LiveBookingWorkspace({
             const status = summarizeRun(run);
             return <div key={run.id} className={"live-run"+(status.dangerous ? " live-run-alert" : "")}>
               <strong>{tx(status.heading)}</strong><p>{run.message}</p><p>{tx(status.action)}</p>
-              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(", ")}</p>}
+              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(", ")}</p>} 
+              {run.status==="review"&&run.order&&<div className="booking-review-panel" role="group" aria-label={tx("Final order approval")}>
+                <strong>{tx("Final order approval")}</strong>
+                <p>{tx("Manually verify the official provider window; unknown fees, seats or restricted terms must not be approved.")}</p>
+                <dl><dt>{tx("Performance")}</dt><dd>{run.order.performance||tx("Not verified")}</dd>
+                  <dt>{tx("Price tier")}</dt><dd>{run.order.priceTier||tx("Not verified")}</dd>
+                  <dt>{tx("Seat allocation type")}</dt><dd>{tx(run.order.seatMode||"Not verified")}</dd>
+                  <dt>{tx("Seats")}</dt><dd>{run.order.seats.length?run.order.seats.join(", "):tx("Standing / allocation details require confirmation")}</dd>
+                  <dt>{tx("Restricted view")}</dt><dd>{run.order.restrictedView===undefined?tx("Not verified"):run.order.restrictedView?tx("Yes"):tx("No")}</dd>
+                  <dt>{tx("Real-name requirement")}</dt><dd>{run.order.realNameRequired===undefined?tx("Not verified"):run.order.realNameRequired?tx("Yes"):tx("No")}</dd>
+                  <dt>{tx("Optional extra products")}</dt><dd>{run.order.extras?.length?run.order.extras.map(item=>item.id).join(", "):tx("None included")}</dd>
+                </dl>
+                <label className="booking-review-check">
+                  <input type="checkbox" checked={isReviewApproved(run)}
+                    onChange={event=>setReviewApprovals(current=>{
+                      if(!event.target.checked){const next={...current};delete next[run.id];return next;}
+                      return {...current,[run.id]:{signature:reviewKey(run),at:Date.now()}};
+                    })}/>
+                  {tx("I personally checked the exact order. This approval is one-use and expires in 60 seconds.")}
+                </label>
+                <p>{tx("Actual unattended provider payment remains disabled.")}</p>
+              </div>}
               {run.receipt && <p>Receipt reference reported by provider: {run.receipt}</p>}
               <div className="booking-actions">
                 {["review", "awaiting_user"].includes(run.status) && <button className="button button-primary"
-                  disabled={Boolean(busy)} onClick={() => void runControl(run, "resume")}>
+                  disabled={Boolean(busy)||(run.status==="review"&&!isReviewApproved(run))} onClick={() => void runControl(run, "resume")}>
                   {run.status === "review" ? "Review and authorize payment…" : "Resume after completing required step"}</button>}
                 {!terminal.has(run.status) && <button className="button button-outline"
                   disabled={Boolean(busy)} onClick={() => void runControl(run, "stop")}>Stop assistance</button>}
@@ -229,6 +262,20 @@ export function LiveBookingWorkspace({
           <p><b>{plan.quantity} ticket(s)</b> · {money(plan)} including fees</p>
           <p>{plan.requireTogether ? "Adjacent seats required" : "Separate seats allowed"}
             · {plan.allowFallback ? "Ranked alternatives allowed" : "No unranked alternatives"}</p>
+          <div className="live-seat-summary" role="note">
+            <strong>{tx("Mode: manual / reviewed assistance only")}</strong>
+            <p>{tx("Unattended checkout is disabled unless the ticket agent explicitly authorizes it and the implementation is verified.")}</p>
+            {plan.seatPreferences&&<p>{tx("Seat allocation type")}: {tx(plan.seatPreferences.seatMode||"No seat mode preference")}
+              {plan.seatPreferences.priceTier.length>0&&<> · {tx("Price tier")}: {plan.seatPreferences.priceTier.join(" → ")}</>}
+              {plan.seatPreferences.section.length>0&&<> · {tx("Section")}: {plan.seatPreferences.section.join(" → ")}</>}
+            </p>}
+            <p>{tx("High-risk permissions")}: {[
+              plan.terms?.allowRestrictedView&&tx("Restricted view"),
+              plan.terms?.allowRealName&&tx("Real-name requirement"),
+              plan.terms?.allowAgeRestricted&&tx("Age restriction"),
+              plan.terms?.allowAccessibilityRestricted&&tx("Accessibility restriction")
+            ].filter(Boolean).join(", ")||tx("None approved")}</p>
+          </div>
           {!plan.preferencesReady && <p className="live-warning">Preferences have not been marked ready in the Booking Plan.</p>}
         </div>
         <div className="live-assistant-card">
