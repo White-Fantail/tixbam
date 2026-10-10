@@ -11,7 +11,7 @@ const {SessionCoordinator}=require('./session-coordinator.cjs');
 
 const DENY=code=>Object.assign(new Error('Mock payment was blocked'),{code});
 const ALLOWED_MS=15_000;
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 class GatedMockPaymentExecutor{
   #adapter;#ledger;#coordinator;#clock;#timeout;#bound;#approvals=new Map();
   #used=false;#invalid=false;#pending=false;#outcome='not_started';
