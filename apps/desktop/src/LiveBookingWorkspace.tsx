@@ -221,7 +221,8 @@ export function LiveBookingWorkspace({
             {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>{tx("Focus popup")} #{win.id} · {win.site || "loading"}</button>)}
           </div>}
         </div>
-        <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}/>
+        <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}
+          onSelectTicketStep={() => onPhase(selectedWindow!.id, "selecting")}/>
         {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" && (
           <ProviderLiveGuide key={selectedWindow?.id ?? plan.id}
             addon={addons.find(addon => addon.id === plan.providerId)!}
