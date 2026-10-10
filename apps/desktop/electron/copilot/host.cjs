@@ -60,6 +60,10 @@ class LiveCopilot {
       providerId:entry.providerId,phase:entry.phase,url,issuedAt,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       digest:crypto.createHash('sha256').update(bytes).digest('hex'),
       width:bounds.width,height:bounds.height,bytes,consumed:false});
+    // Never retain expired captured browser pixels in memory indefinitely.
+    setTimeout(() => {
+      if(this.snapshots.get(windowId)?.token===token)this.clear(windowId);
+    },SNAPSHOT_TTL_MS).unref?.();
     return {token,windowId,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       image:'data:image/jpeg;base64,'+bytes.toString('base64'),
       width:bounds.width,height:bounds.height,
