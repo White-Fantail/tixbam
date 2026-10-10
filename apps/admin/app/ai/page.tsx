@@ -43,7 +43,7 @@ export default async function AIModelsPage({ searchParams }: {
             <input type="hidden" name="task" value={item.task}/>
             <label>OpenRouter model ID
               <input name="model" defaultValue={item.model} required minLength={3} maxLength={160}
-                pattern="[a-zA-Z0-9][a-zA-Z0-9._:/+\\-]{1,159}" autoComplete="off" spellCheck={false}/>
+                autoComplete="off" spellCheck={false}/>
               <span className="field-help">Example: openai/gpt-4.1-mini. Check supported features on the
                 {" "}<a href="https://openrouter.ai/models" target="_blank" rel="noreferrer">OpenRouter model catalog ↗</a></span>
             </label>
