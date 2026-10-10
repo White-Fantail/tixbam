@@ -99,7 +99,7 @@ export function LiveBookingWorkspace({
   const primary = matching[matching.length - 1];
   const extra = windows.filter(item => item.planId === plan?.id && item.popup);
   const remainingPopup = !primary && extra.length ? extra[extra.length - 1] : null;
-  const selectedWindow = matching.find(item => item.id === selectedWindowId) || primary;
+  const selectedWindow = [...matching,...extra].find(item => item.id === selectedWindowId) || primary || extra[0];
   const relatedRuns = runs.filter(run => !run.rehearsal && (!selectedWindow
     ? false : run.windowId === selectedWindow.id));
   const orphanRuns = runs.filter(run => !run.rehearsal && (!run.windowId ||
@@ -218,9 +218,17 @@ export function LiveBookingWorkspace({
           {remainingPopup && <p className="live-warning">The main ticket window is closed, but a provider popup is still open. Check it before starting another booking attempt.</p>}
           {extra.length > 0 && <div className="live-popups"><strong>{tx("Provider popups")} ({extra.length})</strong>
             <p>Login and payment verification can open additional windows. They are not extra queue positions.</p>
-            {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>{tx("Focus popup")} #{win.id} · {win.site || "loading"}</button>)}
+            {extra.map(win => <div key={win.id} className="live-popup-action">
+              <span>#{win.id} · {win.site || "loading"}</span>
+              <button className="button button-outline" onClick={() => setSelectedWindowId(win.id)}>
+                {selectedWindow?.id === win.id ? "✓ " : ""}{tx("Use in Copilot")}
+              </button>
+              <button className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>{tx("Focus popup")}</button>
+            </div>)}
           </div>}
         </div>
+        {selectedWindow?.popup && <p className="live-manual-label">Copilot target: linked popup #{selectedWindow.id} · {selectedWindow.site}. Only supported ticket-provider pages are eligible.</p>}
+        {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>Use main browser in Copilot</button>}
         <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}
           onSelectTicketStep={() => onPhase(selectedWindow!.id, "selecting")}/>
         {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" && (
