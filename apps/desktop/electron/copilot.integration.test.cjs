@@ -133,15 +133,15 @@ test('developer-only automatic NOL seat click: one native pair without provider 
   host.onAutoUpdate=info=>statuses.push(info);
   entry.phase='selecting';
   const armed=host.arm(42,developerConditions,developerConsent);
-  assert.equal(armed.mode,'dev_single_click');
+  assert.equal(armed.mode,'dev_flow');
   await host.observe(42);
   assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
   assert.equal(state.events[0].x,310);
   assert.equal(state.events[0].y,400);
-  assert.ok(statuses.some(x=>x.status==='clicked'));
-  assert.equal(host.autoSessions.size,0);
+  assert.ok(statuses.some(x=>x.status==='progress'));
+  assert.equal(host.autoSessions.size,1,'the run remains active for later stages');
   await host.observe(42);
-  assert.equal(state.events.length,2,'the same session cannot click again');
+  assert.equal(state.events.length,2,'cooldown prevents immediate repeat');
   host.clearAll();
 });
 test('packaged/flag-disabled runtime cannot arm developer mode even with forged IPC consent',()=>{
@@ -199,7 +199,7 @@ test('Cityline manual-only addon: explicit developer automatic mode is configura
   assert.equal(requests[0].providerId,'cityline');
   assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
   assert.equal(state.events.length,2);
-  assert.equal(host.autoSessions.size,0);
+  assert.equal(host.autoSessions.size,1,'automatic execution may continue to the next approved stage');
   host.clearAll();
 });
 
@@ -208,7 +208,7 @@ test('NOL restricted addon: developer automatic mode works only in an explicit d
   entry.phase='selecting';
   const consent={...developerConsent,mode:'authorized'};
   const armed=host.arm(42,developerConditions,consent);
-  assert.equal(armed.mode,'dev_single_click');
+  assert.equal(armed.mode,'dev_flow');
   await host.observe(42);
   assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
   host.clearAll();
@@ -229,5 +229,56 @@ test('developer click requires a real ticket provider and an approved selection 
   assert.throws(()=>host.arm(42,developerConditions,{
     mode:'authorized',confirmed:true,shareScreenshots:true,
     actions:['continue'],developmentOverride:true}),/approved selection action/i);
+  host.clearAll();
+});
+
+test('preapproved Cityline flow moves from event booking entry to seat and halts at checkout',async()=>{
+  const {host,entry,state,requests}=setup({providerId:'cityline',developerMode:true,seatConfidence:.99});
+  host.setVisionProvider(async payload=>{
+    requests.push(payload);
+    const proposal=entry.phase==='preparing'
+      ? {x:.45,y:.60,label:'예매하기',reason:'Enter booking flow',confidence:.99,kind:'continue'}
+      : {x:.30,y:.50,label:'Seat A',reason:'Seat selection',confidence:.99,kind:'seat'};
+    return {status:'candidates',advisoryOnly:true,humanApprovalRequired:true,
+      targets:[proposal]};
+  });
+  const updates=[];
+  host.onAutoUpdate=info=>updates.push(info);
+  const consent={mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['continue','seat'],developmentOverride:true};
+  host.arm(42,{...developerConditions,currency:'HKD'},consent);
+  await host.observe(42);
+  assert.deepEqual(state.events.map(e=>e.type),['mouseDown','mouseUp']);
+  state.url='https://www.cityline.com.hk/en_US/seats';
+  state.visual='now showing seat selection';
+  assert.equal(host.inferSelectionStage(42),true);
+  assert.equal(entry.phase,'selecting');
+  host.autoSessions.get(42).lastAttemptAt=0;
+  await host.observe(42);
+  assert.deepEqual(state.events.map(e=>e.type),
+    ['mouseDown','mouseUp','mouseDown','mouseUp']);
+  assert.equal(host.autoSessions.get(42).automaticClicks,2);
+  state.url='https://www.cityline.com.hk/en_US/checkout';
+  host.autoSessions.get(42).lastAttemptAt=0;
+  await host.observe(42);
+  assert.equal(updates.at(-1).status,'hold_unverified');
+  assert.equal(state.events.length,4,'never click checkout');
+  assert.equal(requests[0].stage,'preparing');
+  assert.equal(requests[1].stage,undefined);
+  host.clearAll();
+});
+
+test('unchanged screen cannot repeat the same selection',async()=>{
+  const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+  entry.phase='selecting';
+  const consent={mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['seat'],developmentOverride:true};
+  host.arm(42,developerConditions,consent);
+  await host.observe(42);
+  assert.equal(state.events.length,2);
+  host.autoSessions.get(42).lastAttemptAt=0;
+  await host.observe(42);
+  assert.equal(state.events.length,2);
+  assert.equal(host.autoStatus(42).status,'awaiting_user');
   host.clearAll();
 });
