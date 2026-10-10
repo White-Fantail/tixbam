@@ -255,3 +255,28 @@ class AutomationSafetySetting(Base):
     kill_switch: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)
+
+
+class PurchaseIntentLease(Base):
+    """AB-06: exactly one coordination row per authenticated user + real sale
+    and performance. A committed claim stays blocked after lease expiry.
+    Never stores payment cards, provider cookies, browser URLs or raw orders.
+    """
+    __tablename__ = "purchase_intent_leases"
+    __table_args__ = (UniqueConstraint("user_id", "provider_id", "sale_id", "performance_id",
+                                       name="uq_lease_purchase_scope"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    provider_id: Mapped[str] = mapped_column(String(60), nullable=False)
+    sale_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    performance_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    plan_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    owner_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    fencing_token: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # "leased" -> "claimed" (irreversible until AB-14 reconciliation)
+    status: Mapped[str] = mapped_column(String(16), default="leased", nullable=False)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
