@@ -269,7 +269,7 @@ test('successful offline rehearsal remains compatible without persisting mock pa
 });
 
 
-test('restarting Desktop surfaces unresolved payment in booking list without enabling replay',t=>{
+test('restarting Desktop surfaces unresolved payment in booking list without enabling replay',async t=>{
   const vm=require('node:vm');
   const dir=temp(t);
   const l=new PaymentAttemptLedger(dir);
@@ -300,7 +300,7 @@ test('restarting Desktop surfaces unresolved payment in booking list without ena
   assert.ok(result[0].message.includes('official provider order history'));
   assert.throws(()=>handlers.get('tixbam:list-bookings')({authorized:false}),/Unauthorized/);
   // A recovered attempt is informational/terminal, not a resumable run.
-  assert.rejects(()=>handlers.get('tixbam:resume-booking')({authorized:true},result[0].id),
+  await assert.rejects(()=>handlers.get('tixbam:resume-booking')({authorized:true},result[0].id),
     /Booking run not found/);
   lifecycle.get('before-quit')();
   // Broken disk history must not be reported as an empty, successful state.
