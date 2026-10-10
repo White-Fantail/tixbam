@@ -5,7 +5,7 @@
  * Successful input != a verified reservation.
  */
 const {providerAutomationStatus,DEV_CLICK_KINDS} = require('./advance-authorization.cjs');
-const MAX_AUTO_STEPS=6;
+const MAX_AUTO_STEPS=20;
 const MIN_CONFIDENCE=0.95;
 const ENTRY_CONFIDENCE=0.97;
 const DANGEROUS_TEXT=/(?:captcha|log.?in|sign.?in|queue|wait(?:ing)? room|password|otp|3ds|payment|pay now|checkout|complete purchase|confirm order|submit order|결제|인증|로그인|비밀번호|대기열|구매확정|주문확정)/i;
