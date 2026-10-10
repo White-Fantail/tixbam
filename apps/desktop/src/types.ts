@@ -123,7 +123,7 @@ export interface CopilotVisionResult {
 export interface CopilotSnapshot {
   token: string;windowId:number;expiresAt:number;
   image:string;width:number;height:number;
-  mode:"human_guidance";automaticClickAvailable:false;
+  mode:"human_guidance"|"diagnostic_preview";automaticClickAvailable:false;
 }
 export interface TicketWindow {
   planId?: string | null;
