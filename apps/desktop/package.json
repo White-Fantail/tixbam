@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "dev:web": "vite",
+    "dev:copilot": "cross-env TIXBAM_COPILOT_DEV_CLICK_TEST=1 npm run dev",
     "desktop": "electron .",
     "check": "tsc --noEmit",
     "test": "node --test electron/*.test.cjs",
