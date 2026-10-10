@@ -15,6 +15,7 @@ from .oauth import router as oauth_router
 from .booking_plans import router as booking_plan_router, migrate_watch_items_to_plans
 from .ai import router as ai_router, admin_router as ai_admin_router
 from .ai_planner import router as ai_planner_router
+from .copilot_vision import router as copilot_vision_router
 from .automation_policies import router as automation_router, admin_router as automation_admin_router
 from .provider_verification import router as verification_admin_router
 from .booking_leases import router as booking_lease_router
@@ -63,6 +64,7 @@ app.include_router(booking_plan_router)
 app.include_router(oauth_router)
 app.include_router(ai_router)
 app.include_router(ai_planner_router)
+app.include_router(copilot_vision_router)
 app.include_router(ai_admin_router)
 app.include_router(automation_router)
 app.include_router(automation_admin_router)

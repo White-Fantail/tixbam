@@ -17,13 +17,14 @@ from .models import AIModelPolicy, AIUsageLog, Provider, now
 from .security import admin_required
 
 Db = Annotated[Session, Depends(get_db)]
-Task = Literal["rehearsal_guidance", "page_recovery", "seat_review", "planner_v1"]
+Task = Literal["rehearsal_guidance", "page_recovery", "seat_review", "planner_v1", "copilot_vision"]
 AdviceTask = Literal["rehearsal_guidance", "page_recovery", "seat_review"]
 TASKS = {
     "rehearsal_guidance": ("Rehearsal guidance", "Explain practice steps and missing readiness checks."),
     "page_recovery": ("Page recovery", "Offer safe recovery guidance for an unexpected ticketing state."),
     "seat_review": ("Seat review", "Compare disclosed options against budget and seat requirements."),
     "planner_v1": ("PlannerV1 · structured proposals", "Rehearsal-only typed next-action proposals. No actions are executed."),
+    "copilot_vision": ("Copilot Vision · screenshot targets", "Opt-in image analysis for human-reviewed click targets. No automatic execution."),
 }
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
 MODEL_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,79}/[a-zA-Z0-9][a-zA-Z0-9._:+/-]{0,159}$"
