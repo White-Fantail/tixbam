@@ -20,7 +20,7 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useEffect(() => { setSnapshot(null); setPoint(null); setTargets([]);setError("");setNotice(""); },
-    [bookingWindow?.id, bookingWindow?.phase, bookingWindow?.site, plan.id]);
+    [bookingWindow?.id, bookingWindow?.phase, bookingWindow?.url, bookingWindow?.loading, plan.id]);
   const previewOnly = bookingWindow?.phase === "preparing";
   const eligible = bookingWindow && !bookingWindow.popup &&
     (bookingWindow.phase === "selecting" || previewOnly) &&
