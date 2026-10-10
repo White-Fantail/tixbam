@@ -98,7 +98,7 @@ def update_owned(db: Session, user_id: str, body: LeaseOperation, values: dict):
             PurchaseIntentLease.fencing_token == body.fencingToken,
             PurchaseIntentLease.status == "leased",
             PurchaseIntentLease.expires_at > instant,
-        ).values(**values, updated_at=instant)
+        ).values(**values, updated_at=instant).execution_options(synchronize_session=False)
     )
     if result.rowcount != 1:
         db.rollback()
@@ -156,7 +156,7 @@ def acquire(body: Acquire, user: CurrentUser, db: Db):
                 token_hash=hashed(token), fencing_token=previous + 1,
                 expires_at=instant + timedelta(seconds=LEASE_SECONDS),
                 updated_at=instant
-            )
+            ).execution_options(synchronize_session=False)
         )
         if changed.rowcount != 1:
             db.rollback()
