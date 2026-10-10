@@ -5,8 +5,8 @@
  */
 const MODES=Object.freeze(['manual','observe','authorized']);
 const KINDS=Object.freeze(['performance','price_tier','quantity','seat','continue']);
-const MAX_AGE_MS=15*60*1000;
-const MAX_ANALYSES=8;
+const MAX_AGE_MS=2*60*60*1000;
+const MAX_ANALYSES=24;
 const MIN_ANALYSIS_GAP_MS=2500;
 const DEV_CLICK_KINDS=Object.freeze(['seat','price_tier','quantity','performance']);
 const DEV_MIN_CONFIDENCE=0.95;
