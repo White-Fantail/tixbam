@@ -4,18 +4,23 @@ const path = require('node:path');
 const { BrowserWindow, nativeImage } = require('electron');
 const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
-const {normalizeConsent,providerAutomationStatus,canRun,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
+const {normalizeConsent,providerAutomationStatus,developerClickAllowed,canRun,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
   =require('./advance-authorization.cjs');
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
  * Live unattended actions require a SEPARATE verified provider executor.
  */
 class LiveCopilot {
-  constructor({ticketWindows,requireInstalled}) {
+  constructor({ticketWindows,requireInstalled,developerClickTestEnabled=()=>false}) {
     this.ticketWindows=ticketWindows;this.requireInstalled=requireInstalled;
+    this.developerClickTestEnabled=developerClickTestEnabled;
     this.snapshots=new Map();this.overlays=new Map();this.visionProvider=null;
     this.autoSessions=new Map();this.autoPending=new Set();this.autoTimers=new Map();
     this.onAutoUpdate=()=>{};
+  }
+  developerCapabilities() {
+    return {singleClickTest:this.developerClickTestEnabled()===true,
+      maxRealClicksPerSession:1,checkoutAllowed:false};
   }
   setVisionProvider(provider) {
     if(typeof provider!=='function')throw new TypeError('Trusted Vision service required');
@@ -68,16 +73,23 @@ class LiveCopilot {
        !['ko','en'].includes(preferences.locale))
       throw new Error('Invalid or mismatched advance-authorized booking conditions.');
     const addon=this.requireInstalled(entry.providerId);
-    // Never treat a user-granted preference as the vendor's automation permission.
+    const developerTest=consent.developmentOverride===true;
+    // Only opt-in, unbundled Electron developer mode can request a one-click
+    // native input test. A cloud flag or renderer IPC field can never enable it.
+    if(developerTest && (this.developerClickTestEnabled()!==true || consent.mode!=='observe'))
+      throw new Error('Developer click test requires the explicitly enabled local development runtime.');
     const permission=providerAutomationStatus(addon,'seat');
-    const mode=consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
+    const mode=developerTest ? 'dev_single_click' :
+      consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
     const session={windowId,planId:entry.planId,providerId:entry.providerId,
       consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
       count:0,lastAttemptAt:0,stopped:false,automaticClicks:0};
     this.autoSessions.set(windowId,session);
-    return this.autoInfo(session,'armed',mode==='observe'&&consent.mode==='authorized'
-      ? 'Provider automation unavailable: '+permission.reason+' Visual guidance only.'
-      : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
+    return this.autoInfo(session,'armed',developerTest
+      ? 'Developer test armed for ONE verified selection click; never login, queue or checkout.'
+      : mode==='observe'&&consent.mode==='authorized'
+        ? 'Provider automation unavailable: '+permission.reason+' Visual guidance only.'
+        : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
   }
   disarm(windowId) {
     const pendingTimer=this.autoTimers.get(windowId);
@@ -133,15 +145,29 @@ class LiveCopilot {
       const response=await this.analyze(windowId,shot.token,session.preferences);
       if(session.stopped || this.autoSessions.get(windowId)!==session)return;
       const candidates=response.targets.filter(t=>session.consent.actions.includes(t.kind));
+      const devCandidate=session.mode==='dev_single_click'
+        ? candidates.find(t=>developerClickAllowed(
+            this.developerClickTestEnabled(),session,entry,t).allowed) : null;
+      if(devCandidate){
+        // This is a SINGLE synthetic/native input diagnostic in an explicitly
+        // enabled developer build, NOT a provider-authorized booking executor.
+        // click() rechecks the screenshot target after focusing the live window.
+        const result=await this.click(windowId,shot.token,
+          {x:devCandidate.x,y:devCandidate.y},{developerSession:session,developerTarget:devCandidate});
+        session.automaticClicks+=1;
+        this.autoInfo(session,'clicked','Developer test: one native input pair delivered; no seat hold verified.',
+          {targets:[devCandidate],clickResult:result});
+        this.disarm(windowId);
+        return;
+      }
       if(candidates.length) {
-        // Highlight the first candidate without clicking or changing provider state.
         await this.highlight(windowId,shot.token,{x:candidates[0].x,y:candidates[0].y});
       }
-      const reason=candidates.length ? 'Candidate highlighted; inspect the official site.' :
-        'No confident approved action found. Continue manually.';
+      const reason=session.mode==='dev_single_click'
+        ? 'No safe high-confidence selection target. Developer auto click NOT performed.'
+        : candidates.length ? 'Candidate highlighted; inspect the official site.'
+          : 'No confident approved action found. Continue manually.';
       this.autoInfo(session,'guiding',reason,{targets:candidates});
-      // Auto coordinate clicks are intentionally not sent without a trusted,
-      // vendor-specific target verifier. AI pixel guesses are not such a verifier.
     }catch(error){
       if(!session.stopped && this.autoSessions.get(windowId)===session)
         this.autoInfo(session,'paused',error instanceof Error?error.message:String(error));
@@ -279,13 +305,20 @@ class LiveCopilot {
   }
   /** One real click per FRESH screenshot, with a separate explicit user
    * confirmation in the dashboard. Deliberately no unattended call path. */
-  async click(windowId,token,point) {
+  async click(windowId,token,point,options={}) {
     // Focus can trigger website overlays, layout changes or browser redraws.
     // Always perform the final image comparison AFTER bringing it forward.
     const live=this.verify(windowId);
     if(live.win.isMinimized())live.win.restore();
     live.win.show();live.win.focus();
     const {entry,preview,target}=await this.verifiedTarget(windowId,token,point);
+    if(options.developerSession){
+      const session=options.developerSession;
+      if(this.autoSessions.get(windowId)!==session ||
+        !developerClickAllowed(this.developerClickTestEnabled(),session,entry,
+          options.developerTarget).allowed)
+        throw new Error('Developer click session revoked or selected target is no longer eligible.');
+    }
     preview.consumed=true;
     this.snapshots.delete(windowId);
     this.clear(windowId);
@@ -293,7 +326,8 @@ class LiveCopilot {
       x:target.x,y:target.y,button:'left',clickCount:1});
     entry.win.webContents.sendInputEvent({type:'mouseUp',
       x:target.x,y:target.y,button:'left',clickCount:1});
-    return {clicked:true,verifiedPurchase:false,automatic:false};
+    return {clicked:true,verifiedPurchase:false,
+      automatic:Boolean(options.developerSession),developerTest:Boolean(options.developerSession)};
   }
 }
 module.exports={LiveCopilot};
