@@ -71,7 +71,7 @@ test('queue and CAPTCHA require explicit human handoff, not a model confirmation
     await d.next();
     assert.equal(d.state.status,'awaiting_user');
     assert.equal(d.state.challenge,kind);
-    await assert.rejects(()=>d.next({confirm:true}),/Only the final/);
+    await assert.rejects(()=>d.next({confirm:true}),/Only the order review/);
     await d.next({completeChallenge:true});
     assert.equal(d.state.status,'running');
     assert.equal(d.state.challenge,'none');
@@ -122,7 +122,7 @@ test('mock 3-D Secure requires human input and verified synthetic receipt',async
   await d.next({confirm:true});assert.equal(d.state.paymentAttempts,1);
   await d.next();assert.equal(d.state.status,'awaiting_user');
   assert.equal(d.state.challenge,'3ds');
-  await assert.rejects(()=>d.next({confirm:true}),/Only the final/);
+  await assert.rejects(()=>d.next({confirm:true}),/Only the order review/);
   await d.next({completeChallenge:true});
   assert.equal(d.state.status,'completed');
 });
