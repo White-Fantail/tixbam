@@ -63,6 +63,8 @@ export interface BookingRun {
   message: string; rehearsal: boolean; startedAt: number; order?: BookingOrder; receipt?: string;
   /** AB-02 informational host-owned phase; clients cannot set it. */
   phase?: BookingPhase; revision?: number; generation?: number;
+  /** AB-05: read-only, recovered durable payment safety history; cannot resume or pay. */
+  storageRecovered?: boolean; attemptId?: string;
   providerId?: string; aiPageStage?: string;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
@@ -200,4 +202,25 @@ export interface AIObservationV1 {
   optionCounts:Readonly<Record<ObservationTargetKind,number>>;
   /** Task-local opaque token, not an ActionValidator ref, DOM ID or booking identity. */
   targets:ReadonlyArray<{token:string;kind:ObservationTargetKind}>;
+}
+
+
+/** AB-05 — host-local, append-only journal contract. No full account,
+ * card, CVV, OTP, ticket URL or raw order fields are persisted.
+ */
+export type BookingJournalEventKind =
+  | 'RUN_CREATED' | 'OFFER_LOCKED' | 'COMMIT_INTENT_RECORDED'
+  | 'PAYMENT_SUBMISSION_RETURNED' | 'PAYMENT_UNKNOWN'
+  | 'PURCHASE_CONFIRMED' | 'RUN_STOPPED';
+export interface PaymentCommitIntentV1 {
+  runId:string;attemptId:string;scopeDigest:string;
+  permitDigest:string;orderDigest:string;
+  journalSequence:number;persistedAtMs:number;rehearsal:boolean;
+}
+/** This is never a renderer callable payment command. */
+export interface RecoveredPurchaseAttemptV1 {
+  id:string;attemptId:string;status:'payment_unknown';
+  phase:'PAYMENT_UNKNOWN';revision:0;generation:0;
+  eventKey:'unverified';rehearsal:boolean;
+  message:string;startedAt:number;storageRecovered:true;
 }
