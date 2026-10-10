@@ -75,6 +75,9 @@ class DurableBookingJournal {
   }
   get file(){return this.#file;}
   get locked(){return this.#poisoned||fs.existsSync(this.#lock);}
+  assertWritable(){
+    if(this.locked)throw new JournalUnavailable(this.#poisoned?'poisoned':'journal_locked');
+  }
   #checkpoint(name){this.#fault(name);}
   #syncDir(dir){
     const fd=fs.openSync(dir,fs.constants.O_RDONLY| (fs.constants.O_DIRECTORY||0));
@@ -151,7 +154,7 @@ class DurableBookingJournal {
    * operator must inspect/reconcile before ever removing it. Fail closed.
    */
   transact(makeEvents){
-    if(this.locked)throw new JournalUnavailable(this.#poisoned?'poisoned':'journal_locked');
+    this.assertWritable();
     let lockFd,fd,poison=false;
     try {
       lockFd=this.#secureFd(this.#lock,fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_WRONLY);

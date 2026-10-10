@@ -151,6 +151,9 @@ class PaymentAttemptLedger{
   recordCommitIntent({runId,permit,order,rehearsal=false}={}){
     if(!UUID.test(runId||''))throw new JournalUnavailable('invalid_run_id');
     const p=canonicalPermit(permit);
+    // A crash-after-fsync or poisoned writer is more important than an
+    // ordinary duplicate: never suppress the lock / corruption warning.
+    this.journal.assertWritable();
     const scope=this.scopeDigest(p);
     // A second attempt for the same account/sale/performance is denied
     // *before* examining an altered order, quantity, seats or fee model.

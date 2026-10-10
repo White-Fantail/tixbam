@@ -223,7 +223,10 @@ test('durable journal binds v2 fee, identity, GA and optional extras to the perm
   for(const data of ['GA-A','demo-event','cityline','ticketSubtotalMinor','serviceFeeMinor'])
     assert.equal(log.includes(data),false,data);
   const wrongSeller=base({providerId:'other-agent'});
-  const ledger2=new PaymentAttemptLedger(folder+'-separate');
+  const separate=folder+'-separate';
+  fs.mkdirSync(separate,{mode:0o700});
+  t.after(()=>fs.rmSync(separate,{recursive:true,force:true}));
+  const ledger2=new PaymentAttemptLedger(separate);
   assert.throws(()=>ledger2.recordCommitIntent({
     runId:crypto.randomUUID(),permit,order:wrongSeller,rehearsal:true
   }),/unverified_purchase_order/);
