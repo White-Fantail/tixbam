@@ -192,7 +192,7 @@ test('runner requires a shared lease claim before any real payment and never sub
   await runner.step();
   assert.equal(claims,1);
   assert.equal(paid,0);
-  assert.equal(runner.state.status,'failed'); // server claim may be durable, so runner never retries
+  assert.equal(runner.state.status,'payment_unknown'); // cloud claim may be durable; never retry
   await runner.step();
   assert.equal(claims,1);
 });
