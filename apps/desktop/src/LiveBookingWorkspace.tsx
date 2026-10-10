@@ -110,18 +110,23 @@ export function LiveBookingWorkspace({
   const standalone = windows.filter(item => !item.planId);
   const unknownLinked = windows.filter(item => item.planId && !plans.some(p => p.id === item.planId) && !item.popup);
   const planHistory = history.filter(item => plans.some(p => p.id === item.planId));
-  const advancedWindowId=primary?.id ?? null;
+  const advancedWindowId=selectedWindow?.id ?? primary?.id ?? null;
   useEffect(()=>{
     let active=true;
     setAdvance(null);
     if(advancedWindowId===null)return;
     const off=window.tixbam?.onCopilotAdvanceUpdate(info=>{
-      if(active && info.windowId===advancedWindowId)setAdvance(info);
+      if(!active || info.planId!==plan?.id)return;
+      setAdvance(info);
+      // Follow the sole active executor when an official seat flow moves into
+      // a linked, allowlisted popup; never create a second booking session.
+      if(info.reason.includes('linked official provider popup'))
+        setSelectedWindowId(info.windowId);
     });
     void window.tixbam?.copilotAdvanceStatus(advancedWindowId)
       .then(info=>{if(active)setAdvance(info);}).catch(()=>{});
     return()=>{active=false;off?.();};
-  },[advancedWindowId]);
+  },[advancedWindowId,plan?.id]);
 
   async function invoke(key: string, operation: () => Promise<unknown>) {
     setBusy(key); setError("");
@@ -249,32 +254,41 @@ export function LiveBookingWorkspace({
         {advance && advance.status!=="off" && <div className="live-automation-card" role="status">
           <div className="live-card-head"><ShieldAlert size={18}/>
             <h3>{language==="ko"?"사전 승인 코파일럿":"Advance-approved Copilot"}</h3></div>
-          <p><strong>{advance.status==="clicked"
-            ? (language==="ko"?"개발자 클릭 테스트 완료":"Developer click test completed")
-            : advance.status==="guiding"
-            ? (language==="ko"?"화면 안내 중":"Guidance active")
-            : advance.status==="paused"
-              ? (language==="ko"?"일시 중단":"Paused")
-              : advance.status==="stopped"
-                ? (language==="ko"?"중지됨":"Stopped")
-                : (language==="ko"?"대기 중":"Armed")}</strong> · {advance.status==="clicked" && language==="ko"
-              ? "실제 클릭 입력 1회를 전송했습니다. 사이트 반응을 확인하세요. 좌석 확보 여부는 검증되지 않았습니다."
-              : advance.reason}</p>
+          <p><strong>{advance.status==="progress"
+            ? (language==="ko"?"자동 예매 단계 진행 중":"Continuing approved steps")
+            : advance.status==="observing"
+              ? (language==="ko"?"다음 동작 분석 중":"Analyzing next step")
+              : advance.status==="awaiting_user"
+                ? (language==="ko"?"사용자 조작 대기":"Waiting for user")
+                : advance.status==="hold_unverified"
+                  ? (language==="ko"?"좌석 보류 확인 필요":"Verify seat hold")
+                  : advance.status==="guiding"
+                    ? (language==="ko"?"화면 안내 중":"Guidance active")
+                    : advance.status==="paused"
+                      ? (language==="ko"?"일시 중단":"Paused")
+                      : advance.status==="stopped"
+                        ? (language==="ko"?"중지됨":"Stopped")
+                        : (language==="ko"?"준비됨":"Armed")}</strong> · {advance.reason}</p>
           <p className="settings-note">{language==="ko"
-            ?"선택된 예매처 정책에 따라 자동 클릭이 금지될 수 있습니다. 현재 승인 없이 결제하거나 좌석을 확보하지 않습니다."
-            :"Provider rules still apply. No unattended purchase or seat reservation is performed."}</p>
-          {advance.attempts!==undefined&&<small>{language==="ko"?"AI 분석 횟수":"AI observations"}: {advance.attempts} / 5</small>}
+            ?"사전 승인한 동작만 화면별로 검증해 이어서 진행합니다. 로그인·대기열·CAPTCHA·결제는 사용자가 직접 처리해야 합니다. 클릭 자체는 좌석 확보의 증거가 아닙니다."
+            :"Approved non-payment actions continue across screens. Login, queue and payment require you. A click does not prove a seat hold."}</p>
+          {advance.attempts!==undefined&&<small>{language==="ko"?"AI 분석":"AI observations"}: {advance.attempts}/8 · {language==="ko"?"자동 클릭":"Automatic clicks"}: {advance.automaticClicks??0}/6</small>}
           {advance.targets.length>0&&<div className="copilot-candidates">
             {advance.targets.map((target,index)=><p key={index}>
               {target.label} · {Math.round(target.confidence*100)}% · {target.reason}
             </p>)}
           </div>}
-          {!["stopped","off","clicked"].includes(advance.status) && primary &&
+          {(advance.status==="awaiting_user" || advance.status==="paused") &&
+            <button className="button button-primary" onClick={()=>void invoke("resume-advance",async()=>{
+              const next=await window.tixbam!.copilotAdvanceResume(advance.windowId);
+              setAdvance(next);
+            })}>{language==="ko"?"사용자 조작 완료 · 계속 진행":"I finished · Resume Copilot"}</button>}
+          {!["stopped","off"].includes(advance.status) &&
             <button className="button button-outline" onClick={()=>
               void invoke("stop-advance",async()=>{
-                await window.tixbam?.copilotAdvanceStop(primary.id);
+                await window.tixbam?.copilotAdvanceStop(advance.windowId);
                 setAdvance(null);
-              })}>{language==="ko"?"자동 화면 분석 즉시 중지":"Stop automatic guidance"}</button>}
+              })}>{language==="ko"?"자동화 중지":"Stop automation"}</button>}
         </div>}
         <LiveCopilotPanel
           key={String(selectedWindow?.id ?? plan.id)+":"+String(selectedWindow?.phase)+":"+String(selectedWindow?.url)+":"+String(selectedWindow?.loading)}
