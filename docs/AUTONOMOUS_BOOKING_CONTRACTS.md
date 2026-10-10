@@ -285,3 +285,11 @@ Migrations must be idempotent for both SQLite tests and existing PostgreSQL prod
 - Provider manifests currently describe automation level and booking schema; do not claim current Cityline payment implemented.
 - New contracts should be versioned and exported from packages/addon-sdk/index.d.ts with precise runtime parsers (plain TypeScript types are insufficient for untrusted input).
 - Existing admin route security and the support for Korean default/English UI must remain functional.
+
+## AB-08 concrete PlannerV1 contract
+
+`POST /v1/ai/plans` accepts a signed-in, rehearsal-only `AIPlannerRequestV1` plus exact AB-04 `AIObservationV1`, with `extra=forbid`. The API preserves opaque `requestId`, `runNonce`, `snapshotId` and `pageGeneration` for binding and quotas **outside** the OpenRouter prompt. The model receives only `locale` and the sanitized `observation`.
+
+The OpenRouter model's closed schema is **exactly** `{action,targetToken,rationaleCode}`. `action` is an AB-03 action enum, `targetToken` is a task-local UUID or null, and `rationaleCode` must be in a small pre-approved enumeration. Response validation refuses extra fields, invented handles, incorrect target kinds, forbidden stage/challenge combinations and executable strings. The server echoes the request binding in an advisory-only envelope; Electron then verifies the same binding, local expiry/revision and current page before constructing the exact internal AB-03 `ProposalV1`. A human can see the code/action, but the browser/payment cannot execute it.
+
+The Admin task is opt-in, strict JSON schema model support is verified before activation and the upstream provider is instructed to require supported parameters. An in-flight Admin disable/model change invalidates its result. Every attempt reserves a no-payload DB quota record *before* contacting OpenRouter. Real-site AI execution remains disabled.

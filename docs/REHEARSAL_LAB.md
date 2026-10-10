@@ -44,3 +44,11 @@ The Stress Lab runs entirely inside TixBam's isolated rehearsal window. It **doe
 ## Important limitations
 
 These are simulated conditions and amounts. Success in the Lab cannot prove real-site automation capability, provider authorization, seat availability, card authorization or actual purchase success. AB-08 will separately explore bounded AI proposals; AB-12–AB-14 must address provider approval, payment execution and official order reconciliation before any real autonomous checkout could be considered.
+
+## AB-08 AI next-step proposal (optional)
+
+Within an **active** Safety Stress Lab drill, click **AI 다음 단계 제안 보기 / Suggest a next step with AI**. This requires a signed-in TixBam account, the server-side OpenRouter key and Admin → AI Models → **PlannerV1** enabled with the **strict structured-output verified** checkbox selected.
+
+The model gets only a privacy-restricted observation (stage, challenge type, confidence, option counts and temporary anonymous target tokens). A human-readable booking page, email, account/Run ID, seats, prices and card/3DS fields are not transmitted. The suggestion is shown as a **read-only recommendation**, not a click or payment. Follow only the original simulator buttons to advance.
+
+For blocked/malformed/unsupported models, failed authentication, timeout, stale snapshots, sign-out or changed Admin policy, the UI displays a non-executing **ASK_USER** fallback. Each call consumes planner quota even if the model fails: at most 8 per synthetic run and 20 per user hourly, plus the shared AI hourly limit. The feature stays disabled until intentionally configured. Real-provider observations cannot invoke this planner endpoint.

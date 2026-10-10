@@ -1,4 +1,4 @@
-> Next-stage design (not implemented): [Autonomous Booking Design](AUTONOMOUS_BOOKING_DESIGN.md) · [Execution Runbook (AB-01–AB-15)](AUTONOMOUS_BOOKING_RUNBOOK.md) · [Contracts](AUTONOMOUS_BOOKING_CONTRACTS.md)
+> Autonomous booking design and implementation progress (AB-01–AB-08 on dev): [Autonomous Booking Design](AUTONOMOUS_BOOKING_DESIGN.md) · [Execution Runbook (AB-01–AB-15)](AUTONOMOUS_BOOKING_RUNBOOK.md) · [Contracts](AUTONOMOUS_BOOKING_CONTRACTS.md)
 
 # TIXBAM provider-neutral AI advisor
 
@@ -24,3 +24,14 @@ This release does **not** autonomously drive live ticketing, seats or payment th
 
 ## Supervised live assistance
 The common host runner includes only a recognized booking stage and sanitized preference constraints in the status for any provider, never page text, card details, receipt identifiers or secrets. `RunAIAdvisor` is available in both Booking Panel and Booking Runs. On `awaiting_user` it requests `page_recovery`; on final `review` it requests `seat_review`. Both require an explicit user click, authenticated account and task enabled by Admin. Guidance is purely informational; the normal runner continues to be solely responsible for verified checkout and once-only payment submission. There is no automatic model execution or navigation.
+
+## AB-08 PlannerV1 (strict proposals, rehearsal-only)
+
+- Signed-in rehearsal users may explicitly select **Suggest a next step with AI** within the provider-neutral Safety Stress Lab. It is never invoked automatically by a booking run.
+- Electron main process captures AB-04 host observations from an **offline synthetic adapter**, then transmits only `AIObservationV1` (stage, challenge, confidence, counts and short-lived anonymous target tokens) through its authenticated API request. Model prompts receive no run/snapshot/account identifiers, page content, provider IDs, prices, order data, card data or URLs.
+- `POST /v1/ai/plans` is separate from the unchanged `/v1/ai/advice`. It uses Admin task `planner_v1`, disabled by default. Enable only after testing the chosen model supports strict JSON Schema. Server requests parameter-aware OpenRouter routing (`provider.require_parameters=true`) and parses a closed 3-field model output.
+- Host resolves task tokens locally, checks snapshot identity, expiry and current run revision, and creates an AB-03 `ProposalV1` using `strictProposal`. Only the non-executable action name, code and model are rendered. **No host action handler is called, no live DOM mutation or checkout is enabled.**
+- Quotas: 8 calls per run per hour, 20 planner calls per user per hour, combined 30 AI calls per user per hour, 4 KiB prompt and 256 output-token caps. The server logs quota, status and selected model, not user observations or responses.
+- Invalid responses, provider timeouts, Admin revocation and session changes give a safe manual `ASK_USER` fallback. Recovered/terminal rehearsals cannot request a proposal.
+
+For setup and test scenarios see [Offline rehearsal guide](REHEARSAL_LAB.md) and [AB-08 runbook](AUTONOMOUS_BOOKING_RUNBOOK.md).

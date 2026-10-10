@@ -202,6 +202,17 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** mock OpenRouter valid/invalid/timeout/5xx, model lacks structured output, server policy disabled, cost/quota, stale snapshot.
 **Do not:** allow generative response to call shell/devtools, payment or arbitrary browser actions.
 
+**완료 기록 (2026-10-10):**
+- `services/api/app/ai_planner.py`: 인증된 `POST /v1/ai/plans` 생성. AB-04 `AIObservationV1`만 허용하는 Pydantic `extra=forbid` 스키마; `rehearsal=true`만 허용. 요청 ID·Run nonce·Snapshot ID는 서버 바인딩에만 쓰고 모델 프롬프트에서 제외. 모델에는 `locale` 및 `stage/challenge/confidence/optionCounts/opaque task target token`만 전달. 원본 HTML/URL·자격 증명·카드·시트·금액·계정·Run 정보 없음.
+- OpenRouter `response_format=json_schema` strict + `provider.require_parameters=true`; 모델 응답은 Action/TargetToken/사전 정의한 RationaleCode 3필드만 검증. 모델이 반환한 임의 명령/선택자/스크립트/URL/임의 토큰/이상 JSON/미지원 모델/미완료 응답은 502로 거부하고 실패 내용을 사용자에게 노출하지 않음.
+- Admin AI 모델 설정에 별도 `planner_v1` task·enable kill switch·strict structured output verified 스위치 추가. 모델 ID/timeout/output token은 기존 Admin 설정 재사용. Admin이 처리 중 기능을 끄거나 모델을 교체하면 모델 응답 폐기. 기존 `/v1/ai/advice` API는 3개 기존 task 전용으로 유지.
+- 예산: 로그인별 Planner 최대 20회/시간, 하나의 rehearsal run nonce별 최대 8회/시간, 전체 AI 30회/시간, 입력 4096bytes, 모델 출력 256 tokens 상한, timeout 2~12초. API DB에는 상태/모델/불투명한 요청·Run fingerprint만 남기고 대화·관찰·응답 원본은 저장하지 않음. `ai_model_policies.structured_output_verified` 추가 마이그레이션과 `ai_planner_requests` DB 저장.
+- `apps/desktop/electron/booking/ai-planner.cjs`: AB-04 `ObservationPipeline.capture` + `projectForAI` (rehearsal only)로 민감정보 마스킹, AB-03 `strictProposal`로 응답을 호스트 내부 ActionProposalV1으로 검증. Snapshot/Run/revision/현재 stage/짧은 TTL/임시 TargetToken 전부 재검증. 모델은 어떤 `executeReviewedProposal` 또는 `BookingRunner.step`도 호출하지 않음. 계정 전환/로그아웃/창 닫힘/인증 단계 변경 및 비정상 네트워크 응답은 수동 `ASK_USER` fallback.
+- 별도 리허설 Electron preload에는 `labPropose()` 단일 수동 트리거만 공개. `ScenarioLab.tsx`는 제안 액션/사유만 **실행 없이** 표시하며 자동 호출하지 않음. 기존 Cityline 화면형 리허설과 `Rehearsal AI Advisor`를 유지.
+- 회귀 테스트: OpenRouter 완전 mock·JWT 필수·정확한 프롬프트 마스킹·모델 토큰 비용/중복·쿼터·엄격 output JSON·CAPTCHA/3DS/비정상 모델/타임아웃/5xx·실행 안 됨·낡은 snapshot/로그아웃/후행 응답·Admin feature gate/upgrade.
+- 안전 한계: **실사이트 AI 행동 실행/자동화 정책 허가는 전혀 활성화하지 않음.** AB-09에서 별도 supervised recovery engine을 설계해야 하고, 실제 결제는 AB-13/14까지 불가. OpenRouter 호출에는 사용자 클릭과 로그인이 모두 필요하며 OpenRouter API key는 서버에만 위치.
+
+
 ## AB-09 — 제한적 AI 자동 복구
 
 **명령:** "AB-09 구현해. AI가 제안한 안전한 복구만 Host Validator를 통과해서 실행하도록 연결해."
@@ -281,7 +292,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-07 완료 (dev) · AB-08 다음 단계**. 라이브 자율 결제는 비활성.
+- 현 단계: **AB-01~AB-08 완료 (dev) · AB-09 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -290,7 +301,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-05 Journal — `53086d9` (durable write-ahead ledger, restart recovery, CI verified)
   - [x] AB-06 Session Coordinator — server leases, fencing and host window ownership
   - [x] AB-07 Offline Rehearsal — common 14-scenario simulator, isolated mock Ledger and restart-safe UI (CI verified)
-  - [ ] AB-08 AI Planner
+  - [x] AB-08 AI Planner — strict OpenRouter proposal-only pipeline, privacy and quota, rehearsal manual trigger (CI verified)
   - [ ] AB-09 Recovery Engine
   - [ ] AB-10 Seat/Offer Policy
   - [ ] AB-11 Desktop UX
@@ -299,4 +310,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-08 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-09 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
