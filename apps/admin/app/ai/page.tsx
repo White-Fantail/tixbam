@@ -48,8 +48,10 @@ export default async function AIModelsPage({ searchParams }: {
                 {" "}<a href="https://openrouter.ai/models" target="_blank" rel="noreferrer">OpenRouter model catalog ↗</a></span>
             </label>
             <div className="ai-limits">
-              <label>Timeout (seconds)<input name="timeout_seconds" type="number" min={2} max={12}
-                defaultValue={item.timeoutSeconds} required/></label>
+              <label>Timeout (seconds)<input name="timeout_seconds" type="number" min={2} max={item.task === "copilot_vision" ? 30 : 12}
+                defaultValue={item.timeoutSeconds} required/>
+                {item.task === "copilot_vision" && <span className="field-help">Vision analysis often needs 15–25 seconds. 20 seconds is a useful starting point.</span>}
+              </label>
               <label>Max output tokens<input name="max_output_tokens" type="number" min={128} max={1200}
                 defaultValue={item.maxOutputTokens} required/></label>
             </div>
