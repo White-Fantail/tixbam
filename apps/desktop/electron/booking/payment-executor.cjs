@@ -18,17 +18,19 @@ class GatedMockPaymentExecutor{
   constructor({adapter,ledger,coordinator,binding,clock=Date.now,timeoutMs=2000}={}){
     // Validate the actual class, not a fake "verified:true" field from an add-on.
     const {ScenarioAdapter}=require('./rehearsal-driver.cjs');
-    if(!(adapter instanceof ScenarioAdapter)||
-       !(ledger instanceof PaymentAttemptLedger)||
-       !(coordinator instanceof SessionCoordinator)||
-       !binding||!UUID.test(binding.runId||'')||
-       !Number.isSafeInteger(binding.windowId)||binding.windowId<0||
-       !UUID.test(binding.leaseId||'')||
-       !Number.isSafeInteger(binding.fencingToken)||binding.fencingToken<1||
-       binding.status!=='leased'||binding.expiresAtMs<=clock()||
-       typeof clock!=='function'||!Number.isSafeInteger(timeoutMs)||
-       timeoutMs<25||timeoutMs>2000)
-      throw DENY('unverified_mock_executor');
+    if(!(adapter instanceof ScenarioAdapter))throw DENY('untrusted_adapter');
+    if(!(ledger instanceof PaymentAttemptLedger))throw DENY('untrusted_ledger');
+    if(!(coordinator instanceof SessionCoordinator))throw DENY('untrusted_coordinator');
+    if(!binding||!UUID.test(binding.runId||''))throw DENY('invalid_run_binding');
+    if(!Number.isSafeInteger(binding.windowId)||binding.windowId<0)
+      throw DENY('invalid_window_binding');
+    if(!UUID.test(binding.leaseId||''))throw DENY('invalid_lease_id');
+    if(!Number.isSafeInteger(binding.fencingToken)||binding.fencingToken<1)
+      throw DENY('invalid_fencing_token');
+    if(typeof clock!=='function'||binding.status!=='leased'||
+       binding.expiresAtMs<=clock())throw DENY('unverified_lease_status');
+    if(!Number.isSafeInteger(timeoutMs)||timeoutMs<25||timeoutMs>2000)
+      throw DENY('invalid_deadline');
     this.kind='gated-mock';this.verified=true;
     this.#adapter=adapter;this.#ledger=ledger;this.#coordinator=coordinator;
     this.#clock=clock;this.#timeout=timeoutMs;
