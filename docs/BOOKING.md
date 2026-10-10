@@ -33,6 +33,16 @@ CVV is never persisted. It is entered once when preparing a run and kept with th
 
 Actual card details are unnecessary for rehearsal. This release's live Cityline payment service is unavailable, even if a card has been prepared.
 
+## AB-04 Observation Pipeline — read-only
+
+Electron's trusted main process owns `booking/observation.cjs` and `observation-redaction.cjs`. They normalize verified provider pages into bounded `HostObservationV1`, including the current event/window/run binding, stage and challenge enum, short-lived opaque handles and provenance. Host snapshots never authorize payments. The separately generated `AIObservationV1` contains only stage, challenge, confidence, option counts and task-local random tokens; there are no personal details, booking IDs, browser identifiers, vendor event IDs, URLs, form values, raw DOM, order receipts or screenshots.
+
+Cityline is the first bundled read-only live profile. Its observed eventDetail buttons are capped at 30 choices per category, and sign-in, CAPTCHA, queue and bank handoffs remain entirely user-managed. The legacy `BookingRunner` read flow records observations without additional network round trips; the existing deterministic selections still use the host-owned adapter and AB-03 guards. No new live AI browser execution or payment is enabled.
+
+Navigation, in-page navigation, frame navigation and renderer termination invalidate run snapshots and task tokens. A subsequent read with changed option data detects same-document changes and invalidates the previous observation. Authenticated account change or sign-out removes all observation watches. Every issued observation supersedes its run's previous snapshot, and timestamps enforce short expiry. This is not a realtime DOM MutationObserver: an unobserved in-page mutation is detected on the next read, and any future action must still re-observe and revalidate before execution.
+
+These projections are **not sent** to OpenRouter by AB-04. Live data-sharing requires separate provider permission and a later policy-controlled AI planner (AB-08); the demo projection is available only by explicit test/rehearsal gating. Unknown site profiles, third-party popups, unverified seat maps and checkout are not observed as verified actions.
+
 ## AB-03 Host Action Contracts and Validator
 
 Electron main-process modules `booking/action-validator.cjs` and `booking/action-registry.cjs` provide the bounded proposal-only contract in `packages/addon-sdk/index.d.ts`. The trusted host issues short-lived opaque target references; an AI or add-on cannot submit a selector, URL, JavaScript, payment action or arbitrary instruction.

@@ -119,6 +119,15 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** login/captcha/queue/3DS/hidden fields; oversized DOM, malicious text, navigation race, stale identity.
 **Do not:** 원본 HTML/스크린샷을 OpenRouter에 무조건 전송.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/observation.cjs`: 호스트 전용 `ObservationPipeline` 구현. verified provider/origin/event/window/plan/run 제약, 탐색 중 read 결과 폐기, URL 또는 페이지 내 탐색 시 snapshot/AI token 무효화. 같은 URL에서 options 변경은 다음 read에서 fingerprint 차이로 감지; 각 read-only capture는 이전 action snapshot을 무효화함.
+- `observation-redaction.cjs`: raw DOM/HTML/스크린샷/쿠키/인증값/수신된 문구를 AI 페이로드에서 제거하고 Stage/Challenge/Confidence/옵션 수/임시 task token만 출력. 개인정보를 포함한 label, 실제 행사ID·계정ID·창ID·금액·주문ID는 AI projection에 포함하지 않음. 외부 전송은 구현되지 않음.
+- `cityline.cjs`: 실제 검증된 eventDetail의 버튼/가격 날짜 selector만 읽고 30개 한도로 제한. 로그인, CAPTCHA, 공식 대기열, 은행 인증의 coarse enum 감지. 이벤트/URL 이동 중 조회 거부. 좌석/결제 영역의 신규 파싱·클릭 권한 없음.
+- `controller.cjs` / `runner.cjs`: 기존 read 경로에서 추가 웹 요청 없이 read-only 상태 추적, 닫힌 창/앱 종료 시 관찰 해제. 로그인 계정 교체/로그아웃 시 남은 토큰 폐기. 기존 예매와 별도 리허설 호환.
+- `packages/addon-sdk/index.d.ts`: `HostObservationV1`, `AIObservationV1`, `ObservationChallenge`, `ObservationTargetKind` 추가. Host 내부 ID/데이터와 AI 전용 최소 스키마 분리.
+- CI: 구현 및 DOM/악성 입력·과도한 요소·이벤트 미일치·NAV 경합·로그인/3DS/CAPTCHA/queue·만료·변경/PII 유출 방지 테스트가 [GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38009562201)에서 성공 (Desktop 110/110, API/MCP 29/29, Crawler 3/3, Desktop/Admin builds). 실 결제/예매 없음.
+- **한계:** 내용 변경은 재관찰 시 fingerprint로 감지하고 즉시 모든 DOM Mutation을 구독하지 않음. 라이브 snapshot을 OpenRouter에 전송하는 기능·권한은 여전히 차단. 판매 사이트별 자동 실행 권한과 검증된 seat/payment 처리는 후속 AB-08/09/12/13. AB-05의 크래시 후 결제 재시도 차단 Ledger 미구현.
+
 ## AB-05 — 로컬 Durable Booking Journal
 
 **명령:** "AB-05 구현해. 실제 지불 시도 전 영구 저장되는 Transaction Safety Ledger를 만들어."
@@ -242,12 +251,12 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-03 완료 (dev) · AB-04 다음 단계**. AI 명령의 실사이트 실행과 실제 라이브 자율 결제는 비활성.
+- 현 단계: **AB-01~AB-04 완료 (dev) · AB-05 다음 단계**. AI 명령의 실사이트 실행과 실제 라이브 자율 결제는 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
   - [x] AB-03 Action Validator — `9a0563b` (strict proposals/host registry, rehearsal mock & regression verified)
-  - [ ] AB-04 Observation
+  - [x] AB-04 Observation — `9c531b8` (redacted, navigation-aware host snapshots; CI verified)
   - [ ] AB-05 Journal
   - [ ] AB-06 Session Coordinator
   - [ ] AB-07 Offline Rehearsal
@@ -260,4 +269,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-04 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-05 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
