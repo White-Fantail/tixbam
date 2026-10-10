@@ -14,11 +14,13 @@ const ALLOWED=new Set(['REOBSERVE','SELECT_APPROVED_OFFER']);
 const TERMINAL=new Set(['completed','stopped','failed','payment_unknown']);
 const fail=(code)=>Object.freeze({executed:false,code,manualTakeover:true});
 class RecoveryEngine {
-  #planner;#clock;#runs=new Map();#invalidated=false;
-  constructor({planner,clock=Date.now}={}){
+  #planner;#clock;#deadlineMs;#runs=new Map();#invalidated=false;
+  constructor({planner,clock=Date.now,stepDeadlineMs=STEP_DEADLINE_MS}={}){
     if(!planner||typeof planner.takeRecoveryContext!=='function'||
-       typeof clock!=='function')throw new TypeError('Trusted host planner required');
-    this.#planner=planner;this.#clock=clock;
+       typeof clock!=='function'||!Number.isSafeInteger(stepDeadlineMs)||
+       stepDeadlineMs<25||stepDeadlineMs>STEP_DEADLINE_MS)
+      throw new TypeError('Trusted host recovery limits required');
+    this.#planner=planner;this.#clock=clock;this.#deadlineMs=stepDeadlineMs;
   }
   invalidate(){
     this.#invalidated=true;
@@ -65,7 +67,8 @@ class RecoveryEngine {
     counters.last.add(fingerprint);
     counters.attempts++;
     counters.busy=true;
-    const deadline=now+STEP_DEADLINE_MS;
+    const deadline=now+this.#deadlineMs;
+    const controller=new AbortController();
     let live=true;
     const assertOwner=()=>{
       if(!live||this.#invalidated||this.#clock()>=deadline||
@@ -115,7 +118,8 @@ class RecoveryEngine {
         eventKey:current.eventKey,providerId:'rehearsal',country:'HK',
         addonVersion:'1.0.0',accountId:host.accountId,planId:driver.plan.id,
         pageGeneration:host.pageGeneration,policyRevision:0,
-        revoked:false,consent,preferences:prefs,rehearsalPermission:true};
+        revoked:false,consent,preferences:prefs,rehearsalPermission:true,
+        signal:controller.signal};
       const before=validator.inspect(proposal,scope);
       if(!before.decision.allowed)return fail(before.decision.code);
       assertOwner();
@@ -174,19 +178,19 @@ class RecoveryEngine {
     const guarded=driver.withRecoveryTask(work);
     let timer;
     const timeout=new Promise(resolve=>{
-      timer=setTimeout(()=>resolve(fail('STEP_DEADLINE_EXCEEDED')),STEP_DEADLINE_MS);
+      timer=setTimeout(()=>resolve(fail('STEP_DEADLINE_EXCEEDED')),this.#deadlineMs);
       // Keep deadline observable even during an isolated offline test.
     });
     try{
       const result=await Promise.race([guarded,timeout]);
       if(result.code==='STEP_DEADLINE_EXCEEDED'){
-        live=false;counters.locked=true;
+        live=false;controller.abort();counters.locked=true;
       }
       return complete(result);
     }catch{
-      live=false;return complete(fail('EXECUTION_FAILED'));
+      live=false;controller.abort();return complete(fail('EXECUTION_FAILED'));
     }finally{
-      live=false;clearTimeout(timer);counters.busy=false;
+      live=false;controller.abort();clearTimeout(timer);counters.busy=false;
     }
   }
 }

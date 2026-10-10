@@ -207,3 +207,72 @@ test('an outdated proposal after a normal booking step is not allowed to run',as
   assert.equal(result.code,'STALE_OBSERVATION');
   assert.equal(x.driver.adapter.stage,'offers');
 });
+
+
+test('snapshot expiration denies the recovery even when the model response looked valid',async t=>{
+  const x=setup(t);await x.driver.start('automatic');await x.driver.next();
+  const start=Date.now();
+  let fakeTime=start;
+  // The AB-04 host pipeline and engine agree on a controlled clock.
+  x.planner.invalidate();
+  x.planner=new RehearsalPlanner({clock:()=>fakeTime});
+  x.engine=new RecoveryEngine({planner:x.planner,clock:()=>fakeTime});
+  await propose(x,'SELECT_APPROVED_OFFER');
+  fakeTime=start+20000; // older than 15-second observation TTL
+  const r=await execute(x);
+  assert.equal(r.code,'STALE_OBSERVATION');
+  assert.equal(x.driver.adapter.order,null);
+  assert.equal(x.driver.adapter.payments,0);
+});
+test('failed postcondition immediately requires manual takeover and no retry',async t=>{
+  const x=setup(t);await x.driver.start('automatic');await x.driver.next();
+  await propose(x,'SELECT_APPROVED_OFFER');
+  x.driver.adapter.reserve=async offer=>{
+    x.driver.adapter.order={...offer};
+    // A broken mock adapter never advances to checkout.
+    x.driver.adapter.stage='offers';
+  };
+  const outcome=await execute(x);
+  assert.equal(outcome.executed,false);
+  assert.equal(outcome.code,'POSTCONDITION_FAILED');
+  assert.equal(outcome.manualTakeover,true);
+  await propose(x,'SELECT_APPROVED_OFFER');
+  assert.equal((await execute(x)).code,'LIMIT_EXCEEDED');
+  assert.equal(x.driver.adapter.payments,0);
+});
+test('two concurrent Recovery approvals cannot reserve the same synthetic seat twice',async t=>{
+  const x=setup(t);await x.driver.start('automatic');await x.driver.next();
+  await propose(x,'SELECT_APPROVED_OFFER');
+  let calls=0;
+  const before=x.driver.adapter.reserve.bind(x.driver.adapter);
+  x.driver.adapter.reserve=async(...args)=>{calls++;return before(...args)};
+  const [a,b]=await Promise.all([execute(x),execute(x)]);
+  assert.equal([a,b].filter(y=>y.executed).length,1);
+  assert.equal(calls,1);
+  assert.equal(x.driver.adapter.payments,0);
+});
+test('timed-out asynchronous reserve aborts before synthetic side effect and locks retry',async t=>{
+  const x=setup(t);await x.driver.start('automatic');await x.driver.next();
+  x.engine=new RecoveryEngine({planner:x.planner,stepDeadlineMs:30});
+  await propose(x,'SELECT_APPROVED_OFFER');
+  let release,entered;
+  const gate=new Promise(resolve=>release=resolve);
+  const arrived=new Promise(resolve=>entered=resolve);
+  const before=x.driver.adapter.reserve.bind(x.driver.adapter);
+  x.driver.adapter.reserve=async(offer,opts)=>{
+    entered();
+    await gate;
+    return before(offer,opts);
+  };
+  const task=execute(x);
+  await arrived; // host is inside the time-limited mock action
+  const result=await task;
+  assert.equal(result.code,'STEP_DEADLINE_EXCEEDED');
+  assert.equal(result.executed,false);
+  release();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(x.driver.adapter.order,null);
+  assert.equal(x.driver.adapter.stage,'offers');
+  await propose(x,'SELECT_APPROVED_OFFER');
+  assert.equal((await execute(x)).code,'LIMIT_EXCEEDED');
+});

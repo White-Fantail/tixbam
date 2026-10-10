@@ -9,7 +9,8 @@ const MUTATION_HANDLERS = Object.freeze({
   SELECT_APPROVED_OFFER: async ({adapter,target,scope}) => {
     const offer=target.value;
     if(!chooseOffer([offer],scope.preferences))throw new Error('Offer changed');
-    await adapter.reserve(offer);
+    await adapter.reserve(offer,{signal:scope.signal});
+    if(scope.signal?.aborted)throw new Error('Recovery deadline exceeded');
     const after=await adapter.read();
     if(after.eventKey!==scope.eventKey || after.stage!=='payment' ||
        !after.order || after.order.id!==offer.id ||

@@ -72,7 +72,8 @@ class ScenarioAdapter{
     this.stage='offers';this.offers=this.scenario.kind==='sold_out'?[]:[this.offer];
     return true;
   }
-  async reserve(offer){
+  async reserve(offer,{signal}={}){
+    if(signal?.aborted)throw Error('Cancelled synthetic recovery');
     if(this.stage!=='offers'||offer?.id!==this.offer.id)throw Error('Unknown fake offer');
     if(this.scenario.kind==='stale'){this.offers=[];throw Error('Mock inventory changed during selection');}
     this.order={...this.offer,seats:[...this.offer.seats]};this.stage='payment';
