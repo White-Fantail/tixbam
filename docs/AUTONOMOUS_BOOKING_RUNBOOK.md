@@ -332,6 +332,15 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** inconsistent receipt, double-click, reboot, missing receipt, signed-out user, authorized official lookup, no idempotency.
 **Do not:** infer purchase success from AI response or generic page text.
 
+**AB-14 구현 기록 (2026-10-10):**
+- `payment-attempts.cjs`는 새로운 `RECONCILIATION_REVIEWED` Journal 이벤트를 append-only SHA-256 chain에 추가. 허용된 결과 코드 3개(`reported_paid`, `reported_not_paid`, `inconclusive`)와 개인식별정보를 제외한 HMAC 검토 digest만 fsync 저장. 이벤트는 기존 COMMIT_INTENT에 결속되고 중복 저장·반복/비정상 순서가 거부됨. **검토된 뒤에도 `PAYMENT_UNKNOWN` 유지, 구매 범위 tombstone은 영구 유지**.
+- `reconciliation.cjs` 호스트 Reconciler: 영구 Journal 상태 읽기, 인증된 사용자 수동 확인 기록, lease ID·fencing token·provider/sale/performance 일치 여부 조회(승인된 read-only callback이 있을 때만), 오프라인 `ScenarioAdapter`의 실제 `REHEARSAL-NO-CHARGE` 영수증 및 AB-10 주문 지문과 원래 permit/order/scope digest·현재 lease 재검증. 서명되지 않은 일반 페이지 글자·AI 답변·주문 없음/3DS 미완료는 확인 증거가 아님.
+- 서버 `GET /v1/me/automation/leases/{lease_id}/reconciliation`: 현재 로그인 사용자 소유 lease의 readonly status/fence. 404로 다른 사용자 정보 보호; `claimed`는 결제 확정도 실패 확정도 아니고, `replayAllowed=false`/영수증 미검증. POST claim/release 및 재획득 조건은 불변.
+- Electron isolated rehearsal Lab IPC `labReviewUnknown(outcome,confirmed)`과 한영 수동 확인 UI: 결과 불명 시 사용자가 확인 결과를 **참고 사항으로만** 1회 저장 가능. `reported_not_paid`라도 자동 재시도 버튼/상태는 절대 복구되지 않음; 강제 종료·재시작 후에도 검토 기록을 복구하며 새 결제 지시는 실행하지 않음.
+- **공식 실사이트 결제 조회/영수증 API는 아직 인증·허가되지 않았음**. `lookupOfficialReceipt()`는 항상 안전 실패하며, 실제 결제의 CONFIRMED/FAILED 마킹, lease claim 해제, 기존 결제 다시 시도 API는 제공하지 않음. 임의 관리자 표시·수동 체크/서버 claim·HTTP 200·모델 응답을 영수증 근거로 사용하지 않는다.
+- 회귀: 계정 간 lease 상태 은닉, fencing mismatch, 공식 증거 없는 결과 확정 금지, 금액/좌석/회차/주문 digest 불일치, 가짜 영수증·3DS, 중복 수동 기록, crash-before/after/restart, 꼬리 손상, PII 로그 미저장, legacy Journal. 실제 청구·카드 입력·자동 예매 기능 없음.
+
+
 ## AB-15 — 통합 검수, 지표, 안전한 배포 준비
 
 **명령:** "AB-15 실행해. 전체 E2E/보안/장애 주입 검증과 업체별 release readiness 보고서를 만들어. 운영 자동결제는 켜지 마."
@@ -345,7 +354,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-13 완료 (dev) · AB-14 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-14 완료 (dev) · AB-15 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -360,7 +369,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-11 Desktop UX — Korean/English seat/consent, plan sync, one-shot final review, offline mock consent (CI verified)
   - [x] AB-12 Provider Onboarding — evidence-backed offline fixtures, profile/version/origin binding, Admin audit, revocation and fail-closed host gate (CI verified)
   - [x] AB-13 Gated Payment Executor (mock) — expiring host approval, AB-10 order fingerprint, AB-05 fsync intent, AB-06 fencing, one-shot offline pay (CI verified)
-  - [ ] AB-14 Reconciliation
+  - [x] AB-14 Reconciliation — durable human review tombstone, offline receipt/lease reconciliation and owner-only server status (CI verified)
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-14 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-15 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

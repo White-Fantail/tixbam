@@ -332,3 +332,13 @@ The payment boundary uses three separate host-side operations (there is **no** m
 Offline lease/fencing tokens are minted by trusted Electron per simulated run. They are not a server lease, do not imply shared real merchant idempotency, and cannot be exchanged for live authorizations. Live payment implementation is absent and AB-01/12 policy and release gates remain locked.
 
 Any future real PaymentExecutor requires official provider permission, signed verified implementation and version, anti-double-charge reconciliation, appropriate payment tokenization/hosted flow, PCI/DSS security validation and independent release approval. No live merchant payment will run as part of AB-13 CI.
+
+## AB-14 reconciliation boundary
+
+**Unknown is neither success nor failure.** `PaymentAttemptLedger.reviewUnknown` accepts a strictly allowlisted human-review result and appends one `RECONCILIATION_REVIEWED` with a digest, under the same exclusive fsynced Journal as the original payment intent. Review requires the trusted host to attest an authenticated account (or isolated synthetic identity) and explicit user confirmation. The review cannot be revised and contains no raw account/seat/order/receipt data. `reported_not_paid` does not create a free slot for another charge.
+
+`PaymentReconciler.inspect` returns permanent `purchaseBlocked:true` and `automaticCheckoutAllowed:false` for **all** attempts including verified synthetic completion. `recordManualReview` never upgrades `payment_unknown`. `checkClaim` requires host-authenticated, read-only server lease lookup with exact lease ID, provider/sale/performance and fencing token. Even status `claimed` means only that a purchase claim was recorded; it cannot attest merchant charge or lack thereof.
+
+Only the trusted in-memory `ScenarioAdapter` can produce a test receipt that the Reconciler checks against AB-10's exact order, AB-05 HMAC scope/permit/order digests and AB-06's current host lease/fence; the evidence must be a genuine stage-`confirmation` snapshot with no CAPTCHA/3DS and `REHEARSAL-NO-CHARGE`. This is **not official provider evidence**.
+
+The server `GET /v1/me/automation/leases/{lease_id}/reconciliation` reveals only the signed-in user's read-only lease/fencing/status and explicitly returns `paymentOutcome:'unknown'`, `authoritativeMerchantReceipt:false`, `replayAllowed:false`. The API cannot transition a claim back to `leased` or permit a charge. `lookupOfficialReceipt` always rejects until separately certified vendor APIs and authenticated receipt verification are built. AB-15 security review must independently sign off any future live reconciliation.

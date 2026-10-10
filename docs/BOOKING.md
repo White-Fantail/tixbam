@@ -152,3 +152,9 @@ The Desktop host uses `booking/provider-profiles.json` for independently bundled
 The provider-neutral Stress Lab now exercises a trusted host **mock-only** PaymentExecutor instead of a raw adapter payment callback. The host requires manual final-order confirmation (bound to a 15-second opaque local approval), rechecks total including fees and seats, verifies local SessionCoordinator lease/fencing, records the durable write-ahead Journal intent and rereads it before one simulated submission. An unknown/late mock reply, lost lease, missing journal intent or a restarted process cannot automatically retry.
 
 The actual Desktop Cityline payment adapter remains **unverified and disabled**. The public model/renderer/add-on contracts do not expose a payment method or execution token. This is strictly a synthetic no-charge rehearsal implementation.
+
+## AB-14 unknown-payment reconciliation
+
+When a mock payment is unresolved, the isolated lab shows an explicit Korean/English review step. The user may report *appears paid*, *appears unpaid* or *still inconclusive*, confirm that the report is advisory only, and save a durable hashed review event. The simulator restores this record after restart but never treats it as payment proof or enables retry.
+
+In a real merchant incident, users must check the official provider's order history and payment statements. TixBam cannot yet programmatically verify official merchant receipts and does not send payment lookup/payment requests to Cityline or any other live seller. The authenticated API supports **read-only** lease claim/fencing inspection; a server claim is not a bank charge. A manual note cannot unlock the per-performance AB-05/06 purchase tombstone.

@@ -407,3 +407,20 @@ export interface MockPurchaseApprovalV1 {
   runId:string;leaseId:string;fencingToken:number;
   approvedOrderDigest:string;expiresAtMs:number;oneUse:true;
 }
+
+/** AB-14 host-only reconciliation. A human observation is not merchant proof. */
+export type PaymentReviewOutcomeV1='reported_paid'|'reported_not_paid'|'inconclusive';
+export interface RecoveredPaymentInspectionV1 {
+  attemptId:string;
+  status:'payment_unknown'|'completed';
+  reviewed:boolean;reviewOutcome:PaymentReviewOutcomeV1|null;
+  reviewAtMs:number|null;
+  requiresOfficialReceipt:boolean;
+  purchaseBlocked:true;noAutomaticRetry:true;
+}
+export interface LeaseReconciliationStatusV1 {
+  leaseId:string;providerId:string;saleId:string;performanceId:string;
+  fencingToken:number;status:'claimed'|'leased';
+  paymentOutcome:'unknown';authoritativeMerchantReceipt:false;
+  replayAllowed:false;requiresManualReview:boolean;readOnly:true;
+}

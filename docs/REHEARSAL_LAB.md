@@ -89,3 +89,9 @@ The main Desktop Booking Plan also supports optional per-seat priorities (price 
 An explicit final order checkbox in the separate lab window remains required. The host then issues a one-use short-lived purchase approval for the **exact** current order, local lease and fencing token. Before the simulator performs its single no-charge `pay` call, it validates quantity, total fees, seat mode and extras, writes and fsyncs the AB-05 intent, and rereads the immutable entry. No actual credit card or ticket website is involved.
 
 Use `standard` for an offline confirmed receipt, `payment_timeout` or `unknown_charge` for irrevocably ambiguous mock submission, `restart` for post-commit recovery, and `bank_3ds` for a manual challenge. After an uncertain attempt, **do not start another payment for the same purchase intent**: inspect the synthetic journal and resolve it manually. The system does not treat a late reply as proof that nothing was charged. Only the exact synthetic receipt is accepted as completion.
+
+## AB-14 reviewed-but-unknown payment
+
+For `payment_timeout`, `unknown_charge` or `restart`, open the **manual reconciliation** section in the separate offline lab. Choose the observed state (appears paid, appears unpaid, or inconclusive) and explicitly acknowledge that this is **only a review note**. It is written durably without storing card, buyer or raw order information. Reopening the lab reads the saved review and shows `PAYMENT_UNKNOWN` with the purchase lock intact.
+
+The host-only synthetic receipt verifier can validate a complete synthetic `REHEARSAL-NO-CHARGE` confirmation against the actual offer, ledger digests, run and local fencing token; missing receipt, altered seats/fees, challenge in progress and mismatched lease are rejected. No official vendor receipt lookup or automatic resubmission is installed.
