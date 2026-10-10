@@ -112,6 +112,11 @@ export interface LiveHistory {
   reason: "closed" | "interrupted";
 }
 
+export interface CopilotSnapshot {
+  token: string;windowId:number;expiresAt:number;
+  image:string;width:number;height:number;
+  mode:"human_guidance";automaticClickAvailable:false;
+}
 export interface TicketWindow {
   planId?: string | null;
   phase?: LivePhase;
@@ -166,6 +171,9 @@ export interface DesktopBridge {
   listLiveHistory: () => Promise<LiveHistory[]>;
   dismissLiveHistory: (planId: string) => Promise<LiveHistory[]>;
   openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
+  copilotCapture: (id:number) => Promise<CopilotSnapshot>;
+  copilotHighlight: (id:number, token:string, point:{x:number;y:number}) => Promise<{highlighted:boolean;expiresAt:number}>;
+  copilotClick: (id:number, token:string, point:{x:number;y:number}) => Promise<{clicked:boolean;verifiedPurchase:false;automatic:false}>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
   closeWindow: (id: number) => Promise<boolean>;

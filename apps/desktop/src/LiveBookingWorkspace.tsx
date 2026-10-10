@@ -6,6 +6,7 @@ import type { BookingPlan } from "./booking-plans";
 import { currencyFactor } from "./booking-plans";
 import { tx, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
+import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
 import { formatSaleLocalTime } from "./ticket-sales";
 import type { LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
 
@@ -142,8 +143,8 @@ export function LiveBookingWorkspace({
     <div className="section-heading">
       <div>
         <span className="eyebrow">LIVE BOOKING · OFFICIAL PROVIDER WINDOWS</span>
-        <h2>Ticketing Control Room</h2>
-        <p>Keep the official browser in control. TIXBAM shows only observable window status and actions you report.</p>
+        <h2>AI Booking Copilot</h2>
+        <p>Prepare your targets, use the official browser and get local click guidance. Unverified automatic actions remain disabled.</p>
       </div>
       <span className="counter-badge"><Monitor size={14}/>{windows.length} browser window(s)</span>
     </div>
@@ -220,6 +221,7 @@ export function LiveBookingWorkspace({
             {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>Focus popup #{win.id} · {win.site || "loading"}</button>)}
           </div>}
         </div>
+        <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}/>
         <div className="live-automation-card">
           <div className="live-card-head"><ShieldAlert size={19}/><h3>Booking assistance</h3></div>
           <p>Automation is not guaranteed for this provider. It must not bypass CAPTCHA, the queue or bank verification.</p>

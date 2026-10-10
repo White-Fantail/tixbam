@@ -486,3 +486,20 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .assist-stages .selected { border-color: #bba9fc; background: #bba9fc20; }
 .assist-priorities { padding: 14px 18px; border: 1px solid #bba9fc45; border-radius: 12px; margin: 16px 0; }
 .assist-priorities p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+
+/* Live Copilot: deliberately local preview with explicit human-directed targets */
+.copilot-panel{display:grid;gap:12px}
+.copilot-panel .live-card-head{align-items:center}
+.copilot-panel .booking-actions{display:flex;gap:9px;flex-wrap:wrap}
+.copilot-state{display:flex;gap:8px;align-items:center;color:#bce6d1!important;font-size:12px!important}
+.copilot-preview{display:grid;gap:12px;min-width:0}
+.copilot-preview-note,.copilot-disclaimer{font-size:12px!important;color:#b5b7c8!important;line-height:1.6}
+.copilot-image{position:relative;max-width:760px;width:100%;border:1px solid #606a79;border-radius:10px;overflow:hidden}
+.copilot-image img{display:block;width:100%;height:auto;cursor:crosshair;user-select:none}
+.copilot-crosshair{position:absolute;width:34px;height:34px;border-radius:50%;border:3px solid #18e39a;color:#18e39a;
+ display:grid;place-items:center;transform:translate(-50%,-50%);pointer-events:none;background:#071f26aa;font-size:21px;font-weight:bold}
+.copilot-note{font-size:12px;color:#acecc1}
+.copilot-preview small{color:#bfc3d2}
+.copilot-brief-list{display:grid;gap:10px;padding-left:22px}
+.copilot-brief-list li{padding:8px 0}
+.copilot-brief-list p{margin:5px 0 0;font-size:12px;line-height:1.5}

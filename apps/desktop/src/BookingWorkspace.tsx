@@ -91,7 +91,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
       <progress max={checks.length} value={finished} aria-label="Preparation checks complete" /></div>
     <div className="plan-actions">
       <button className="button button-outline" onClick={onSelect}><Settings2 size={15}/> Prepare</button>
-      <button className="button button-outline" onClick={onPractice}><FlaskConical size={15}/> Rehearse</button>
+      <button className="button button-outline" onClick={onPractice}><FlaskConical size={15}/> Preview steps</button>
       <button className="button button-primary" onClick={onBook} disabled={!plan.bookingUrl || !addon?.installed}><ExternalLink size={15}/> Open tickets</button>
     </div>
   </article>;
@@ -179,18 +179,18 @@ export function BookingDashboard({ plans, addons, now, onCreate, onDiscover, onS
   const featured = upcoming[0] || [...plans].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   return <section className="booking-dashboard">
     <div className="booking-hero"><span className="eyebrow">TIXBAM · TICKETING FIRST</span>
-      <h1>Prepare. Practice. Book.</h1>
-      <p>Build your booking plan, rehearse the flow and keep your next ticket drop under control.</p>
+      <h1>Prepare. Copilot. Book.</h1>
+      <p>Prepare your priorities, preview expected steps and book with live Copilot guidance.</p>
       <button className="button button-primary" onClick={onCreate}><Plus size={18}/> Create Booking Plan</button>
     </div>
     <div className="booking-key-actions">
       <div><ListChecks size={22}/><strong>Prepare</strong><span>Set requirements before tickets open.</span></div>
-      <div><FlaskConical size={22}/><strong>Practice</strong><span>Rehearse without risking a purchase.</span></div>
+      <div><FlaskConical size={22}/><strong>Copilot</strong><span>Get live visual guidance while selecting tickets.</span></div>
       <div><TicketCheck size={22}/><strong>Book</strong><span>Launch the official site with your plan ready.</span></div>
     </div>
     <div className="section-heading"><div><div className="eyebrow">NEXT ACTION</div>
       <h2>{featured ? "Your next booking" : "Start with a booking plan"}</h2>
-      <p>{featured ? "Prepare and rehearse before the official sale opens." : "Choose a concert in Discover or add a ticket link to create a plan."}</p></div></div>
+      <p>{featured ? "Set your ticket priorities and review the provider steps before sale time." : "Choose a concert in Discover or add a ticket link to create a plan."}</p></div></div>
     {featured ? <PlanCard plan={featured} addons={addons} now={now}
       onSelect={() => onSelect(featured.id)} onPractice={() => onPractice(featured.id)}
       onBook={() => onBook(featured)} /> : <button className="button button-outline" onClick={onDiscover}>Browse concert directory <ArrowRight size={15}/></button>}
@@ -208,7 +208,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
   if (!selected || !draft) {
     return <section className="booking-plans-page">
       <div className="section-heading"><div><div className="eyebrow">YOUR TICKET PURCHASE GOALS</div>
-        <h2>My Bookings</h2><p>Every ticket drop has one place for preparation, rehearsal and live booking.</p>
+        <h2>My Bookings</h2><p>Every ticket drop has one place for preparation, provider briefing and live Copilot booking.</p>
       </div><button className="button button-primary" onClick={onCreate}><Plus size={16}/> New plan</button></div>
       {plans.length ? <div className="booking-plans-grid">{[...plans].sort((a,b) => planSort(a,b,now)).map(plan =>
         <PlanCard key={plan.id} plan={plan} addons={addons} now={now}
@@ -314,8 +314,8 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
       </div>
     </div><div className="booking-detail-side">
       <div className="settings-panel">
-        <h3><FlaskConical size={19}/> Rehearsal</h3>
-        <p>Practice ticketing steps using your saved conditions. Cityline includes a scenario-based checkout simulation; other providers use a generic walkthrough. No real purchase occurs.</p>
+        <h3><FlaskConical size={19}/> Provider briefing</h3>
+        <p>Review the expected ticketing steps and event-specific unknowns. Optional advanced offline practice remains available. No tickets are held in this window.</p>
         {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {localDate(draft.lastRehearsalAt)}</p>}
         <button className="button button-primary" disabled={saving} onClick={() => {
           void (async () => {
@@ -329,12 +329,12 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
               setError(err instanceof Error ? err.message : "Could not open the rehearsal.");
             } finally { setSaving(false); }
           })();
-        }}><ExternalLink size={16}/> Open rehearsal window</button>
+        }}><ExternalLink size={16}/> Preview expected steps</button>
       </div>
-      <div className="settings-panel"><h3><TicketCheck size={19}/> Live booking</h3>
-        <p>Open the official ticketing site. Login, queue entry and human verification remain under your control.</p>
+      <div className="settings-panel"><h3><TicketCheck size={19}/> Live Copilot booking</h3>
+        <p>Open the official ticketing site and use the Live Copilot in Sessions for screen guidance and approved individual clicks.</p>
         <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing" || !addon?.installed}>
-          <ExternalLink size={16}/> Open official ticket link</button>
+          <ExternalLink size={16}/> Start live booking</button>
         {addon?.booking && <button className="button button-outline" onClick={() => onConfigure(draft)}
           disabled={!addon.installed || kind !== "direct"}>Provider options & automation</button>}
         <p className="settings-note">{addon?.booking ?

@@ -12,6 +12,7 @@ const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.c
 const { RehearsalDriver } = require("./booking/rehearsal-driver.cjs");
 const { RehearsalPlanner } = require("./booking/ai-planner.cjs");
 const { RecoveryEngine } = require("./booking/recovery.cjs");
+const { LiveCopilot } = require("./copilot/host.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
@@ -24,6 +25,7 @@ function notifyLanguage() {
     win.webContents.send("tixbam:language-changed", desktopLanguage);
 }
 const ticketWindows = new Map();
+const copilot = new LiveCopilot({ticketWindows,requireInstalled});
 const rehearsalWindows = new Map();
 const rehearsalWrites = new Map();
 let rehearsalRequestSequence = 0;
@@ -154,11 +156,11 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
     phase: "preparing", loadError: null
   };
   ticketWindows.set(win.id, entry);
-  wc.on("did-start-loading", () => { entry.loadError = null; broadcast(); });
+  wc.on("did-start-loading", () => { copilot.clear(win.id); entry.loadError = null; broadcast(); });
   wc.on("did-stop-loading", broadcast);
   wc.on("page-title-updated", broadcast);
-  wc.on("did-navigate", broadcast);
-  wc.on("did-navigate-in-page", broadcast);
+  wc.on("did-navigate", () => { copilot.clear(win.id); broadcast(); });
+  wc.on("did-navigate-in-page", () => { copilot.clear(win.id); broadcast(); });
   wc.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {
     if (isMainFrame && code !== -3) { entry.loadError = Number.isInteger(code) ? code : -1; broadcast(); }
   });
@@ -175,6 +177,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   win.on("close", event => confirmSessionClose(win, entry, event));
   win.on("closed", () => {
     if (planId && !popup) rememberSession(entry, closingApplication ? "interrupted" : "closed");
+    copilot.clear(win.id);
     booking?.windowClosed(win.id);
     ticketWindows.delete(win.id);
     broadcast();
@@ -317,6 +320,7 @@ app.whenReady().then(() => {
   const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell,
     onSessionChanged: () => {
       booking?.accountChanged?.();
+      copilot.clearAll();
       for(const entry of rehearsalWindows.values())entry.labRecovery.invalidate();
     }
   });
@@ -462,10 +466,23 @@ app.whenReady().then(() => {
     }
     return { ...openTicketWindow({ ...destination, planId }), reused: false };
   });
+  ipcMain.handle("tixbam:copilot-capture", (event, windowId) => {
+    dashboardOnly(event);
+    return copilot.snapshot(windowId);
+  });
+  ipcMain.handle("tixbam:copilot-highlight", (event, windowId, token, point) => {
+    dashboardOnly(event);
+    return copilot.highlight(windowId,token,point);
+  });
+  ipcMain.handle("tixbam:copilot-click", (event, windowId, token, point) => {
+    dashboardOnly(event);
+    return copilot.click(windowId,token,point);
+  });
   ipcMain.handle("tixbam:set-live-phase", (event, windowId, phase) => {
     dashboardOnly(event);
     const entry = ticketWindows.get(windowId);
     if (!entry?.planId || entry.popup) throw new Error("No active booking plan for this window.");
+    copilot.clear(windowId);
     entry.phase = assertPhase(phase);
     rememberSession(entry);
     broadcast();
@@ -538,7 +555,7 @@ app.whenReady().then(() => {
   });
   createDashboard();
   app.on("before-quit", event => {
-    if (quittingConfirmed) { closingApplication = true; return; }
+    if (quittingConfirmed) { copilot.clearAll(); closingApplication = true; return; }
     const active = [...ticketWindows.values()].filter(entry => entry.planId);
     if (!active.length) { closingApplication = true; return; }
     const response = dialog.showMessageBoxSync({
