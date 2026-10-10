@@ -76,7 +76,12 @@ export interface RehearsalPlannerView {
   source:"openrouter"|"fallback";
   model?:string;
 }
+export interface RehearsalRecoveryResult {
+  executed:boolean;code:string;manualTakeover:boolean;
+  action?:RehearsalPlannerView["action"];attempts?:number;remaining?:number;
+}
 export interface RehearsalBridge {
+  labRecover:()=>Promise<RehearsalRecoveryResult>;
   labPropose:()=>Promise<RehearsalPlannerView>;
   labScenarios:()=>Promise<RehearsalLabScenario[]>;
   labStatus:()=>Promise<RehearsalLabState>;

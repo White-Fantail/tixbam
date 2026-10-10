@@ -99,6 +99,7 @@ class RehearsalDriver{
        typeof clock!=='function')throw Error('Invalid rehearsal host binding');
     this.plan=Object.freeze({...plan});this.clock=clock;this.runner=null;
     this.adapter=null;this.events=[];this.operations=Promise.resolve();
+    this.recoveryEpoch=0;
     const owner=crypto.createHash('sha256').update(ownerId||'offline').digest('hex').slice(0,24);
     this.folder=path.join(rootDir,'rehearsal-lab',owner,plan.id);
     this.manifest=path.join(this.folder,'last-run.json');
@@ -152,6 +153,10 @@ class RehearsalDriver{
       events:this.events.slice(-16)};
   }
   #serialize(task){const taskPromise=this.operations.then(task);this.operations=taskPromise.catch(()=>{});return taskPromise;}
+  withRecoveryTask(task){
+    if(typeof task!=='function')throw new TypeError('Trusted recovery task required');
+    return this.#serialize(task);
+  }
   start(scenarioId,seed=2027){
     return this.#serialize(async()=>{
       const scenario=getScenario(scenarioId);
@@ -205,12 +210,17 @@ class RehearsalDriver{
     });
   }
   stop(){
+    // User cancellation supersedes queued/retrieving AI recovery steps.
+    this.recoveryEpoch++;
+    if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
     return this.#serialize(async()=>{
       if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
       return this.state;
     });
   }
   simulateRestart(){
+    this.recoveryEpoch++;
+    if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
     return this.#serialize(async()=>{
       if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
       this.runner=null;this.adapter=null;this.last=this.#recover();

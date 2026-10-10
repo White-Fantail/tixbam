@@ -77,10 +77,13 @@ async function executeReviewedProposal({
     // STOP is a proposal for user intervention, never an automatic Stop().
     return Object.freeze({executed:false,code:'ADVISORY_ONLY',recommendation:proposal.action});
   }
+  // Lazily import the synthetic adapter to avoid the runner → action-registry
+  // → rehearsal-driver → runner initialization cycle.
+  const {ScenarioAdapter}=require('./rehearsal-driver.cjs');
   // No path for real add-on mutation until permission/review/release gates
   // from AB-01 and AB-12 are verified and separately implemented.
   if(scope.run?.rehearsal!==true || scope.rehearsalPermission!==true ||
-     !(adapter instanceof RehearsalAdapter) ||
+     !(adapter instanceof RehearsalAdapter || adapter instanceof ScenarioAdapter) ||
      !Object.hasOwn(MUTATION_HANDLERS,proposal.action))
     return denied('CAPABILITY_MISSING');
   if(typeof readCurrent!=='function')return denied('STALE_OBSERVATION');

@@ -10,6 +10,7 @@ const { registerAccount } = require("./account.cjs");
 const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.cjs");
 const { RehearsalDriver } = require("./booking/rehearsal-driver.cjs");
 const { RehearsalPlanner } = require("./booking/ai-planner.cjs");
+const { RecoveryEngine } = require("./booking/recovery.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
@@ -73,13 +74,14 @@ function openRehearsalWindow(plan, accountId) {
   // Never pass the protected lab object to the rehearsal renderer.
   const lab = new RehearsalDriver({rootDir:app.getPath("userData"),plan:target,ownerId});
   const labPlanner = new RehearsalPlanner();
-  rehearsalWindows.set(target.id, { win, target, ownerId, lab, labPlanner });
+  const labRecovery = new RecoveryEngine({planner:labPlanner});
+  rehearsalWindows.set(target.id, { win, target, ownerId, lab, labPlanner, labRecovery });
   win.webContents.on("will-navigate", event => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.on("closed", () => {
     const previous = rehearsalWindows.get(target.id);
     if (previous?.win === win) {
-      previous.labPlanner.invalidate();
+      previous.labRecovery.invalidate();
       rehearsalWindows.delete(target.id);
     }
     rejectRehearsalWrites(target.id);
@@ -303,7 +305,7 @@ app.whenReady().then(() => {
   const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell,
     onSessionChanged: () => {
       booking?.accountChanged?.();
-      for(const entry of rehearsalWindows.values())entry.labPlanner.invalidate();
+      for(const entry of rehearsalWindows.values())entry.labRecovery.invalidate();
     }
   });
   ipcMain.handle("tixbam:ai-advice", (event, payload) => {
@@ -358,6 +360,11 @@ app.whenReady().then(() => {
       driver:entry.lab,providerId:entry.target.providerId,
       locale:desktopLanguage,send:payload=>account.aiPlan(payload)
     });
+  });
+    // A separate user click approves at most one safe, offline recovery step.
+  ipcMain.handle("tixbam:rehearsal-lab-recover", event => {
+    const entry=rehearsalEntry(event);
+    return entry.labRecovery.executeApproved({driver:entry.lab,approve:true});
   });
     ipcMain.handle("tixbam:rehearsal-lab-stop", event =>
     rehearsalEntry(event).lab.stop());

@@ -29,8 +29,18 @@ class RehearsalPlanner{
     this.#pipeline.invalidateAll();
     this.#pipeline.watchWindow({windowId:0,providerId:'rehearsal',rehearsal:true});
     this.#runNonce.clear();
+    this.lastHostProposal=null;
+    this.lastRecoveryContext=null;
+  }
+  takeRecoveryContext(){
+    const value=this.lastRecoveryContext;
+    this.lastRecoveryContext=null;
+    return value||null;
   }
   async propose({driver,providerId,locale='ko',send}={}){
+    // A newer planning request invalidates the previous executable candidate.
+    this.lastHostProposal=null;
+    this.lastRecoveryContext=null;
     const runner=driver?.runner, adapter=driver?.adapter;
     const state=runner?.state;
     if(!runner||!adapter||runner.busy||runner.orchestrator.machine.terminal||
@@ -102,6 +112,11 @@ class RehearsalPlanner{
     // Kept only in host memory for a future AB-09 review; NEVER send
     // ActionProposalV1 (with run IDs and targetRef) to renderer/AI.
     this.lastHostProposal=proposal;
+    // Private context is never transferred to renderer or to OpenRouter.
+    // AB-09 takes it once after an explicit user action and revalidates it.
+    this.lastRecoveryContext=Object.freeze({proposal,host,validator:this.#pipeline.validator,
+      pipeline:this.#pipeline,
+      epoch,runner,driver,runRevision:revision});
     return Object.freeze({
       action:proposal.action,rationaleCode:proposal.rationaleCode,
       advisoryOnly:true,source:'openrouter',model:result.model

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { RehearsalLabScenario, RehearsalLabState, RehearsalTarget, RehearsalPlannerView } from "../types";
+import type { RehearsalLabScenario, RehearsalLabState, RehearsalTarget, RehearsalPlannerView, RehearsalRecoveryResult } from "../types";
 import { tx, useLanguage } from "../i18n";
 
 
@@ -49,6 +49,8 @@ export function ScenarioLab({plan,onComplete}:{
   const [state,setState]=useState<RehearsalLabState|null>(null);
   const [busy,setBusy]=useState(false);
   const [planning,setPlanning]=useState(false);
+  const [recovering,setRecovering]=useState(false);
+  const [recovery,setRecovery]=useState<RehearsalRecoveryResult|null>(null);
   const [proposal,setProposal]=useState<RehearsalPlannerView|null>(null);
   const [error,setError]=useState("");
   const [acknowledged,setAcknowledged]=useState(false);
@@ -62,7 +64,7 @@ export function ScenarioLab({plan,onComplete}:{
     return ()=>{live=false;};
   },[bridge]);
   async function action(task:()=>Promise<RehearsalLabState>){
-    setBusy(true);setError("");setSynced(false);setProposal(null);
+    setBusy(true);setError("");setSynced(false);setProposal(null);setRecovery(null);
     try{setState(await task());setAcknowledged(false);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
@@ -70,12 +72,26 @@ export function ScenarioLab({plan,onComplete}:{
 
   async function suggest(){
     if(!bridge||busy||planning||!state?.active)return;
-    setPlanning(true);setProposal(null);setError("");
+    setPlanning(true);setProposal(null);setRecovery(null);setError("");
     try{setProposal(await bridge.labPropose());}
     catch{setProposal({action:"ASK_USER",rationaleCode:"MODEL_UNAVAILABLE",
       advisoryOnly:true,source:"fallback"});}
     finally{setPlanning(false);}
   }
+  async function recover(){
+    if(!bridge||busy||planning||recovering||!state?.active)return;
+    setRecovering(true);setError("");
+    try{
+      const result=await bridge.labRecover();
+      setRecovery(result);setProposal(null);
+      setState(await bridge.labStatus());
+    }catch{
+      setRecovery({executed:false,code:"EXECUTION_FAILED",manualTakeover:true});
+      setProposal(null);
+    }finally{setRecovering(false);}
+  }
+  const actionable=proposal?.source==="openrouter" &&
+    ["REOBSERVE","SELECT_APPROVED_OFFER"].includes(proposal.action);
   const actionLabels:Record<RehearsalPlannerView["action"],[string,string]>={
     WAIT:["기다리기","Wait"],REOBSERVE:["페이지 재확인","Reobserve"],
     ASK_USER:["사용자 확인","Ask the user"],STOP:["중단 고려","Consider stopping"],
@@ -184,6 +200,21 @@ export function ScenarioLab({plan,onComplete}:{
             {proposal.model?" · "+proposal.model:""}</small>
           <small>{ko?"이 제안은 정보를 보여주기만 합니다. 아래의 기존 리허설 버튼으로만 진행하세요.":
             "This suggestion is read-only. Continue only with the existing rehearsal controls."}</small>
+        </div>}
+        {actionable&&<button className="button button-primary" type="button"
+          disabled={busy||planning||recovering||!state.active}
+          onClick={()=>void recover()}>
+          {recovering?(ko?"호스트 검증 중…":"Validating recovery…"):
+            (ko?"이 제안으로 모의 복구 1단계 실행":"Execute ONE approved mock recovery step")}
+        </button>}
+        {recovery&&<div className="cl-drill-rules" role="status">
+          <strong>{recovery.executed?
+            (ko?"모의 복구 단계 실행 완료":"Safe mock step completed"):
+            (ko?"실행 차단 · 수동 확인 필요":"Blocked · manual takeover required")}</strong>
+          <small>{recovery.code.replaceAll("_"," ")}</small>
+          {typeof recovery.remaining==="number"&&<small>{
+            ko?"남은 허용 시도: ":"Remaining approved attempts: "
+          }{recovery.remaining}</small>}
         </div>}
       </div>}
 
