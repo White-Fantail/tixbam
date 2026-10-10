@@ -68,8 +68,8 @@ async function executeReviewedProposal({
   const denied = code => Object.freeze({executed:false,code});
   if(!(validator instanceof ActionValidator) || !scope ||
      typeof assertOwner!=='function')return denied('WRONG_OWNER');
-  let first=validator.validate(proposal,scope);
-  if(!first.allowed)return denied(first.code);
+  const first=validator.inspect(proposal,scope);
+  if(!first.decision.allowed)return denied(first.decision.code);
   try {assertOwner();} catch {return denied('WRONG_OWNER');}
   if(PASSIVE.has(proposal.action)) {
     const claim=validator.claim(proposal,scope);
@@ -90,7 +90,32 @@ async function executeReviewedProposal({
   if(!page || page.eventKey!==scope.eventKey ||
      page.stage!==proposal.expectedStage ||
      page.pageGeneration!==scope.pageGeneration ||
-     page.challenge && page.challenge!=='none')return denied('STALE_OBSERVATION');
+     (page.challenge && page.challenge!=='none'))return denied('STALE_OBSERVATION');
+  // A page can change inventory or fees without navigating. The selected
+  // offer must still be observable with the same complete price and seats.
+  if(proposal.action==='SELECT_APPROVED_OFFER') {
+    const selected=first.target?.value;
+    if(!selected || !Array.isArray(page.offers) ||
+       !page.offers.some(candidate=>
+         candidate && candidate.available===true &&
+         candidate.id===selected.id &&
+         candidate.eventKey===selected.eventKey &&
+         candidate.quantity===selected.quantity &&
+         candidate.currency===selected.currency &&
+         candidate.totalMinor===selected.totalMinor &&
+         candidate.feesIncluded===true &&
+         candidate.adjacent===selected.adjacent &&
+         candidate.performance===selected.performance &&
+         candidate.priceTier===selected.priceTier &&
+         candidate.section===selected.section &&
+         candidate.floor===selected.floor &&
+         candidate.seatMode===selected.seatMode &&
+         candidate.fulfillment===selected.fulfillment &&
+         Array.isArray(candidate.seats) &&
+         JSON.stringify(candidate.seats)===JSON.stringify(selected.seats))) {
+      return denied('STALE_OBSERVATION');
+    }
+  }
   // An async observer may have allowed user Stop, navigation or a policy
   // change. Check after the await and claim once before adapter execution.
   const claim=validator.claim(proposal,scope);
