@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {screenAllowed,pixelPoint,validSnapshot}=require('./copilot/core.cjs');
+const {screenAllowed,pixelPoint,targetRegion,validSnapshot}=require('./copilot/core.cjs');
 function entry(url='https://www.cityline.com.hk/event/sales') {
   return {providerId:'cityline',planId:'a-plan',phase:'selecting',popup:false,
     win:{id:12,isDestroyed:()=>false,webContents:{
@@ -39,6 +39,18 @@ test('target coordinates are bounded and scaled to the content viewport',()=>{
   assert.deepEqual(pixelPoint({x:0.5,y:0.25},1000,800),{x:500,y:200});
   for(const p of [{x:1,y:0.5},{x:0.5,y:-0.1},{x:NaN,y:0.1},{x:'0.5',y:0.2}])
     assert.throws(()=>pixelPoint(p,1000,800));
+});
+test('target neighbourhood remains bounded across edges and screen sizes',()=>{
+  for(const size of [[1100,780],[2200,1560],[360,300]]){
+    for(const point of [{x:0.001,y:0.001},{x:0.5,y:0.5},{x:0.999,y:0.999}]){
+      const r=targetRegion(point,...size);
+      assert.ok(r.x>=0 && r.y>=0 && r.width>0 && r.height>0);
+      assert.ok(r.x+r.width<=size[0] && r.y+r.height<=size[1]);
+      const p=pixelPoint(point,...size);
+      assert.ok(p.x>=r.x && p.x<r.x+r.width && p.y>=r.y && p.y<r.y+r.height);
+    }
+  }
+  assert.throws(()=>targetRegion({x:1.2,y:.5},1100,780));
 });
 test('preview binds exact page, window, plan and a single use',()=>{
   const e=entry(),now=2000,url=e.win.webContents.getURL();
