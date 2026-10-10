@@ -8,6 +8,8 @@ const KINDS=Object.freeze(['performance','price_tier','quantity','seat','continu
 const MAX_AGE_MS=15*60*1000;
 const MAX_ANALYSES=5;
 const MIN_ANALYSIS_GAP_MS=15000;
+const DEV_CLICK_KINDS=Object.freeze(['seat','price_tier','quantity','performance']);
+const DEV_MIN_CONFIDENCE=0.95;
 function normalizeConsent(input){
   if(!input || typeof input!=='object' || Array.isArray(input) ||
      !MODES.includes(input.mode))throw new Error('Invalid Copilot automation mode.');
@@ -18,7 +20,10 @@ function normalizeConsent(input){
      !input.actions.every(x=>KINDS.includes(x)) || new Set(input.actions).size!==input.actions.length)
     throw new Error('Invalid advance-approved Copilot actions.');
   return Object.freeze({mode:input.mode,shareScreenshots:true,
-    actions:Object.freeze([...input.actions])});
+    actions:Object.freeze([...input.actions]),
+    // A renderer-provided flag alone grants NOTHING; Electron's main process
+    // must separately verify the unbundled, opt-in developer runtime.
+    developmentOverride:input.developmentOverride===true});
 }
 /** The add-on catalog is static bundled code, NOT editable server metadata. */
 function providerAutomationStatus(addon,kind){
@@ -37,6 +42,25 @@ function providerAutomationStatus(addon,kind){
     return {allowed:false,reason:'No verified host action executor for this step.'};
   return {allowed:true,reason:'verified'};
 }
+/**
+ * Single native click test, never a general policy override. The explicit
+ * developer runtime and per-session confirmation MUST both be present.
+ * This is restricted to selection-stage, high-confidence non-checkout targets.
+ */
+function developerClickAllowed(runtimeEnabled,session,entry,target,now=Date.now()){
+  if(runtimeEnabled!==true || !session || !entry || !target ||
+     session.consent?.developmentOverride!==true ||
+     session.consent?.confirmed!==true || session.consent?.shareScreenshots!==true ||
+     session.mode!=='dev_single_click' ||
+     session.stopped || session.automaticClicks!==0 || now>=session.expiresAt ||
+     entry.phase!=='selecting' || entry.planId!==session.planId ||
+     entry.providerId!==session.providerId || entry.win?.id!==session.windowId ||
+     !DEV_CLICK_KINDS.includes(target.kind) ||
+     !session.consent.actions.includes(target.kind) ||
+     !Number.isFinite(target.confidence) || target.confidence<DEV_MIN_CONFIDENCE)
+    return {allowed:false,reason:'Developer single-click test is not authorized for this target.'};
+  return {allowed:true};
+}
 function canRun(session,entry,now=Date.now()){
   if(!session || !entry || entry.planId!==session.planId ||
      entry.providerId!==session.providerId ||
@@ -52,4 +76,5 @@ function canRun(session,entry,now=Date.now()){
   return {allowed:true};
 }
 module.exports={MODES,KINDS,MAX_AGE_MS,MAX_ANALYSES,MIN_ANALYSIS_GAP_MS,
- normalizeConsent,providerAutomationStatus,canRun};
+ DEV_CLICK_KINDS,DEV_MIN_CONFIDENCE,normalizeConsent,providerAutomationStatus,
+ developerClickAllowed,canRun};
