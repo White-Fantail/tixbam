@@ -31,7 +31,8 @@ function inspectCityline(expectedEvent) {
     .map(e => ({ id: e.getAttribute('data-perf-id'), label: text(e).slice(0,80), available: !e.disabled }))
     .filter(e=>typeof e.id==='string' && /^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,79}$/.test(e.id)) : [];
   const prices = bounded ? Array.from(priceNodes).filter(visible)
-    .map(e => ({ id: text(e).replace(/,/g, ''), label: 'HK
+    .map(e => ({ id: text(e).replace(/,/g, ''), label: 'HK' + String.fromCharCode(36) + text(e).slice(0,80), available: !e.disabled }))
+    .filter(e => /^\d{1,8}$/.test(e.id)) : [];
   return { stage: performances.length && prices.length && url.pathname.endsWith('/eventDetail') && (expectedEvent == null || eventId === expectedEvent) && !!eventId ? 'options' : 'unknown',
     challenge, challengeType, providerEventId: eventId || null,
     providerTitle: document.title.slice(0,200), options: { performance: performances, priceTier: prices } };
