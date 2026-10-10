@@ -93,7 +93,7 @@ export function AdvanceSettingsEditor({planId,provider}:{
         :"Select one or more non-payment selection actions. Booking-entry actions may also be explicitly approved."}</p>}
     <p className="settings-note" role="note">{provider && developerCanTest && !permission.allowed
       ? (ko
-          ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 개발자 테스트는 승인한 비결제 단계에서 최대 6회 클릭을 수행하며 사용자 개입 후 이어서 진행할 수 있습니다."
+          ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 개발자 테스트는 승인한 비결제 단계에서 최대 20회 클릭을 수행하며 사용자 개입 후 이어서 진행할 수 있습니다."
           : "Developer test only: this provider remains restricted. The local diagnostic attempts up to six approved non-payment actions across booking pages.")
       : provider && !available
         ? (ko ? "자동 클릭 설정 비활성화: "+permission.reasonKo+" 화면 안내는 이용할 수 있습니다."
@@ -129,12 +129,12 @@ export function AdvanceSettingsEditor({planId,provider}:{
             :"Test the approved multi-step non-payment flow (required in developer mode)"}
         </label>
         <p>{ko
-          ?"이 테스트는 예매처의 자동화 허가를 의미하지 않습니다. 승인한 예매 진입·회차·가격 등급·매수·좌석 선택을 가능한 범위에서 연속 진행하고, 필요한 사용자 조작이 있으면 일시 중지합니다. 최대 6회 입력, AI 분석 8회 후에는 재승인이 필요합니다. 좌석 확보 여부는 공식 예매처에서 확인해야 하며 결제는 자동 진행하지 않습니다."
-          :"This does not grant permission under provider terms. The agent attempts up to six approved non-payment steps across pages, pausing for manual intervention; maximum eight AI analyses. Clicks do not prove seat holds. No automatic checkout."}</p>
+          ?"이 테스트는 예매처의 자동화 허가를 의미하지 않습니다. 승인한 예매 진입·회차·가격 등급·매수·좌석 선택을 가능한 범위에서 연속 진행하고, 필요한 사용자 조작이 있으면 일시 중지합니다. 최대 20회 입력, AI 분석 24회 후에는 재승인이 필요합니다. 좌석 확보 여부는 공식 예매처에서 확인해야 하며 결제는 자동 진행하지 않습니다."
+          :"This does not grant permission under provider terms. The agent attempts up to twenty approved non-payment steps across pages, pausing for manual intervention; maximum twenty-four AI analyses. Clicks do not prove seat holds. No automatic checkout."}</p>
       </div>}
     <p className="settings-note">{ko
-      ?"로그인·대기열·CAPTCHA·결제 단계에서는 일시 중지하고 사용자 조작 후 재개합니다. 최대 15분, AI 분석 8회, 클릭 6회까지 허용하며 결제는 자동 진행하지 않습니다."
-      :"Pauses at login, queue, CAPTCHA and checkout. Up to 15 minutes, eight AI analyses and six clicks; manual resume is supported. No automatic payment."}</p>
+      ?"로그인·대기열·CAPTCHA·결제 단계에서는 일시 중지하고 사용자 조작 후 재개합니다. 최대 2시간, AI 분석 24회, 클릭 20회까지 허용하며 결제는 자동 진행하지 않습니다."
+      :"Pauses at login, queue, CAPTCHA and checkout. Up to two hours, twenty-four AI analyses and twenty clicks; manual resume is supported. No automatic payment."}</p>
     <div className="booking-actions"><button className="button button-outline"
       disabled={Boolean(planId&&!override) ||
         (developerCanTest && effectiveMode==="authorized" && !hasDevClickKind) ||
