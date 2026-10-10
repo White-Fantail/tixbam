@@ -14,9 +14,11 @@ const VERSION=1, MAX_BYTES=8*1024*1024;
 const DIGEST=/^[a-f0-9]{64}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TYPES=new Set(['RUN_CREATED','OFFER_LOCKED','COMMIT_INTENT_RECORDED',
-  'PAYMENT_SUBMISSION_RETURNED','PAYMENT_UNKNOWN','PURCHASE_CONFIRMED','RUN_STOPPED']);
+  'PAYMENT_SUBMISSION_RETURNED','PAYMENT_UNKNOWN','PURCHASE_CONFIRMED','RUN_STOPPED',
+  'RECONCILIATION_REVIEWED']);
 const BASIC=new Set(['version','seq','prevHash','hash','type','atMs','scopeDigest',
-  'runId','attemptId','permitDigest','orderDigest','receiptDigest','rehearsal']);
+  'runId','attemptId','permitDigest','orderDigest','receiptDigest','rehearsal',
+  'reviewDigest','reviewOutcome']);
 const cleanRecord=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&
   (Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
 const sortedJson=value=>JSON.stringify(value);
@@ -38,6 +40,10 @@ function validEvent(e){
     !has('attemptId')&&!has('permitDigest')&&!has('receiptDigest');
   if(e.type==='COMMIT_INTENT_RECORDED')return UUID.test(e.attemptId)&&
     DIGEST.test(e.permitDigest)&&DIGEST.test(e.orderDigest)&&!has('receiptDigest');
+  if(e.type==='RECONCILIATION_REVIEWED')return UUID.test(e.attemptId)&&
+    DIGEST.test(e.reviewDigest)&&
+    ['reported_paid','reported_not_paid','inconclusive'].includes(e.reviewOutcome)&&
+    !has('receiptDigest')&&!has('permitDigest')&&!has('orderDigest');
   if(e.type==='PURCHASE_CONFIRMED')return UUID.test(e.attemptId)&&
     DIGEST.test(e.receiptDigest)&&!has('permitDigest')&&!has('orderDigest');
   if(e.type==='RUN_STOPPED')return !has('attemptId')&&!has('permitDigest')&&

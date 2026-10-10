@@ -122,6 +122,26 @@ def test_shared_purchase_leases_and_fencing(monkeypatch):
             assert c.post(endpoint+"/renew",json=fresh).status_code==409
             assert c.post(endpoint+"/release",json=fresh).status_code==409
 
+            # AB-14 authenticated read-only reconciliation: claimed != paid.
+            info=c.get(endpoint+"/"+current["leaseId"]+"/reconciliation")
+            assert info.status_code==200,info.text
+            state=info.json()
+            assert state["leaseId"]==current["leaseId"]
+            assert state["fencingToken"]==current["fencingToken"]
+            assert state["status"]=="claimed"
+            assert state["paymentOutcome"]=="unknown"
+            assert state["authoritativeMerchantReceipt"] is False
+            assert state["replayAllowed"] is False
+            assert state["requiresManualReview"] is True
+            assert state["readOnly"] is True
+            assert "leaseToken" not in state
+            assert "ownerId" not in state
+            assert c.get(endpoint+"/"+str(uuid4())+"/reconciliation").status_code==404
+            active_user["id"]=ids["user_b"]
+            assert c.get(endpoint+"/"+current["leaseId"]+"/reconciliation").status_code==404
+            active_user["id"]=ids["user_a"]
+            assert c.post(endpoint+"/acquire",json=body).status_code==409
+
             # Expiry cannot erase a durable claim.
             with Session(engine) as db:
                 row=db.get(PurchaseIntentLease,current["leaseId"])

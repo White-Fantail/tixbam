@@ -66,6 +66,7 @@ export interface RehearsalLabState {
   challenge?:string;paymentAttempts?:number;
   order?:null|{quantity:number;totalMinor:number;currency:string;seats:string[]};
   events?:Array<{phase:string;status:string;message:string}>;
+  reconciliation?:{reviewed:boolean;reviewOutcome:string|null;purchaseBlocked:true};
 }
 export interface RehearsalPlannerView {
   action:"WAIT"|"REOBSERVE"|"ASK_USER"|"STOP"|
@@ -89,6 +90,7 @@ export interface RehearsalBridge {
   labNext:(action:"advance"|"manual"|"confirm")=>Promise<RehearsalLabState>;
   labStop:()=>Promise<RehearsalLabState>;
   labRestart:()=>Promise<RehearsalLabState>;
+  labReviewUnknown:(outcome:'reported_paid'|'reported_not_paid'|'inconclusive',confirmed:boolean)=>Promise<RehearsalLabState>;
   getLanguage: () => Promise<"ko" | "en">;
   setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
   onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;

@@ -120,6 +120,13 @@ function scan(events){
       if(e.type==='PAYMENT_SUBMISSION_RETURNED')p.returned=true;
       if(e.type==='PAYMENT_UNKNOWN')p.status='payment_unknown';
       if(e.type==='PURCHASE_CONFIRMED')p.status='completed';
+    }else if(e.type==='RECONCILIATION_REVIEWED'){
+      const p=pending.get(e.attemptId);
+      if(!p||p.runId!==e.runId||p.scopeDigest!==e.scopeDigest||
+         p.rehearsal!==e.rehearsal||p.status==='completed'||
+         p.reviewed===true)
+        throw new JournalUnavailable('invalid_reconciliation_transition');
+      p.reviewed=true;p.reviewOutcome=e.reviewOutcome;p.reviewAtMs=e.atMs;
     }else if(e.type==='RUN_STOPPED'){
       if(!created.has(e.runId)||created.get(e.runId).scopeDigest!==e.scopeDigest)
         throw new JournalUnavailable('invalid_stop_transition');
@@ -213,6 +220,47 @@ class PaymentAttemptLedger{
       receiptDigest:this.journal.digest(['rehearsal-receipt-v1',receipt,intent.attemptId]),
     });
   }
+  /** AB-14: human can record that they checked official order history.
+   * This is NOT merchant evidence, never clears the durable purchase tombstone.
+   * A single review is fsynced and cannot be rewritten to create false proof.
+   */
+  reviewUnknown({attemptId,outcome,confirmedByUser=false,accountVerified=false,reviewer='manual'}={}){
+    if(!UUID.test(attemptId||'')||
+       !['reported_paid','reported_not_paid','inconclusive'].includes(outcome)||
+       confirmedByUser!==true||accountVerified!==true||
+       !['manual','synthetic'].includes(reviewer))
+      throw new JournalUnavailable('review_requires_verified_user');
+    const atMs=this.clock();
+    if(!safeInt(atMs))throw new JournalUnavailable('invalid_clock');
+    return this.journal.transact(events=>{
+      const p=scan(events).attempts.find(x=>x.attemptId===attemptId);
+      if(!p||p.status!=='payment_unknown'||p.reviewed)
+        throw new JournalUnavailable('review_unavailable_or_already_recorded');
+      if(p.rehearsal!== (reviewer==='synthetic'))
+        throw new JournalUnavailable('wrong_reconciliation_mode');
+      return [{
+        type:'RECONCILIATION_REVIEWED',scopeDigest:p.scopeDigest,
+        runId:p.runId,attemptId:p.attemptId,rehearsal:p.rehearsal,
+        atMs,reviewOutcome:outcome,
+        reviewDigest:this.journal.digest([
+          'manual-review-v1',p.scopeDigest,p.attemptId,outcome,atMs,reviewer
+        ])
+      }];
+    });
+  }
+  inspection(attemptId){
+    if(!UUID.test(attemptId||''))throw new JournalUnavailable('invalid_attempt');
+    const p=this.#events().attempts.find(x=>x.attemptId===attemptId);
+    if(!p)throw new JournalUnavailable('unknown_attempt');
+    return Object.freeze({
+      attemptId:p.attemptId,status:p.status,
+      reviewOutcome:p.reviewOutcome||null,reviewed:p.reviewed===true,
+      reviewAtMs:p.reviewAtMs||null,
+      requiresOfficialReceipt:!p.rehearsal,
+      purchaseBlocked:true, // confirmed also remains single-use
+      noAutomaticRetry:true
+    });
+  }
   recovered(){
     // Every unresolved attempt remains UNKNOWN, even if there was a returned
     // submit call. Do not infer no-charge from missing confirmation.
@@ -225,6 +273,7 @@ class PaymentAttemptLedger{
           ? 'Interrupted rehearsal attempt. No real charge was made.'
           : 'Previous payment outcome is unknown. Check the official provider order history before another purchase.',
         startedAt:a.atMs,storageRecovered:true,
+        reviewed:a.reviewed===true,reviewOutcome:a.reviewOutcome||null,
       }));
   }
 }

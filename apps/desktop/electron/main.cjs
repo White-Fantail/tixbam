@@ -370,6 +370,10 @@ app.whenReady().then(() => {
     rehearsalEntry(event).lab.stop());
   ipcMain.handle("tixbam:rehearsal-lab-restart", event =>
     rehearsalEntry(event).lab.simulateRestart());
+  // Restricted to an active, isolated lab window. Never marks merchant paid,
+  // clears a purchase claim, or releases any real booking lease.
+  ipcMain.handle("tixbam:rehearsal-lab-review-unknown",(event,outcome,confirmed)=>
+    rehearsalEntry(event).lab.reviewUnknown(outcome,confirmed));
   ipcMain.handle("tixbam:rehearsal-close", event => {
     const entry = rehearsalEntry(event);
     entry.win.close();

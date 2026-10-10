@@ -49,6 +49,8 @@ export function ScenarioLab({plan,onComplete}:{
   const [state,setState]=useState<RehearsalLabState|null>(null);
   const [busy,setBusy]=useState(false);
   const [reviewChecked,setReviewChecked]=useState(false);
+  const [reconcileChecked,setReconcileChecked]=useState(false);
+  const [reconcileOutcome,setReconcileOutcome]=useState<'reported_paid'|'reported_not_paid'|'inconclusive'>('inconclusive');
   const [planning,setPlanning]=useState(false);
   const [recovering,setRecovering]=useState(false);
   const [recovery,setRecovery]=useState<RehearsalRecoveryResult|null>(null);
@@ -65,7 +67,7 @@ export function ScenarioLab({plan,onComplete}:{
     return ()=>{live=false;};
   },[bridge]);
   async function action(task:()=>Promise<RehearsalLabState>){
-    setBusy(true);setError("");setSynced(false);setProposal(null);setRecovery(null);setReviewChecked(false);
+    setBusy(true);setError("");setSynced(false);setProposal(null);setRecovery(null);setReviewChecked(false);setReconcileChecked(false);
     try{setState(await task());setAcknowledged(false);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
@@ -233,6 +235,33 @@ export function ScenarioLab({plan,onComplete}:{
           <strong>{event.phase}</strong> — {present(event.message)}
         </li>)}</ol>
       </details>}
+      {state.status==="payment_unknown"&&<section className="booking-review-panel" role="group"
+        aria-label={ko?"미확인 결제 수동 대조":"Manual payment reconciliation"}>
+        <strong>{ko?"미확인 모의 결제 확인":"Review an unresolved mock payment"}</strong>
+        <p>{ko?"예매처의 실제 결제·주문 내역이라면 반드시 공식 채널에서 직접 확인하세요. 여기서 남기는 기록은 검토 메모일 뿐이며, 결제 성공·실패를 확정하거나 구매 잠금을 해제하지 않습니다.":
+          "For a real purchase, independently check official merchant order history. This is a review record only; it neither proves success/failure nor unlocks the purchase."}</p>
+        {state.reconciliation?.reviewed?
+          <p role="status">{ko?"검토 기록 저장됨 (자동 재시도 계속 금지)":"Review recorded (automatic retry remains blocked)"}: {state.reconciliation.reviewOutcome}</p>
+          :<>
+            <label>{ko?"수동 확인 결과":"What did you find?"}
+              <select value={reconcileOutcome} onChange={e=>setReconcileOutcome(e.target.value as typeof reconcileOutcome)}
+                disabled={busy}>
+                <option value="inconclusive">{ko?"여전히 불명확":"Still inconclusive"}</option>
+                <option value="reported_paid">{ko?"결제된 것으로 보임 (미검증)":"Appears paid (unverified)"}</option>
+                <option value="reported_not_paid">{ko?"결제되지 않은 것으로 보임 (미검증)":"Appears unpaid (unverified)"}</option>
+              </select>
+            </label>
+            <label className="booking-review-check"><input type="checkbox" checked={reconcileChecked}
+              onChange={e=>setReconcileChecked(e.target.checked)}/>
+              {ko?"이 기록은 참고용이며 재결제를 허용하지 않는다는 점을 이해했습니다.":
+                "I understand this record is advisory and does not permit another payment."}
+            </label>
+            <button className="button button-outline" disabled={busy||!reconcileChecked}
+              onClick={()=>bridge&&void action(()=>bridge.labReviewUnknown(reconcileOutcome,true))}>
+              {ko?"수동 확인 기록 저장":"Record manual review"}
+            </button>
+          </>}
+      </section>}
       {state.status==="payment_unknown"&&<label className="cl-drill-check">
         <input type="checkbox" checked={acknowledged} onChange={e=>setAcknowledged(e.target.checked)}/>
         {ko?"결제 결과 불명확 시 자동 재결제를 하지 않는 규칙을 확인했습니다.":

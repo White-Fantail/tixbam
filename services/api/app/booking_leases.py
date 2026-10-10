@@ -203,3 +203,24 @@ def list_leases(user: CurrentUser, db: Db):
         PurchaseIntentLease.updated_at.desc()).limit(100)).all()
     return {"items": [status_view(row) for row in rows],
             "autonomousCheckoutAvailable": False}
+
+
+@router.get("/{lease_id}/reconciliation")
+def reconciliation_status(lease_id: UUID, user: CurrentUser, db: Db):
+    """AB-14: authenticated, read-only lease/fence observation.
+
+    A claimed lease remains blocked forever; even a valid claim is NOT
+    evidence of merchant payment, receipt or absence of a charge.
+    No bearer lease token/owner secret or raw order data is returned.
+    """
+    row = db.get(PurchaseIntentLease, str(lease_id))
+    if row is None or row.user_id != user.id:
+        raise HTTPException(404, "Lease not found")
+    return {
+        **status_view(row),
+        "paymentOutcome": "unknown",
+        "authoritativeMerchantReceipt": False,
+        "replayAllowed": False,
+        "requiresManualReview": row.status == "claimed",
+        "readOnly": True,
+    }

@@ -5,6 +5,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {BookingRunner,TERMINAL}=require('./runner.cjs');
 const {PaymentAttemptLedger}=require('./payment-attempts.cjs');
+const {PaymentReconciler}=require('./reconciliation.cjs');
 const {SessionCoordinator}=require('./session-coordinator.cjs');
 const {GatedMockPaymentExecutor}=require('./payment-executor.cjs');
 const {DEFINITIONS,getScenario}=require('./rehearsal-fixtures.cjs');
@@ -129,12 +130,15 @@ class RehearsalDriver{
          !STATES.has(last.status)||!Number.isSafeInteger(last.seed)||
          last.seed<0||last.seed>999999)throw Error('Invalid synthetic record');
       let unknown=['payment_unknown','submitting'].includes(last.status);
+      let reviewOutcome=null;
       const dir=path.join(this.folder,'runs',last.runId);
       try{
         if(fs.existsSync(dir))unknown=unknown||
           new PaymentAttemptLedger(dir).recovered().length>0;
+        if(fs.existsSync(dir))reviewOutcome=new PaymentAttemptLedger(dir)
+          .recovered()[0]?.reviewOutcome||null;
       }catch{unknown=true;}
-      return {...last,status:unknown?'payment_unknown':
+      return {...last,reviewOutcome,status:unknown?'payment_unknown':
         last.status==='completed'?'completed':'stopped',
         message:unknown?'Simulated payment status unknown after restart; never retry.':
           'Practice interrupted; start a new simulation.',recovered:true};
@@ -160,14 +164,20 @@ class RehearsalDriver{
     const run=this.runner?.state;
     if(!run&&!this.last)return {active:false,scenarioId:null,status:'idle',message:'Choose a scenario.',recovered:false};
     if(!run)return {active:false,scenarioId:this.last.scenarioId,status:this.last.status,
-      message:this.last.message,seed:this.last.seed,recovered:true,events:[],challenge:'none'};
+      message:this.last.message,seed:this.last.seed,recovered:true,events:[],challenge:'none',
+      reconciliation:{reviewed:!!this.last.reviewOutcome,reviewOutcome:this.last.reviewOutcome||null,purchaseBlocked:true}};
     return {active:!TERMINAL.has(run.status),scenarioId:this.last.scenarioId,
       seed:this.last.seed,status:run.status,phase:run.phase,message:run.message,
       challenge:this.adapter?.challengeType||'none',recovered:false,
       paymentAttempts:this.adapter?.payments||0,
       order:run.order?{quantity:run.order.quantity,totalMinor:run.order.totalMinor,
         currency:run.order.currency,seats:run.order.seats}:null,
-      events:this.events.slice(-16)};
+      events:this.events.slice(-16),
+      reconciliation:run.status==='payment_unknown'?{
+        reviewed:this.runner?.paymentIntent?this.runner.ledger.inspection(this.runner.paymentIntent.attemptId).reviewed:false,
+        reviewOutcome:this.runner?.paymentIntent?this.runner.ledger.inspection(this.runner.paymentIntent.attemptId).reviewOutcome:null,
+        purchaseBlocked:true
+      }:undefined};
   }
   #serialize(task){const taskPromise=this.operations.then(task);this.operations=taskPromise.catch(()=>{});return taskPromise;}
   withRecoveryTask(task){
@@ -234,6 +244,26 @@ class RehearsalDriver{
       if(confirm===true&&this.runner.state.status!=='review')
         throw Error('Only the order review may be confirmed.');
       await this.runner.step(confirm===true);
+      return this.state;
+    });
+  }
+  reviewUnknown(outcome,confirmedByUser=false){
+    return this.#serialize(async()=>{
+      if(!['reported_paid','reported_not_paid','inconclusive'].includes(outcome)||
+         confirmedByUser!==true||this.state.status!=='payment_unknown')
+        throw Error('Explicit unresolved-payment review required.');
+      const runId=this.runner?.paymentIntent?.runId||this.last?.runId;
+      if(!ID.test(runId||''))throw Error('Unknown payment record unavailable.');
+      const dir=path.join(this.folder,'runs',runId);
+      const ledger=new PaymentAttemptLedger(dir,{clock:this.clock});
+      const pending=ledger.recovered();
+      if(pending.length!==1)throw Error('No single unresolved synthetic payment.');
+      new PaymentReconciler({ledger}).recordManualReview({
+        attemptId:pending[0].attemptId,outcome,confirmedByUser,
+        accountVerified:true,rehearsal:true
+      });
+      if(this.runner) return this.state;
+      this.last=this.#recover();
       return this.state;
     });
   }
