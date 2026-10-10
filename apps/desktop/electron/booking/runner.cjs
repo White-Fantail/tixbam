@@ -24,6 +24,7 @@ class BookingRunner {
     this.sessionCoordinator = sessionCoordinator;
     this.purchasePermit = purchasePermit;
     this.paymentIntent = null;
+    this.cloudClaimAttempted = false;
     this.preferences = structuredClone(preferences);
     this.secret = secret;
     this.secretCleared = false;
@@ -48,6 +49,11 @@ class BookingRunner {
 
   stop() {
     this.clearSecret();
+    if(this.cloudClaimAttempted && !this.submitted && !this.orchestrator.machine.terminal){
+      return this.orchestrator.transition('CLOUD_CLAIM_UNKNOWN',
+        'A shared purchase claim may be recorded. Automatic retry is blocked; verify the provider order history.',
+        {}, {claimAttempted:true});
+    }
     if (this.paymentIntent && this.ledger) {
       try { this.ledger.markUnknown(this.paymentIntent); }
       catch { /* The already-durable commit record remains unresolved. */ }
@@ -178,6 +184,7 @@ class BookingRunner {
             // Durable *server* claim precedes local fsync. A lost response,
             // expired lease, or ownership change permanently blocks retry.
             if(!this.sessionCoordinator)throw new Error('Shared purchase lease required.');
+            this.cloudClaimAttempted=true; // before network; response may be lost
             await this.sessionCoordinator.claimBeforeCommit(
               this.state.id,this.state.windowId,this.state.eventKey);
             if(!this.orchestrator.check(handle))return;
@@ -210,6 +217,13 @@ class BookingRunner {
       }
       this.orchestrator.transition('NEED_USER', 'This page needs your attention. Continue in the provider window, then resume.');
     } catch {
+      if(this.cloudClaimAttempted && !this.submitted &&
+         !this.orchestrator.machine.terminal &&
+         this.orchestrator.machine.phase==='READY_TO_COMMIT'){
+        this.orchestrator.transition('CLOUD_CLAIM_UNKNOWN',
+          'The shared purchase claim could have succeeded. Verify the official provider order; automatic retry is disabled.',
+          {}, {claimAttempted:true});
+      }
       if (this.paymentIntent && this.ledger) {
         try { this.ledger.markUnknown(this.paymentIntent); }
         catch { /* Unresolved COMMIT_INTENT_RECORDED always blocks replay. */ }

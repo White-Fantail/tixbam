@@ -197,3 +197,63 @@ test('runner requires a shared lease claim before any real payment and never sub
   assert.equal(claims,1);
 });
 
+
+
+test('an ambiguous cloud claim never leaves the booking safely retryable',async()=>{
+  const prefs={quantity:1,maxTotalMinor:20000,currency:'HKD',
+    requireTogether:true,allowFallback:false,checkout:'automatic',
+    options:{performance:'p1',priceTier:['100'],section:[],floor:[],seatMode:'',fulfillment:''}};
+  const order={id:'o1',eventKey:'e1',quantity:1,currency:'HKD',
+    totalMinor:10000,feesIncluded:true,adjacent:true,available:true,
+    performance:'p1',priceTier:'100',seats:['A1']};
+  let pay=0;
+  const b=new BookingRunner({
+    eventKey:'e1',windowId:7,rehearsal:false,preferences:prefs,
+    adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
+    payment:{verified:true,submit:()=>{pay++;}},
+    secret:{use:fn=>fn({}),clear(){}},ledger:{recordCommitIntent:()=>assert.fail('must not write')},
+    sessionCoordinator:{claimBeforeCommit:async()=>{throw Error('timeout after server accepted');}},
+    notify:()=>{}
+  });
+  await b.step();
+  assert.equal(pay,0);
+  assert.equal(b.state.status,'payment_unknown');
+  assert.equal(b.state.phase,'PAYMENT_UNKNOWN');
+  assert.match(b.state.message,/retry is disabled/);
+  await b.step();
+  assert.equal(pay,0);
+});
+
+test('Stop while a cloud claim is in flight remains UNKNOWN after the response arrives',async()=>{
+  const {BookingStateMachine}=require('./booking/state-machine.cjs');
+  const machine=new BookingStateMachine(crypto.randomUUID());
+  const go=(event,evidence)=>machine.transition(machine.runId,machine.revision,event,evidence);
+  go('START');go('SESSION_READY');go('OBSERVED');go('REVIEW_ORDER');go('COMMIT_READY');
+  assert.throws(()=>go('CLOUD_CLAIM_UNKNOWN'),/uncertainty/);
+  assert.equal(go('CLOUD_CLAIM_UNKNOWN',{claimAttempted:true}).phase,'PAYMENT_UNKNOWN');
+  assert.throws(()=>go('START'),/Terminal/);
+  const prefs={quantity:1,maxTotalMinor:20000,currency:'HKD',requireTogether:true,
+    allowFallback:false,checkout:'automatic',
+    options:{performance:'p1',priceTier:['100'],section:[],floor:[],seatMode:'',fulfillment:''}};
+  const order={id:'o1',eventKey:'e1',quantity:1,currency:'HKD',
+    totalMinor:10000,feesIncluded:true,adjacent:true,available:true,
+    performance:'p1',priceTier:'100',seats:['A1']};
+  let finish,pay=0;
+  const pending=new Promise(resolve=>finish=resolve);
+  const b=new BookingRunner({
+    eventKey:'e1',windowId:7,rehearsal:false,preferences:prefs,
+    adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
+    payment:{verified:true,submit:()=>{pay++;}},
+    secret:{use:fn=>fn({}),clear(){}},
+    ledger:{recordCommitIntent:()=>assert.fail('cancel must stop')},
+    sessionCoordinator:{claimBeforeCommit:()=>pending},
+    notify:state=>{if(state.phase==='READY_TO_COMMIT')setImmediate(()=>b.stop());}
+  });
+  const task=b.step();
+  await new Promise(resolve=>setTimeout(resolve,15));
+  assert.equal(b.state.status,'payment_unknown');
+  finish({status:'claimed'});
+  await task;
+  assert.equal(pay,0);
+  assert.equal(b.state.status,'payment_unknown');
+});

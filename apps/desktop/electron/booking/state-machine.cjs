@@ -72,7 +72,12 @@ class BookingStateMachine {
     if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence))
       throw new InvalidTransition('Invalid transition evidence');
     let next;
-    if (event === 'STOP') next = this.commitStarted ? 'PAYMENT_UNKNOWN' : 'STOPPED';
+    if (event === 'CLOUD_CLAIM_UNKNOWN') {
+      if (this.phase !== 'READY_TO_COMMIT' || evidence.claimAttempted !== true)
+        throw new InvalidTransition('Cloud claim uncertainty requires an attempted commit claim');
+      next = 'PAYMENT_UNKNOWN';
+    }
+    else if (event === 'STOP') next = this.commitStarted ? 'PAYMENT_UNKNOWN' : 'STOPPED';
     else if (event === 'FAIL') next = this.commitStarted ? 'PAYMENT_UNKNOWN' : 'FAILED';
     else if (event === 'UNKNOWN_PAYMENT') {
       if (!this.commitStarted) throw new InvalidTransition('No attempted payment to reconcile');
