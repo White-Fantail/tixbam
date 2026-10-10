@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld("tixbamRehearsal", {
     return () => ipcRenderer.removeListener("tixbam:language-changed", handler);
   },
   getContext: () => ipcRenderer.invoke("tixbam:rehearsal-context"),
+  labScenarios: () => ipcRenderer.invoke("tixbam:rehearsal-lab-scenarios"),
+  labStatus: () => ipcRenderer.invoke("tixbam:rehearsal-lab-status"),
+  labStart: (scenarioId,seed) => ipcRenderer.invoke("tixbam:rehearsal-lab-start",scenarioId,seed),
+  labNext: action => ipcRenderer.invoke("tixbam:rehearsal-lab-next",action),
+  labStop: () => ipcRenderer.invoke("tixbam:rehearsal-lab-stop"),
+  labRestart: () => ipcRenderer.invoke("tixbam:rehearsal-lab-restart"),
   aiAdvice: input => ipcRenderer.invoke("tixbam:ai-advice", input),
   complete: () => ipcRenderer.invoke("tixbam:rehearsal-complete"),
   close: () => ipcRenderer.invoke("tixbam:rehearsal-close")

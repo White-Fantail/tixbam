@@ -439,3 +439,20 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .run-ai-disclaimer{font-size:12px!important;display:flex;align-items:center;gap:8px;line-height:1.5;color:#aabbcf!important;margin:0!important}
 .run-ai-advice{background:#202e44;border:1px solid #334868;border-radius:10px;padding:12px 15px;font-size:13px;max-width:100%;line-height:1.6}
 .run-ai-advice ul{padding-left:18px;margin:8px 0 0}
+
+/* AB-07 offline-only scenario lab inside the existing isolated rehearsal window. */
+.lab-mode-switch{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 24px}
+.scenario-lab{display:grid;gap:20px;background:#181a29;border:1px solid #434658;border-radius:14px;padding:clamp(16px,3vw,28px);color:#f5f3ff}
+.scenario-lab .cl-drill-top h3{margin:8px 0}
+.lab-scenario-tools{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.lab-scenario-tools label{display:grid;gap:7px;font-size:12px;color:#dedbef;min-width:180px;flex:1}
+.lab-scenario-tools select,.lab-scenario-tools input{background:#262635;color:#f4f2ff;padding:11px;border:1px solid #5b596c;border-radius:9px;width:100%;font:inherit}
+.lab-scenario-tools .button{min-height:43px}
+.lab-run{display:grid;gap:15px;border-top:1px solid #484959;padding-top:20px}
+.lab-run-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.lab-run-summary strong{color:#ddf9a3;font-size:15px}
+.lab-run-summary small,.lab-run p{color:#d4d1e2;font-size:12px;line-height:1.65}
+.lab-history{border:1px solid #434657;padding:12px;border-radius:10px}
+.lab-history summary{cursor:pointer;font-size:12px;color:#dbf8a9}
+.lab-history ol{font-size:11px;line-height:1.7;padding-left:24px}
+.lab-history li{margin-top:4px;color:#d7d2e0}

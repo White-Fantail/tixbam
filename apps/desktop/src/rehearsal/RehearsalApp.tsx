@@ -5,6 +5,7 @@ import { RehearsalAIAdvisor } from "./AIAdvisor";
 import { useLanguage, LANGUAGES, tx } from "../i18n";
 import { RehearsalSimulator } from "../BookingWorkspace";
 import { CitylineRehearsal } from "./CitylineRehearsal";
+import { ScenarioLab } from "./ScenarioLab";
 
 /** No account/vault/provider APIs are exposed to this separate Electron window. */
 export default function RehearsalApp() {
@@ -22,6 +23,7 @@ export default function RehearsalApp() {
     return () => { active = false; off(); };
   }, [setLanguage]);
   const [plan, setPlan] = useState<RehearsalTarget | null>(null);
+  const [labMode,setLabMode]=useState(false);
   const [aiSnapshot, setAiSnapshot] = useState<Partial<AIAdvisoryContext> | null>(null);
   const [error, setError] = useState("");
   const bridge = window.tixbamRehearsal;
@@ -69,11 +71,21 @@ export default function RehearsalApp() {
     <div className="rehearsal-window-body">
       {error && <p className="form-error" role="alert">{error}</p>}
       {!error && !plan && <div className="empty-state"><h3>Loading your booking rehearsal…</h3></div>}
-      {plan && (plan.providerId === "cityline"
+      {plan&&<div className="lab-mode-switch" role="group" aria-label={language==="ko"?"리허설 모드":"Rehearsal mode"}>
+        <button type="button" className={"button "+(!labMode?"button-primary":"button-outline")}
+          onClick={()=>setLabMode(false)} aria-pressed={!labMode}>
+          {language==="ko"?"예매처 화면 리허설":"Provider walkthrough"}</button>
+        <button type="button" className={"button "+(labMode?"button-primary":"button-outline")}
+          onClick={()=>setLabMode(true)} aria-pressed={labMode}>
+          {language==="ko"?"예외 상황 Stress Lab":"Safety Stress Lab"}</button>
+      </div>}
+      {plan && (labMode
+        ? <ScenarioLab plan={plan} onComplete={async()=>{await bridge!.complete();}}/>
+        : plan.providerId === "cityline"
         ? <CitylineRehearsal plan={plan} onContextChange={setAiSnapshot} onComplete={async () => { await bridge!.complete(); }} onClose={() => void close()}/>
         : <RehearsalSimulator plan={plan} onComplete={async () => { await bridge!.complete(); }}
             onClose={() => void close()}/>)}
-      {plan && <RehearsalAIAdvisor plan={plan} language={language} snapshot={aiSnapshot}/>}
+      {plan && !labMode && <RehearsalAIAdvisor plan={plan} language={language} snapshot={aiSnapshot}/>}
     </div>
   </main>;
 }

@@ -57,7 +57,23 @@ export type { AIAdvisoryRequest, AIAdvisoryResponse, AIAdvisoryContext };
 export type RehearsalTarget = Pick<BookingPlan,
   "id" | "artist" | "title" | "providerId" | "currency" | "quantity" |
   "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady">;
+export interface RehearsalLabScenario {
+  id:string;title:string;ko:string;hint:string;hintKo:string;
+}
+export interface RehearsalLabState {
+  active:boolean;scenarioId:string|null;status:string;phase?:string;
+  message:string;recovered:boolean;seed?:number;
+  challenge?:string;paymentAttempts?:number;
+  order?:null|{quantity:number;totalMinor:number;currency:string;seats:string[]};
+  events?:Array<{phase:string;status:string;message:string}>;
+}
 export interface RehearsalBridge {
+  labScenarios:()=>Promise<RehearsalLabScenario[]>;
+  labStatus:()=>Promise<RehearsalLabState>;
+  labStart:(scenarioId:string,seed:number)=>Promise<RehearsalLabState>;
+  labNext:(action:"advance"|"manual"|"confirm")=>Promise<RehearsalLabState>;
+  labStop:()=>Promise<RehearsalLabState>;
+  labRestart:()=>Promise<RehearsalLabState>;
   getLanguage: () => Promise<"ko" | "en">;
   setLanguage: (code: "ko" | "en") => Promise<"ko" | "en">;
   onLanguageChanged: (listener: (code: "ko" | "en") => void) => () => void;

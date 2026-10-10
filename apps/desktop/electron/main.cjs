@@ -8,6 +8,7 @@ const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 const { registerBooking } = require("./booking/controller.cjs");
 const { registerAccount } = require("./account.cjs");
 const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.cjs");
+const { RehearsalDriver } = require("./booking/rehearsal-driver.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
@@ -68,7 +69,9 @@ function openRehearsalWindow(plan, accountId) {
       nodeIntegration: false, webSecurity: true
     }
   });
-  rehearsalWindows.set(target.id, { win, target, ownerId });
+  // Never pass the protected lab object to the rehearsal renderer.
+  const lab = new RehearsalDriver({rootDir:app.getPath("userData"),plan:target,ownerId});
+  rehearsalWindows.set(target.id, { win, target, ownerId, lab });
   win.webContents.on("will-navigate", event => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.on("closed", () => {
@@ -324,6 +327,26 @@ app.whenReady().then(() => {
     return openRehearsalWindow(plan, accountId);
   });
   ipcMain.handle("tixbam:rehearsal-context", event => rehearsalEntry(event).target);
+  // AB-07: sandboxed renderer can only advance a preset, offline simulator.
+  // The host does not expose arbitrary URLs, DOM selectors, payment handlers,
+  // card details, provider sessions, or host action commands.
+  ipcMain.handle("tixbam:rehearsal-lab-scenarios", event =>
+    rehearsalEntry(event).lab.scenarios);
+  ipcMain.handle("tixbam:rehearsal-lab-status", event =>
+    rehearsalEntry(event).lab.state);
+  ipcMain.handle("tixbam:rehearsal-lab-start", (event, scenarioId, seed) =>
+    rehearsalEntry(event).lab.start(scenarioId,seed));
+  ipcMain.handle("tixbam:rehearsal-lab-next", (event, action) => {
+    const lab=rehearsalEntry(event).lab;
+    if(action==='advance')return lab.next();
+    if(action==='manual')return lab.next({completeChallenge:true});
+    if(action==='confirm')return lab.next({confirm:true});
+    throw new Error("Unsupported rehearsal action.");
+  });
+  ipcMain.handle("tixbam:rehearsal-lab-stop", event =>
+    rehearsalEntry(event).lab.stop());
+  ipcMain.handle("tixbam:rehearsal-lab-restart", event =>
+    rehearsalEntry(event).lab.simulateRestart());
   ipcMain.handle("tixbam:rehearsal-close", event => {
     const entry = rehearsalEntry(event);
     entry.win.close();
