@@ -108,11 +108,22 @@ class LiveCopilot {
        !/^[A-Z]{3}$/.test(preferences.currency||'') ||
        !['ko','en'].includes(preferences.locale))
       throw new Error('Invalid Copilot ticket conditions.');
-    const response=await this.visionProvider({
-      providerId:entry.providerId,quantity:preferences.quantity,
-      currency:preferences.currency,budgetMinor:preferences.budgetMinor,
-      locale:preferences.locale,stage:preview.phase,imageBase64:preview.bytes.toString('base64')
-    });
+    let response;
+    try {
+      response=await this.visionProvider({
+        providerId:entry.providerId,quantity:preferences.quantity,
+        currency:preferences.currency,budgetMinor:preferences.budgetMinor,
+        locale:preferences.locale,
+        // Older production APIs only accept selection-stage requests.
+        // Omitting the default stage keeps existing deployments compatible.
+        ...(preview.phase==='preparing' ? {stage:'preparing'} : {}),
+        imageBase64:preview.bytes.toString('base64')
+      });
+    } catch(error) {
+      if(preview.phase==='preparing' && error?.status===422)
+        throw new Error('Preparation-stage AI requires the updated TIXBAM API. Manual target highlighting still works.');
+      throw error;
+    }
     await this.verifiedTarget(windowId,token,{x:0.5,y:0.5},{readOnly:true});
     if(response?.advisoryOnly!==true || response.humanApprovalRequired!==true ||
        !Array.isArray(response.targets) || response.targets.length>5)
