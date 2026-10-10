@@ -17,11 +17,11 @@ class LiveCopilot {
     if(typeof provider!=='function')throw new TypeError('Trusted Vision service required');
     this.visionProvider=provider;
   }
-  verify(windowId) {
+  verify(windowId, options = {}) {
     if(!Number.isInteger(windowId))throw new Error('Invalid Copilot window.');
     const entry=this.ticketWindows.get(windowId);
     const provider=entry&&this.requireInstalled(entry.providerId);
-    const result=screenAllowed(entry,provider?.allowedHosts,windowId);
+    const result=screenAllowed(entry,provider?.allowedHosts,windowId,options);
     if(!result.allowed)throw new Error(result.reason);
     return entry;
   }
@@ -40,24 +40,25 @@ class LiveCopilot {
     return bytes;
   }
   async snapshot(windowId) {
-    const entry=this.verify(windowId);
+    const entry=this.verify(windowId,{localPreview:true});
     this.snapshots.delete(windowId);
     const {win}=entry, url=win.webContents.getURL(), bounds=win.getContentBounds();
     if(bounds.width<200 || bounds.height<200)throw new Error('Booking browser is too small.');
     const bytes=await this.takeImage(entry);
-    this.verify(windowId);
+    this.verify(windowId,{localPreview:true});
     if(win.webContents.getURL()!==url || win.getContentBounds().width!==bounds.width ||
        win.getContentBounds().height!==bounds.height)
       throw new Error('Provider screen changed during capture.');
     const issuedAt=Date.now(),token=crypto.randomUUID();
+    const mode=entry.phase === 'preparing' ? 'diagnostic_preview' : 'human_guidance';
     this.snapshots.set(windowId,{token,windowId,planId:entry.planId,
-      providerId:entry.providerId,url,issuedAt,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
+      providerId:entry.providerId,phase:entry.phase,url,issuedAt,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       digest:crypto.createHash('sha256').update(bytes).digest('hex'),
       width:bounds.width,height:bounds.height,consumed:false});
     return {token,windowId,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       image:'data:image/jpeg;base64,'+bytes.toString('base64'),
       width:bounds.width,height:bounds.height,
-      mode:'human_guidance',automaticClickAvailable:false};
+      mode,automaticClickAvailable:false};
   }
   async verifiedTarget(windowId,token,point) {
     const entry=this.verify(windowId),preview=this.snapshots.get(windowId);
