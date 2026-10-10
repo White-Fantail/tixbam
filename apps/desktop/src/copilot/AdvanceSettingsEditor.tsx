@@ -24,6 +24,14 @@ export function AdvanceSettingsEditor({planId,provider}:{
   const [value,setValue]=useState<AdvanceSettings>(()=>
     planId ? planAdvanceSettings(planId)||globalAdvanceSettings() : globalAdvanceSettings());
   const [saved,setSaved]=useState(false);
+  const [developerAvailable,setDeveloperAvailable]=useState(false);
+  useEffect(()=>{
+    let active=true;
+    void window.tixbam?.copilotDeveloperCapabilities()
+      .then(value=>{if(active)setDeveloperAvailable(value.singleClickTest===true);})
+      .catch(()=>{if(active)setDeveloperAvailable(false);});
+    return()=>{active=false;};
+  },[]);
   useEffect(()=>{
     setOverride(Boolean(planId && planAdvanceSettings(planId)));
     setValue(planId?planAdvanceSettings(planId)||globalAdvanceSettings():globalAdvanceSettings());
@@ -40,7 +48,9 @@ export function AdvanceSettingsEditor({planId,provider}:{
     if(value.mode!=="manual" && !value.shareScreenshots){
       setSaved(false);return;
     }
-    const safe={...value,mode:effectiveMode};
+    const safe={...value,mode:effectiveMode,
+      developerClickTest:Boolean(planId && developerAvailable &&
+        effectiveMode==="observe" && value.developerClickTest)};
     if(planId)savePlanAdvanceSettings(planId,safe);
     else saveGlobalAdvanceSettings(safe);
     setValue(safe);
@@ -85,6 +95,21 @@ export function AdvanceSettingsEditor({planId,provider}:{
         ?"예매 세션 동안 허용된 화면 캡처를 TixBam API 및 외부 AI 모델로 자동 전송하는 데 동의"
         :"Allow approved booking-stage screenshots to be sent automatically to the TixBam API and external AI model during this session"}
     </label>
+    {planId && provider?.kind==="ticketing" && developerAvailable &&
+      <div className="copilot-note">
+        <strong>{ko?"개발자 클릭 진단 (로컬 실행 전용)":"Developer click diagnostic (local only)"}</strong>
+        <label><input type="checkbox"
+          disabled={!override || effectiveMode!=="observe"}
+          checked={Boolean(value.developerClickTest && effectiveMode==="observe")}
+          onChange={event=>change({developerClickTest:event.target.checked})}/>
+          {ko
+            ?"이 공연에서 AI가 식별한 좌석 선택 항목을 실제 예매 창에 최대 1회 자동 클릭해 보기"
+            :"Test one automatically approved native click on a detected ticket-selection target"}
+        </label>
+        <p>{ko
+          ?"이 테스트는 예매처 정책상의 자동화 허가를 뜻하지 않습니다. 클릭은 실제 사이트에 전달될 수 있습니다. 선택한 좌석 또는 매수가 바뀔 수 있으며 예매·결제는 수행하지 않습니다. 승인 후 첫 유효 후보가 나올 때까지 기다리며, 실행 후 자동으로 중지됩니다."
+          :"This does not grant permission under provider terms. One real native click may change ticket selections; it will never submit a purchase. The diagnostic stops after a single attempt."}</p>
+      </div>}
     <p className="settings-note">{ko
       ?"로그인·대기열·CAPTCHA·결제 단계에서는 중단합니다. 세션은 최대 15분, AI 분석 최대 5회이며 사용자가 언제든 중지할 수 있습니다. 자동 결제는 불가합니다."
       :"Stops at login, queue, CAPTCHA or checkout. Maximum 15 minutes / 5 automatic AI requests. Stop anytime; payment is never automatic."}</p>
