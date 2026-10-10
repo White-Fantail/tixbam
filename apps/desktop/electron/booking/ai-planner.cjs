@@ -11,6 +11,7 @@ const ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 const isRecord=o=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.getPrototypeOf(o)===Object.prototype;
 const allowedFields=new Set(['schemaVersion','requestId','snapshotId','expectedPageGeneration','expectedStage',
   'action','targetToken','rationaleCode','expiresAtMs','advisoryOnly','model']);
+const RATIONALE_CODES=new Set(["WAIT_FOR_OBSERVATION","REHEARSAL_WAIT","REQUIRES_REVIEW","APPROVED_OPTION","CHALLENGE_PRESENT","NEED_REOBSERVATION","MATCHING_OFFER","USER_HANDOFF","SAFETY_STOP","INVENTORY_UNCERTAIN","PRICE_UNVERIFIED","NO_OPTIONS","OPTION_AVAILABLE","PAGE_READY"]);
 const stageForAction={
   SELECT_PERFORMANCE:'options',SELECT_PRICE_TIER:'options',
   SELECT_APPROVED_OFFER:'offers',CHOOSE_VERIFIED_DELIVERY:'cart',
@@ -90,7 +91,7 @@ class RehearsalPlanner{
       expiresAtMs:Math.min(result.expiresAtMs,host.expiresAtMs)
     };
     const proposal=strictProposal(local);
-    if(!proposal)return invalid();
+    if(!proposal||!RATIONALE_CODES.has(proposal.rationaleCode))return invalid();
     const actionKind=ACTION_TARGETS[proposal.action];
     if(actionKind){
       if(host.challenge!=='none'||stageForAction[proposal.action]!==host.stage||

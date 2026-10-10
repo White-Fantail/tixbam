@@ -48,6 +48,7 @@ MUTABLE_STAGE = {
 USER_HOURLY_LIMIT = 20
 RUN_HOURLY_LIMIT = 8
 MAX_COMPLETION_TOKENS = 256
+RATIONALE_CODES = ["WAIT_FOR_OBSERVATION","REHEARSAL_WAIT","REQUIRES_REVIEW","APPROVED_OPTION","CHALLENGE_PRESENT","NEED_REOBSERVATION","MATCHING_OFFER","USER_HANDOFF","SAFETY_STOP","INVENTORY_UNCERTAIN","PRICE_UNVERIFIED","NO_OPTIONS","OPTION_AVAILABLE","PAGE_READY"]
 MAX_PROMPT_BYTES = 4096
 DEFAULT_TTL_MS = 5000
 
@@ -103,7 +104,7 @@ class ModelProposal(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: Action
     targetToken: UUID | None
-    rationaleCode: str = Field(min_length=2, max_length=48, pattern=r"^[A-Z][A-Z0-9_]{1,47}$")
+    rationaleCode: Literal["WAIT_FOR_OBSERVATION", "REHEARSAL_WAIT", "REQUIRES_REVIEW", "APPROVED_OPTION", "CHALLENGE_PRESENT", "NEED_REOBSERVATION", "MATCHING_OFFER", "USER_HANDOFF", "SAFETY_STOP", "INVENTORY_UNCERTAIN", "PRICE_UNVERIFIED", "NO_OPTIONS", "OPTION_AVAILABLE", "PAGE_READY"]
 
 
 def validate_model_choice(output: ModelProposal, observation: AIObservation) -> None:
@@ -132,7 +133,7 @@ def schema_for_model():
             "action": {"type": "string", "enum": [
                 "WAIT", "REOBSERVE", "ASK_USER", "STOP", *ACTION_KIND.keys()]},
             "targetToken": {"type": ["string", "null"]},
-            "rationaleCode": {"type": "string"},
+            "rationaleCode": {"type": "string", "enum": RATIONALE_CODES},
         },
         "required": ["action", "targetToken", "rationaleCode"],
         "additionalProperties": False,
