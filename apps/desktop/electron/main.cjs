@@ -26,6 +26,10 @@ function notifyLanguage() {
 }
 const ticketWindows = new Map();
 const copilot = new LiveCopilot({ticketWindows,requireInstalled});
+copilot.onAutoUpdate = info => {
+  if (dashboard && !dashboard.isDestroyed())
+    dashboard.webContents.send('tixbam:copilot-advance-update',info);
+};
 const rehearsalWindows = new Map();
 const rehearsalWrites = new Map();
 let rehearsalRequestSequence = 0;
@@ -157,7 +161,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   };
   ticketWindows.set(win.id, entry);
   wc.on("did-start-loading", () => { copilot.clear(win.id); entry.loadError = null; broadcast(); });
-  wc.on("did-stop-loading", broadcast);
+  wc.on("did-stop-loading", () => {broadcast(); void copilot.observe(win.id);});
   wc.on("page-title-updated", broadcast);
   wc.on("did-navigate", () => { copilot.clear(win.id); broadcast(); });
   wc.on("did-navigate-in-page", () => { copilot.clear(win.id); broadcast(); });
@@ -177,6 +181,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   win.on("close", event => confirmSessionClose(win, entry, event));
   win.on("closed", () => {
     if (planId && !popup) rememberSession(entry, closingApplication ? "interrupted" : "closed");
+    copilot.disarm(win.id);
     copilot.clear(win.id);
     booking?.windowClosed(win.id);
     ticketWindows.delete(win.id);
@@ -461,11 +466,35 @@ app.whenReady().then(() => {
     if (existing) {
       if (existing.win.isMinimized()) existing.win.restore();
       existing.win.show(); existing.win.focus();
+      if (!existing.popup && options.copilotConsent?.mode &&
+          options.copilotConsent.mode!=='manual') {
+        copilot.arm(existing.win.id,options.copilotConditions,options.copilotConsent);
+        void copilot.observe(existing.win.id);
+      }
       return { id: existing.win.id, providerId: existing.providerId, planId,
         reused: true, popup: existing.popup,
         site: publicLocation(existing.win.webContents.getURL()) };
     }
-    return { ...openTicketWindow({ ...destination, planId }), reused: false };
+    const opened=openTicketWindow({ ...destination, planId });
+    if(options.copilotConsent?.mode && options.copilotConsent.mode!=='manual') {
+      copilot.arm(opened.id,options.copilotConditions,options.copilotConsent);
+      void copilot.observe(opened.id);
+    }
+    return {...opened,reused:false};
+  });
+  ipcMain.handle("tixbam:copilot-advance-arm", (event, windowId, conditions, consent) => {
+    dashboardOnly(event);
+    const info=copilot.arm(windowId,conditions,consent);
+    void copilot.observe(windowId);
+    return info;
+  });
+  ipcMain.handle("tixbam:copilot-advance-stop", (event, windowId) => {
+    dashboardOnly(event);
+    return copilot.disarm(windowId);
+  });
+  ipcMain.handle("tixbam:copilot-advance-status", (event, windowId) => {
+    dashboardOnly(event);
+    return copilot.autoStatus(windowId);
   });
   ipcMain.handle("tixbam:copilot-capture", (event, windowId) => {
     dashboardOnly(event);
@@ -496,6 +525,7 @@ app.whenReady().then(() => {
     entry.phase = assertPhase(phase);
     rememberSession(entry);
     broadcast();
+    if(phase==='preparing' || phase==='selecting')void copilot.observe(windowId);
     return true;
   });
   ipcMain.handle("tixbam:list-live-history", event => {
