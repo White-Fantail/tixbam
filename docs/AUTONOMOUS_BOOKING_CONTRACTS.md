@@ -309,3 +309,13 @@ The engine enforces 3 attempts, 2 failures and 1 synthetic offer mutation per ru
 For `assigned`, exact distinct seat references are necessary; adjacent pairs are verified only when quantity>1 and requested. For `standing`, GA area identity is essential; invented numbered adjacency is not required. For `automatic`, ranked offers may be observed with no assigned seat references, but final payment requires verified allocation, concrete seats, and (for group-together requirements) verified adjacency. Strict conditions and a purchase fingerprint must be rechecked from the host-observed final order after cart/price changes.
 
 The ranking is stable: explicit price tier preference, section, floor, then all-in total, and finally offer ID. No model/add-on can relax hard constraints, rewrite a consent or accept unverified secondary tiers. Existing Cityline v1 data still uses the original `feesIncluded===true` compatibility contract, **not** an invented breakdown. No real vendor seat capability or autonomous checkout is enabled.
+
+## AB-12 Provider Onboarding / Verification V1
+
+The trusted Electron host loads only a **bundled** `provider-profiles.json` matching its installed, reviewed catalog. Each profile pins provider ID, add-on version, adapter profile ID, country, HTTPS root domains, exact ticketing route/event query and per-operation implementation status. Its SHA-256 identity is calculated in the host and is not acquired from downloaded JavaScript or a provider webpage.
+
+`verifyOfflineFixture` tests a strict data-only synthetic page with exact provider/event identity, verified HTTPS origin, matching fixture suite, challenge-free stage and reviewed capabilities. It never navigates a provider browser, reads credentials or executes payment; `assessRuntime` unconditionally refuses live execution even when a forged server policy claims permitted. The existing AB-01 host release flag remains false.
+
+The Admin record `ProviderCapabilityVerification` is keyed by provider+country+capability, revisioned with optimistic locking and append-only audit. States are `pending`, `fixture_verified` (offline fixture claim only), and `revoked`. The server stores test SHA/evidence/reviewer/version/expiry; **the Admin API does not independently execute or attest the submitted test artifact**. An Admin claim cannot grant official vendor authorization. Protected vendors, promoter handoffs, version changes, expiry and revocation fail closed.
+
+A future live integration must independently demonstrate authorized vendor terms, signed/reviewed host bundle, up-to-date verified route and seat/checkout support, purchase consent, transaction ledger and explicit release approval. None is enabled by AB-12.

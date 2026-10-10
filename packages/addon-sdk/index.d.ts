@@ -374,3 +374,22 @@ export interface OfferPolicyDecisionV2 {
   ok:boolean;
   code:string;
 }
+
+/** AB-12 evidence separates technical OFFLINE fixture records from vendor
+ * authorization. Neither a stored digest nor a displayed verified state
+ * grants real booking execution or any payment capability.
+ */
+export type FixtureVerificationState='unverified'|'fixture_verified'|'revoked';
+export interface ProviderFixtureVerificationV1 {
+  country:string;capability:AutomationCapability;state:FixtureVerificationState;
+  recordedState:'pending'|'fixture_verified'|'revoked';
+  reason:string;revision:number;addonVersion:string;
+  profileId:string|null;fixtureSuite:string|null;fixtureSha256:string|null;
+  evidenceUrl:string|null;reviewer:string|null;expiresAt:string|null;
+  hostPermission:false;liveExecution:false;
+}
+export interface ProviderFixtureVerificationResponseV1 {
+  providerId:string;country:string;registeredVersion:string;
+  verifications:ProviderFixtureVerificationV1[];
+  liveExecutionAvailable:false;
+}

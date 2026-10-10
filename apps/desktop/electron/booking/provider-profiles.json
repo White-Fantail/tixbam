@@ -1,0 +1,34 @@
+{
+  "profiles": [
+    {
+      "schemaVersion": 1,
+      "providerId": "cityline",
+      "addonVersion": "1.1.0",
+      "profileId": "cityline-event-detail-v1",
+      "country": "HK",
+      "kind": "ticketing",
+      "hosts": [
+        "cityline.com.hk",
+        "cityline.com"
+      ],
+      "routeSuffix": "/eventDetail",
+      "eventQueryParam": "event",
+      "capabilities": {
+        "OBSERVE": "verified",
+        "SELECT_PERFORMANCE": "verified",
+        "SELECT_PRICE_TIER": "verified",
+        "LIST_OFFERS": "pending",
+        "SELECT_OFFER": "pending",
+        "READ_ORDER": "pending",
+        "PREPARE_CHECKOUT": "pending",
+        "VERIFY_ORDER": "pending",
+        "PAYMENT_EXECUTOR": "disabled"
+      },
+      "fixtureSuites": {
+        "OBSERVE": "observe-v1",
+        "SELECT_PERFORMANCE": "options-v1",
+        "SELECT_PRICE_TIER": "options-v1"
+      }
+    }
+  ]
+}

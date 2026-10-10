@@ -140,3 +140,9 @@ Optional `seatPreferences`/`terms` are serialized into signed-in account Booking
 The booking review screen and the live control room show the *current* order conditions and demand a new user checkbox before each review continuation. The check is bound to the exact order, expires after **60 seconds**, and is removed after use. The host still re-reads and validates the exact order through AB-10 before any allowed fixture submission. An unknown payment prevents another UI start while provider order history is being verified. CAPTCHA, 3DS and queue remain manual.
 
 **Provider live checkout remains manual/supervised only**. Automatic checkout is not offered for real providers, even if an add-on describes a pending payment integration. The review checkbox does not create a production purchase permit or bypass AB-01 provider policy. A real consent/permit and payment integration require AB-12–AB-14.
+
+## AB-12 Offline provider review and onboarding
+
+Admin → Automation Policy → Provider exposes a separate offline fixture verification form per capability and country. Reviewers can record test evidence (suite ID, digest, HTTPS report, reviewer note, expiry), mark it pending or revoked, and inspect its revision and audit trail. **A recorded fixture pass is not live-seat or live-payment permission.** Technical and provider legal/contractual permissions are separately evaluated.
+
+The Desktop host uses `booking/provider-profiles.json` for independently bundled, version-pinned provider capability profiles. Cityline 1.1.0 only has reviewed observation/performance/price options; seats, order and payment remain pending/disabled. A wrong host, unsafe URL, unexpected event/redirect, profile update, forbidden provider, global kill switch or revoked permission blocks future autonomy. The system never runs unreviewed downloaded provider code. See [Provider onboarding](PROVIDER_ONBOARDING.md).

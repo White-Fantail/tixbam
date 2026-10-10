@@ -189,3 +189,20 @@ export async function saveAutomationKillSwitch(f: FormData) {
   };
   await submit("/v1/admin/automation/kill-switch", payload, "PUT", "automation", "/automation");
 }
+
+/** AB-12: records reviewed OFFLINE fixture evidence, never live permission. */
+export async function saveProviderVerification(f:FormData) {
+  const provider=val(f,"provider_id");
+  const country=val(f,"country");
+  const back="/automation/"+encodeURIComponent(provider)+"?country="+encodeURIComponent(country);
+  const body={
+    country, capability:val(f,"capability"), state:val(f,"state"),
+    addon_version:val(f,"addon_version"),profile_id:val(f,"profile_id"),
+    fixture_suite:val(f,"fixture_suite"),fixture_sha256:val(f,"fixture_sha256"),
+    evidence_url:opt(f,"evidence_url"),reviewer:val(f,"reviewer"),
+    reason:val(f,"reason"),expires_at:opt(f,"expires_at"),
+    expected_revision:Number(val(f,"expected_revision")||"0")
+  };
+  await submit("/v1/admin/automation/providers/"+encodeURIComponent(provider)+
+    "/verifications",body,"PUT","automation",back,provider);
+}

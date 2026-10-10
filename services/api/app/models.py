@@ -234,6 +234,28 @@ class ProviderAutomationPolicy(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)
 
 
+class ProviderCapabilityVerification(Base):
+    """AB-12 technical fixture evidence only; NEVER a live authorization."""
+    __tablename__ = "provider_capability_verifications"
+    __table_args__ = (UniqueConstraint("provider_id", "country", "capability",
+                                       name="uq_provider_verification_scope"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    provider_id: Mapped[str] = mapped_column(ForeignKey("providers.id", ondelete="CASCADE"), index=True)
+    country: Mapped[str] = mapped_column(String(2), nullable=False)
+    capability: Mapped[str] = mapped_column(String(40), nullable=False)
+    state: Mapped[str] = mapped_column(String(24), default="pending", nullable=False)
+    addon_version: Mapped[str] = mapped_column(String(60), nullable=False)
+    profile_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    fixture_suite: Mapped[str] = mapped_column(String(60), nullable=False)
+    fixture_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    reviewer: Mapped[str] = mapped_column(String(120), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, nullable=False)
+
+
 class ProviderAutomationAudit(Base):
     """Append-only change history. Shared admin key does not identify an individual."""
     __tablename__ = "provider_automation_audit"

@@ -289,6 +289,16 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** unknown addon, update downgrades, wrong origins, Live Nation ticket-agent handoff, revoked permission.
 **Do not:** attempt undocumented live checkout tests on forbidden providers.
 
+**완료 기록 (2026-10-10):**
+- `provider_capability_verifications` DB 테이블과 관리자 전용 `GET/PUT /v1/admin/automation/providers/{id}/verifications` 구현. 나라·예매처·capability별 오프라인 fixture 검증 상태(`pending/fixture_verified/revoked`), addon 버전/프로필, 테스트 suite/hash, HTTPS 근거, 리뷰어·만료 시각, CAS revision 및 감사 이력을 보관. 예전 권한 정책 레지스트리는 독립 유지.
+- 확인된 테스트는 **오프라인 fixture 증거 기록**이지 예매처의 공식 허가/라이브 좌석·결제 검증이 아님. 서버의 `hostPermission`, `liveExecution`은 언제나 false. 비공개/버전 불일치/금지 사업자/Live Nation 이벤트 프로모터는 fixture 인증 거부. `revoked`는 관리자 토글로 해제할 수 없으며 오래된 관리자 저장 요청은 409.
+- `provider-profiles.json`과 `provider-runtime.cjs`: 번들에 들어간 데이터 전용 Cityline 1.1.0 reviewed 프로필. 정확한 버전/원본 번들 catalog/도메인/경로/회차 확인; 단계·도전과제·capability 검증; fixture digest 계산. 외부 다운로드 실행 코드, 임의 브라우저 명령·셀렉터·URL, 결제 동작 없음.
+- `capability-policy.cjs`의 `localReview`가 동일 번들 프로필 검증을 재사용하도록 변경. 기술 검증 변경, 서버 권한 철회, 글로벌 kill switch, 사이트 URL drift, 버전 차이가 있으면 미래 기능도 fail-closed. **독립적인 호스트 live-release gate는 계속 영구 false**로 설정돼 있다.
+- Admin Automation → provider 상세 페이지에 fixture 검증 입력/조회 및 감사 이력 출력. 임의 SHA-256 입력은 감사상 주장으로만 저장되고 실제 라이브 권한이 되지 않음. Cityline OBSERVE/OPTIONS 프로필은 fixture 모의 테스트 가능, 좌석·결제 프로필은 pending/disabled. NOL/Ticketmaster/AXS 제한 유지, Live Nation은 티켓 에이전트에 인계.
+- 회귀: 권한 없이 API 접근, 필드 인젝션, 잘못된 HTTPS/도메인/회차, 타 버전·국가, 명세 없는 action, 모델의 임의 JS 텍스트, SHA/TTL/익스파이어/CAS/revocation, 프로모터 위장, 기존 기능/결제 경계.
+- **후속:** 실제 예매처로부터 서면 허가를 얻고 정식 검증·검토를 진행하기 전까지 자동 라이브 좌석 선택 및 결제는 지원하지 않음. AB-13은 승인되지 않은 실결제 대신 독립적인 모의 Payment Executor만 구현한다.
+
+
 ## AB-13 — 결제 Executor 인터페이스와 승인 Gate
 
 **명령:** "AB-13 구현해. 먼저 모의 결제와 허가 게이트만 연결하는 PaymentExecutor를 만들어. 실제 결제는 활성화하지 마."
@@ -324,7 +334,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-11 완료 (dev) · AB-12 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-12 완료 (dev) · AB-13 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -337,9 +347,9 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-09 Recovery Engine — explicit rehearsal approval, fresh host validation, one-shot synthetic selection/reobserve, deadline & loop guard (CI verified)
   - [x] AB-10 Seat/Offer Policy — strict all-in fee normalization, deterministic seat ranking, v1 compatibility and 17 offline drills (CI verified)
   - [x] AB-11 Desktop UX — Korean/English seat/consent, plan sync, one-shot final review, offline mock consent (CI verified)
-  - [ ] AB-12 Provider Onboarding
+  - [x] AB-12 Provider Onboarding — evidence-backed offline fixtures, profile/version/origin binding, Admin audit, revocation and fail-closed host gate (CI verified)
   - [ ] AB-13 Gated Payment Executor (mock)
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-12 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-13 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

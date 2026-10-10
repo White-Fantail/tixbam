@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { apiRead } from "../../lib";
-import { saveAutomationPolicy } from "../../actions";
+import { saveAutomationPolicy, saveProviderVerification } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,13 @@ type Row = {
 };
 type Audit={id:string;country:string|null;capability:string|null;action:string;actor:string;
   oldValue:Record<string,unknown>;newValue:Record<string,unknown>;createdAt:string;revision:number};
+type VerificationRow={
+  country:string;capability:string;state:string;recordedState:string;
+  reason:string;revision:number;addonVersion:string;profileId:string|null;
+  fixtureSuite:string|null;fixtureSha256:string|null;evidenceUrl:string|null;
+  reviewer:string|null;expiresAt:string|null;hostPermission:false;liveExecution:false;
+};
+type VerificationData={registeredVersion:string;verifications:VerificationRow[];liveExecutionAvailable:false};
 type Data={providerId:string;name:string;country:string;registeredCountry:string;ticketAgentRequired:boolean;
   globalKillSwitch:boolean;policies:Row[];recentAudit:Audit[]};
 
@@ -23,10 +30,15 @@ export default async function ProviderAutomationPage({
   const {providerId}=await params;
   const query=await searchParams;
   const code=(query.country || "").toUpperCase();
-  let data:Data|null=null;let error="";
+  let data:Data|null=null;let evidence:VerificationData|null=null;let error="";
   try {
-    data=await apiRead("/v1/admin/automation/providers/"+encodeURIComponent(providerId)+"/policies"+
-      (code?"?country="+encodeURIComponent(code):"")) as Data;
+    const countryQuery=code?"?country="+encodeURIComponent(code):"";
+    [data,evidence]=await Promise.all([
+      apiRead("/v1/admin/automation/providers/"+encodeURIComponent(providerId)+"/policies"+
+        countryQuery) as Promise<Data>,
+      apiRead("/v1/admin/automation/providers/"+encodeURIComponent(providerId)+"/verifications"+
+        countryQuery) as Promise<VerificationData>
+    ]);
   } catch { error="Unable to load policies. Check provider, country scope and API connection."; }
   const protectedBaseline = data?.policies.some(p=>p.permissionState==="restricted" && p.recordedState!=="restricted");
   return <div className="page-content">
@@ -83,6 +95,65 @@ export default async function ProviderAutomationPage({
             </form>
           </section>;
         })}</div>
+      </section>
+      <section className="detail-section">
+        <h2>AB-12 — Technical fixture verification</h2>
+        <p className="muted">Evidence is recorded separately from provider permission.
+          A passed OFFLINE fixture is <strong>not</strong> official seat-map approval,
+          payment authorization or live checkout permission. Reviewers enter an evidence
+          URL, fixture digest, exact bundled profile/version and expiry. Revocations are permanent
+          until a separate onboarding review.</p>
+        {evidence&&<div className="ai-policy-grid">
+          {evidence.verifications.map(item=><section key={item.capability} className="panel ai-policy-panel">
+            <h3>{item.capability}</h3>
+            <p className="field-help">Technical status: <strong>{item.state}</strong> ·
+              Current bundled version: {evidence.registeredVersion} ·
+              Live execution: OFF</p>
+            <p className="field-help">{item.reason}</p>
+            <form action={saveProviderVerification}>
+              <input type="hidden" name="provider_id" value={data.providerId}/>
+              <input type="hidden" name="country" value={data.country}/>
+              <input type="hidden" name="capability" value={item.capability}/>
+              <input type="hidden" name="expected_revision" value={item.revision}/>
+              <label>Fixture review state
+                <select name="state" defaultValue={item.recordedState}>
+                  <option value="pending" disabled={item.recordedState==="revoked"}>Pending / unverified</option>
+                  <option value="fixture_verified" disabled={item.recordedState==="revoked"||
+                    ["ticketmaster","nol","axs","livenation"].includes(data.providerId)}>Offline fixture recorded</option>
+                  <option value="revoked">Revoked</option>
+                </select>
+              </label>
+              <label>Bundled add-on version<input name="addon_version" required maxLength={60}
+                defaultValue={item.addonVersion||evidence.registeredVersion}/></label>
+              <label>Reviewed adapter profile<input name="profile_id" required maxLength={120}
+                defaultValue={item.profileId|| (data.providerId==="cityline"?"cityline-event-detail-v1":"")}/></label>
+              <label>Fixture suite
+                <select name="fixture_suite" defaultValue={item.fixtureSuite||(
+                  ["OBSERVE","LIST_OFFERS","READ_ORDER"].includes(item.capability)?"observe-v1":
+                  ["SELECT_PERFORMANCE","SELECT_PRICE_TIER"].includes(item.capability)?"options-v1":
+                  item.capability==="SELECT_OFFER"?"seats-v1":
+                  item.capability==="PAYMENT_EXECUTOR"?"payment-mock-v1":"checkout-v1")}>
+                  {["observe-v1","options-v1","seats-v1","checkout-v1","payment-mock-v1"].map(v=>
+                    <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label>Offline fixture SHA-256<input name="fixture_sha256" required
+                pattern="[a-f0-9]{64}" maxLength={64}
+                defaultValue={item.fixtureSha256||""} placeholder="64 lowercase hex characters"/></label>
+              <label>Test report / reviewer evidence (HTTPS)
+                <input name="evidence_url" type="url" maxLength={1500}
+                  defaultValue={item.evidenceUrl||""} placeholder="https://github.com/.../actions/runs/..."/></label>
+              <label>Review note / revocation reason
+                <input name="reason" maxLength={500} defaultValue={item.reason.startsWith("No ")?"":item.reason}/></label>
+              <label>Reviewer note<input name="reviewer" required defaultValue={item.reviewer||"qa-review"} maxLength={120}/></label>
+              <label>Expires at (ISO timezone; required for fixture_verified)
+                <input name="expires_at" defaultValue={item.expiresAt||""}
+                  placeholder="2027-01-10T00:00:00+13:00"/></label>
+              <button type="submit">Save offline verification record</button>
+              <p className="field-help">Revision {item.revision} · Protected vendor permission is not editable here.</p>
+            </form>
+          </section>)}
+        </div>}
       </section>
       <section className="detail-section"><h2>Recent audit history</h2>
         {data.recentAudit.length===0?<p className="muted">No policy changes have been recorded.</p>:

@@ -2,36 +2,16 @@
  * AB-01 host-only capability decision. This intentionally cannot grant new
  * live autonomy: server flags, downloaded manifests and AI are not sufficient.
  */
-const catalog = require('../../addons/catalog.json');
-
-// Locked to host-owned, locally reviewed adapter code, not downloaded metadata.
-const LOCAL_REVIEWED = Object.freeze({
-  cityline: Object.freeze({
-    addonVersion: '1.1.0',
-    profileId: 'cityline-event-detail-v1',
-    capabilities: Object.freeze({
-      OBSERVE: 'verified',
-      SELECT_PERFORMANCE: 'verified',
-      SELECT_PRICE_TIER: 'verified',
-      LIST_OFFERS: 'pending', SELECT_OFFER: 'pending',
-      READ_ORDER: 'pending', PREPARE_CHECKOUT: 'pending',
-      VERIFY_ORDER: 'pending', PAYMENT_EXECUTOR: 'disabled',
-    }),
-  }),
-});
+const {localProfile}=require('./provider-runtime.cjs');
+// All host-reviewed profiles must come from bundled, version-matched data.
 const RELEASE_APPROVED = false; // AB-12 release gate must be independently reviewed.
 const ACTIONS = new Set([
   'OBSERVE','SELECT_PERFORMANCE','SELECT_PRICE_TIER','LIST_OFFERS',
   'SELECT_OFFER','READ_ORDER','PREPARE_CHECKOUT','VERIFY_ORDER','PAYMENT_EXECUTOR',
 ]);
 
-function localReview(providerId, addonVersion) {
-  const addon = catalog.find(row => row.id === providerId);
-  const reviewed = LOCAL_REVIEWED[providerId];
-  if (!addon || !reviewed || addon.kind !== 'ticketing' && addon.kind !== undefined ||
-      addon.version !== addonVersion || reviewed.addonVersion !== addonVersion ||
-      addon.booking?.adapter !== reviewed.profileId) return null;
-  return reviewed;
+function localReview(providerId,addonVersion) {
+  return localProfile(providerId,addonVersion);
 }
 
 function evaluateEffectiveCapability({
