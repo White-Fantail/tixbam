@@ -79,7 +79,7 @@ test('NOL ticket selection: proposal, one approved click, no repeat or stale cli
   assert.equal(snapshot.mode,'human_guidance');
   const advice=await host.analyze(42,snapshot.token,preferences);
   assert.equal(advice.targets.length,2);
-  assert.equal(requests[0].stage,'selecting'); // Stage is explicit for the production Vision API.
+  assert.equal(requests[0].stage,undefined); // Default selection mode remains backward compatible.
   await host.click(42,snapshot.token,{x:.31,y:.5});
   assert.equal(state.focused,true);
   assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
