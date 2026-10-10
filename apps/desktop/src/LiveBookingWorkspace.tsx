@@ -9,7 +9,8 @@ import { SaleCountdown } from "./BookingWorkspace";
 import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
 import { ProviderLiveGuide } from "./booking/ProviderLiveGuide";
 import { formatSaleLocalTime } from "./ticket-sales";
-import type { LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
+import type { CopilotAdvanceInfo, LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
+import { useLanguage } from "./i18n";
 
 const steps: Array<{ id: LivePhase; name: string; help: string }> = [
   { id: "preparing", name: "Preparing", help: "Verify the exact event, performance and official ticket agent. Complete provider sign-in yourself." },
@@ -64,7 +65,9 @@ export function LiveBookingWorkspace({
   plans, windows, addons, history, selectedPlanId, onSelectPlan, onBackToPlan,
   onStart, onFocus, onClose, onPhase, onDismissHistory, onTicketAgent
 }: Props) {
+  const {language}=useLanguage();
   const [runs, setRuns] = useState<BookingRun[]>([]);
+  const [advance,setAdvance]=useState<CopilotAdvanceInfo|null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [reviewApprovals,setReviewApprovals]=useState<Record<string,{signature:string;at:number}>>({});
@@ -107,6 +110,18 @@ export function LiveBookingWorkspace({
   const standalone = windows.filter(item => !item.planId);
   const unknownLinked = windows.filter(item => item.planId && !plans.some(p => p.id === item.planId) && !item.popup);
   const planHistory = history.filter(item => plans.some(p => p.id === item.planId));
+  const advancedWindowId=primary?.id ?? null;
+  useEffect(()=>{
+    let active=true;
+    setAdvance(null);
+    if(advancedWindowId===null)return;
+    const off=window.tixbam?.onCopilotAdvanceUpdate(info=>{
+      if(active && info.windowId===advancedWindowId)setAdvance(info);
+    });
+    void window.tixbam?.copilotAdvanceStatus(advancedWindowId)
+      .then(info=>{if(active)setAdvance(info);}).catch(()=>{});
+    return()=>{active=false;off?.();};
+  },[advancedWindowId]);
 
   async function invoke(key: string, operation: () => Promise<unknown>) {
     setBusy(key); setError("");
@@ -231,6 +246,32 @@ export function LiveBookingWorkspace({
           {tr("Copilot target: linked popup #{id}",{id:selectedWindow.id})} · {selectedWindow.site}. {tx("Only supported ticket-provider pages are eligible.")}
         </p>}
         {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>{tx("Use main browser in Copilot")}</button>}
+        {advance && advance.status!=="off" && <div className="live-automation-card" role="status">
+          <div className="live-card-head"><ShieldAlert size={18}/>
+            <h3>{language==="ko"?"사전 승인 코파일럿":"Advance-approved Copilot"}</h3></div>
+          <p><strong>{advance.status==="guiding"
+            ? (language==="ko"?"화면 안내 중":"Guidance active")
+            : advance.status==="paused"
+              ? (language==="ko"?"일시 중단":"Paused")
+              : advance.status==="stopped"
+                ? (language==="ko"?"중지됨":"Stopped")
+                : (language==="ko"?"대기 중":"Armed")}</strong> · {advance.reason}</p>
+          <p className="settings-note">{language==="ko"
+            ?"선택된 예매처 정책에 따라 자동 클릭이 금지될 수 있습니다. 현재 승인 없이 결제하거나 좌석을 확보하지 않습니다."
+            :"Provider rules still apply. No unattended purchase or seat reservation is performed."}</p>
+          {advance.attempts!==undefined&&<small>{language==="ko"?"AI 분석 횟수":"AI observations"}: {advance.attempts} / 5</small>}
+          {advance.targets.length>0&&<div className="copilot-candidates">
+            {advance.targets.map((target,index)=><p key={index}>
+              {target.label} · {Math.round(target.confidence*100)}% · {target.reason}
+            </p>)}
+          </div>}
+          {!["stopped","off"].includes(advance.status) && primary &&
+            <button className="button button-outline" onClick={()=>
+              void invoke("stop-advance",async()=>{
+                await window.tixbam?.copilotAdvanceStop(primary.id);
+                setAdvance(null);
+              })}>{language==="ko"?"자동 화면 분석 즉시 중지":"Stop automatic guidance"}</button>}
+        </div>}
         <LiveCopilotPanel
           key={String(selectedWindow?.id ?? plan.id)+":"+String(selectedWindow?.phase)+":"+String(selectedWindow?.url)+":"+String(selectedWindow?.loading)}
           bookingWindow={selectedWindow} plan={plan}
