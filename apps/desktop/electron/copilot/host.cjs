@@ -245,7 +245,7 @@ class LiveCopilot {
         this.scheduleNext(windowId,session,MIN_ANALYSIS_GAP_MS+100);
         return;
       }
-      if(candidates.length) {
+      if(candidates.length && session.mode==='observe') {
         await this.highlight(windowId,shot.token,{x:candidates[0].x,y:candidates[0].y});
       }
       this.autoInfo(session,candidates.length?'awaiting_user':'awaiting_user',
