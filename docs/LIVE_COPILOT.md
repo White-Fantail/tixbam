@@ -27,3 +27,17 @@ For each provider and event: verify written authorization/official integration, 
 
 ## Acceptance metrics
 Compare ordinary official-browser booking against Copilot in allowed test sessions: time from admission to cart, clicks, stale-target rejection, incorrect targets, queue loss, safe user takeover, cart/receipt verification. No claim of improved booking success rate without measurements.
+
+
+## Current dev branch: preapproved multi-step assistance
+
+The initial human-approved one-shot pointer remains for manual use. The new local advance-approved execution path operates as a **bounded observe → propose → verify → act → re-observe** session, rather than ending after the first click.
+
+- **Provider-authorized mode:** A step can be automated only when the locally bundled provider add-on has independently verified permission, implementation and exact action kind. The user must separately authorize their chosen actions and screenshot transmission.
+- **Explicit developer flow:** `npm run dev:copilot` enables a per-plan experimental path for restricted ticketing providers. A packaged build and ordinary `npm run dev` cannot enable this. The experiment does not confer provider permission or circumvent CAPTCHA, waiting rooms, queues, authentication, bank verification or checkout.
+- **Journey:** On clearly identified approved non-payment buttons, the host verifies the current provider, plan, phase, screenshot and target before sending input, then obtains a fresh image and chooses another approved step. A bounded 2-hour session allows at most 20 input actions and 24 image analyses; operator-defined API image-analysis quotas may stop it earlier.
+- **Manual handoff:** Blocked/ambiguous screens enter `awaiting_user`; the user performs the required provider step and chooses **Resume Copilot**. Recognizable official selection routes can advance the stage; unknown single-page flow stages require manual confirmation. A linked, same-provider official popup can inherit the one active execution session.
+- **Stop condition:** A cart/checkout route produces **`hold_unverified`**, not a success or a payment. No bundled NOL/Cityline integration currently supplies a verified live seat-hold, seat-count and final-price attestation. Actual reservation success is **not** proven by the native click, a screenshot or a checkout URL. Until an official provider-specific evidence adapter is verified, the user must confirm any hold directly on the official page and handle checkout themselves.
+- **Backend dependency:** Preparation-stage screenshot AI and visual stage-hint additions live on `dev`. If the desktop still uses an older production API, requests may return 422, and the upgraded backend must be deployed/configured for the multi-step screenshot workflow. AI image-analysis requests are rate/cost limited; a locally enabled CLI flag does not change the server quota.
+
+The offline test and mock browser simulation validate action gating, multiple clicks, stop conditions and zero purchase execution. These tests do **not** constitute an end-to-end real Cityline/NOL seat hold.
