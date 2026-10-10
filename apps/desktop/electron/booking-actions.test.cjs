@@ -25,7 +25,7 @@ function setup({stage='offers',challenge='none',targets=[{kind:'offer',value:ord
   const snapshot=validator.issueSnapshot({run,providerId,country:'HK',addonVersion:'1.1.0',
     accountId,planId,stage,challenge,pageGeneration:12,policyRevision,
     targets,ttlMs:5000});
-  const consent={runId:run.id,accountId,planId,providerId,country:'HK',
+  const consent={runId:run.id,eventKey:run.eventKey,windowId:run.windowId,accountId,planId,providerId,country:'HK',
     addonVersion:'1.1.0',policyRevision,permittedActions:['SELECT_OFFER','SELECT_PERFORMANCE','SELECT_PRICE_TIER'],
     expiresAtMs:now+20000,maxAllInMinor:200000,quantity:2,currency:'HKD',
     ...consentChange};
@@ -100,6 +100,7 @@ test('a valid rehearsal offer only passes with exact binding and purchase constr
   assert.equal(denied.validator.validate(denied.propose(),denied.scope).code,'UNKNOWN_PRICE');
   for(const change of [
     {maxAllInMinor:10},{quantity:1},{permittedActions:[]},{runId:crypto.randomUUID()},
+    {eventKey:'wrong-event'},{windowId:77},
     {expiresAtMs:now-1},{policyRevision:8},{accountId:'some-other-user'}
   ]) {
     const x=setup({consentChange:change});
@@ -242,4 +243,24 @@ test('existing deterministic host options/seat actions reject mismatches and pay
   assert.throws(()=>assertDeterministicHostAction({action:'RESERVE_OFFER',runner,
     page:{eventKey:'sample-event',stage:'offers'},offer:{...order,totalMinor:200001}}));
   assert.throws(()=>assertDeterministicHostAction({action:'SUBMIT_PAYMENT',runner,page:opts}));
+});
+
+
+test('same page generation but changed inventory or fees is not safe to reserve',async()=>{
+  for(const changed of [
+    {totalMinor:167001},{id:'replaced-offer'},{seats:['B1','B2']},
+    {currency:'NZD'},{available:false},{feesIncluded:false},
+    {priceTier:'500'}, {performance:'different'}
+  ]) {
+    const x=setup(),adapter=new RehearsalAdapter('sample-event',prefs);
+    adapter.stage='offers';adapter.offers=[{...order,...changed}];
+    const res=await executeReviewedProposal({
+      validator:x.validator,proposal:x.propose(),scope:x.scope,adapter,
+      readCurrent:async()=>({...await adapter.read(),pageGeneration:12}),
+      assertOwner:()=>{}
+    });
+    assert.equal(res.executed,false,JSON.stringify(changed));
+    assert.equal(res.code,'STALE_OBSERVATION');
+    assert.equal(adapter.stage,'offers');
+  }
 });
