@@ -229,7 +229,9 @@ export function LiveBookingWorkspace({
         </div>
         {selectedWindow?.popup && <p className="live-manual-label">Copilot target: linked popup #{selectedWindow.id} · {selectedWindow.site}. Only supported ticket-provider pages are eligible.</p>}
         {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>Use main browser in Copilot</button>}
-        <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}
+        <LiveCopilotPanel
+          key={String(selectedWindow?.id ?? plan.id)+":"+String(selectedWindow?.phase)+":"+String(selectedWindow?.url)+":"+String(selectedWindow?.loading)}
+          bookingWindow={selectedWindow} plan={plan}
           onSelectTicketStep={() => onPhase(selectedWindow!.id, "selecting")}/>
         {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" && (
           <ProviderLiveGuide key={selectedWindow?.id ?? plan.id}
