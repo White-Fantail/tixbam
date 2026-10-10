@@ -241,6 +241,12 @@ async def planner_v1(body: PlannerInput, db: Db, user: CurrentUser):
             raise ValueError("Unexpected model output")
         output = ModelProposal.model_validate(json.loads(raw))
         validate_model_choice(output, body.observation)
+        # A long-running request must not return a proposal after an Admin
+        # kill switch or model replacement. Re-check the live policy in DB.
+        db.refresh(policy)
+        if (not policy.enabled or not policy.structured_output_verified or
+                policy.model != attempt.model):
+            raise ValueError("Planner policy changed during model request")
         attempt.status = usage.status = "success"
         db.commit()
     except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError, AttributeError) as exc:
