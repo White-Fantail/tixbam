@@ -66,6 +66,14 @@ const definitions=[
     pattern:/!isPackaged && u\.protocol === "http:"/,
     about:'Packaged client never sends bearer tokens to arbitrary HTTP origins'
   },{
+    id:'deny-renderer-permissions',group:'D',file:'apps/desktop/electron/main.cjs',
+    pattern:/session\.defaultSession\.setPermissionRequestHandler/,
+    about:'Default renderer cannot request device-level permissions'
+  },{
+    id:'deny-unreviewed-webviews',group:'D',file:'apps/desktop/electron/main.cjs',
+    pattern:/wc\.on\("will-attach-webview", event => event\.preventDefault\(\)\)/,
+    about:'Provider pages cannot attach Electron webviews'
+  },{
     id:'electron-sandbox',group:'D',file:'apps/desktop/electron/main.cjs',
     pattern:/contextIsolation: true, sandbox: true/,
     about:'Electron privileged local windows use context isolation and sandbox'

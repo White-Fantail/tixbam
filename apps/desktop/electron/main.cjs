@@ -77,6 +77,7 @@ function openRehearsalWindow(plan, accountId) {
   const labRecovery = new RecoveryEngine({planner:labPlanner});
   rehearsalWindows.set(target.id, { win, target, ownerId, lab, labPlanner, labRecovery });
   win.webContents.on("will-navigate", event => event.preventDefault());
+  win.webContents.on("will-attach-webview", event => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.on("closed", () => {
     const previous = rehearsalWindows.get(target.id);
@@ -169,6 +170,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   wc.on("will-navigate", (event, target) => {
     if (!isSafeWebUrl(target)) event.preventDefault();
   });
+  wc.on("will-attach-webview", event => event.preventDefault());
   win.on("close", event => confirmSessionClose(win, entry, event));
   win.on("closed", () => {
     if (planId && !popup) rememberSession(entry, closingApplication ? "interrupted" : "closed");
@@ -227,6 +229,7 @@ function createDashboard() {
     }
   });
   dashboard.webContents.on("will-navigate", event => event.preventDefault());
+  dashboard.webContents.on("will-attach-webview", event => event.preventDefault());
   dashboard.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl === "http://127.0.0.1:5173") {
@@ -301,6 +304,12 @@ function openTicketWindow({ providerId, url: candidate, planId = null } = {}) {
 }
 
 app.whenReady().then(() => {
+  // No renderer—dashboard, synthetic rehearsal, or provider—may request
+  // microphone/camera/geolocation/notifications/clipboard privileges.
+  // Official OAuth and 3DS remain in the external browser/provider session.
+  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback) => callback(false));
+  session.fromPartition("persist:tixbam-rehearsal")
+    .setPermissionRequestHandler((_wc,_permission,callback) => callback(false));
   desktopLanguage = readLanguage(app.getPath("userData"));
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);

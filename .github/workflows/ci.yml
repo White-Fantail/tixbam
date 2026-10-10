@@ -17,8 +17,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Check release readiness hold gates (must never issue GO)
         run: node scripts/release-readiness.cjs
-      - name: Review production Node advisory status (non-release signal)
-        continue-on-error: true
+      - name: Block known high-severity production Node vulnerabilities
         run: npm audit --omit=dev --audit-level=high
       - name: Electron security and add-on tests
         run: npm test

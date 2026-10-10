@@ -352,9 +352,19 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** global pipeline plus manual packaged Electron; tests must not buy real tickets.
 **Do not:** deploy production autonomous checkout as a side effect.
 
+**완료 기록 (2026-10-10):** 검증은 오프라인 리허설 및 비결제 환경에서만 실시. [Release Readiness](release-readiness.md)와 [Incident Response](INCIDENT_RESPONSE.md)를 마련하고, **릴리스 의사 결정은 `HOLD / NO-GO`** 상태로 유지한다. 정상적인 `dev` CI는 결제 권한이 모두 차단됐음을 나타낼 뿐 라이브 시스템 승인이 아니다.
+
+- 독립된 `scripts/release-readiness.cjs`: Provider 권한, Payment/Journal/lease, AI/인증, Electron/배포 **A–D 게이트**의 필수 방어선 변조 여부를 검사. 모든 자동 체크가 통과해도 `status=HOLD`, `automaticCheckoutAvailable=false`, `livePaymentEnabled=false` 고정. 게이트가 소스에서 제거되면 CI 실패.
+- `apps/desktop/electron/release-e2e.test.cjs`: 원본 HTML/악성 모델 응답/피싱 도메인, 패키지 토큰 전송 차단, 위조 vendor 허가, 정상 모의 결제 기록→영수증 검증, 중복 intent, `PAYMENT_UNKNOWN`·수동 미결제 주장·재시작, 가격 drift 등 offline E2E. 기존 AB-01~14 테스트, API/MCP, crawler를 모두 CI에서 실행.
+- Electron HTTPS URL 안전성 강화: 임의 TLS 포트, CR/LF·인코딩 제어문자, 역슬래시 URL 거부; 팝업까지 포함한 전역 브라우저 창 상한. Dashboard/Provider/Rehearsal의 `will-attach-webview` 거부 및 Dashboard/리허설 세션의 장치 권한 요청 거부.
+- CI: `npm ci` 및 `package-lock.json` 고정, Actions checkout/setup Node/Python을 커밋 SHA에 고정, Node production `npm audit --omit=dev --audit-level=high`, Python `pip check`, API Docker 빌드·전체 테스트. `npm run release:check` 독립 실행 가능.
+- 미완료 하드 게이트: 업체 공식 서면 권한, 보안·PCI·결제·정식 영수증 연동, macOS 서명/공증 패키징 실기기 검증, 독립 공급망·개인정보·침투테스트 및 운영/모니터링·rollback 훈련, 배포 승인. 이런 결과가 제출되기 전 `main`/production 라이브 결제 활성화 금지.
+
+
+
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-14 완료 (dev) · AB-15 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-15 구현·오프라인 검증 완료 (dev) · 라이브 운영 승인 HOLD/NO-GO**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -370,6 +380,6 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-12 Provider Onboarding — evidence-backed offline fixtures, profile/version/origin binding, Admin audit, revocation and fail-closed host gate (CI verified)
   - [x] AB-13 Gated Payment Executor (mock) — expiring host approval, AB-10 order fingerprint, AB-05 fsync intent, AB-06 fencing, one-shot offline pay (CI verified)
   - [x] AB-14 Reconciliation — durable human review tombstone, offline receipt/lease reconciliation and owner-only server status (CI verified)
-  - [ ] AB-15 Security/E2E Release Readiness
+  - [x] AB-15 Security/E2E Release Readiness — CI security hold gates, offline E2E, dependency checks, incident/rollback docs; live GO blocked
 
-**다음 명령:** "AB-15 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "릴리스 게이트 A–D 증거 검증 및 macOS 패키지 QA 진행해." 운영 승인/실결제 활성화는 별도 심사 후 결정. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
