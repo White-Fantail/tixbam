@@ -38,7 +38,10 @@ export function AdvanceSettingsEditor({planId,provider}:{
     setSaved(false);
   },[planId]);
   const permission=providerAutoClickEligibility(provider);
-  const available=provider ? permission.allowed : true;
+  const developerCanTest=Boolean(planId && developerAvailable && provider?.kind==="ticketing");
+  // Allow *configuring* a restricted provider in the explicitly enabled
+  // developer runtime. The trusted main process still limits it to one click.
+  const available=provider ? permission.allowed || developerCanTest : true;
   const effectiveMode=value.mode==="authorized" && !available ? "observe" : value.mode;
   function change(patch:Partial<AdvanceSettings>){
     setValue(v=>({...v,...patch}));setSaved(false);
@@ -49,8 +52,9 @@ export function AdvanceSettingsEditor({planId,provider}:{
       setSaved(false);return;
     }
     const safe={...value,mode:effectiveMode,
-      developerClickTest:Boolean(planId && developerAvailable &&
-        effectiveMode==="observe" && value.developerClickTest)};
+      developerClickTest:Boolean(developerCanTest &&
+        (effectiveMode==="authorized" ||
+         (effectiveMode==="observe" && value.developerClickTest)))};
     if(planId)savePlanAdvanceSettings(planId,safe);
     else saveGlobalAdvanceSettings(safe);
     setValue(safe);
@@ -67,18 +71,27 @@ export function AdvanceSettingsEditor({planId,provider}:{
         else{setOverride(true);setSaved(false);}
       }}/>{ko?"이 공연만 별도 설정":"Override defaults for this booking"}</label></div>}
     <label>{ko?"진행 방식":"Assistance mode"}
-      <select value={effectiveMode} onChange={event=>change({mode:event.target.value as AdvanceMode})}
+      <select value={effectiveMode} onChange={event=>{
+        const mode=event.target.value as AdvanceMode;
+        change({mode,developerClickTest:mode==="authorized" && developerCanTest});
+      }}
         disabled={Boolean(planId&&!override)}>
         <option value="manual">{ko?"수동 안내 (기본값)":"Manual guidance (default)"}</option>
         <option value="observe">{ko?"자동 화면 인식 및 버튼 안내":"Auto screen recognition and hints"}</option>
-        <option value="authorized" disabled={!available}>{ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it"}</option>
+        <option value="authorized" disabled={!available}>{developerCanTest
+          ? (ko?"자동 클릭 테스트 (개발자 모드 · 최대 1회)":"Automatic click test (developer mode · once)")
+          : (ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it")}</option>
       </select>
     </label>
-    <p className="settings-note" role="note">{provider && !available
-      ? (ko ? "자동 클릭 설정 비활성화: "+permission.reasonKo+" 화면 안내는 이용할 수 있습니다."
-        : "Auto click disabled: "+permission.reasonEn+" Visual guidance remains available.")
-      : (ko?"자동 클릭은 검증된 예매처별 실행기와 정책을 통과한 경우에만 가능합니다."
-        :"Clicks require an authorized, verified provider-specific executor.")}</p>
+    <p className="settings-note" role="note">{provider && developerCanTest && !permission.allowed
+      ? (ko
+          ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 실제 동작은 좌석 선택 단계의 AI 신뢰도 95% 이상 대상에 대해 최대 1회 클릭으로 제한됩니다."
+          : "Developer test only: this provider remains restricted. The local diagnostic permits at most one 95%+ confidence click in the ticket-selection stage.")
+      : provider && !available
+        ? (ko ? "자동 클릭 설정 비활성화: "+permission.reasonKo+" 화면 안내는 이용할 수 있습니다."
+          : "Auto click disabled: "+permission.reasonEn+" Visual guidance remains available.")
+        : (ko?"자동 클릭은 검증된 예매처별 실행기와 정책을 통과한 경우에만 가능합니다."
+          :"Clicks require an authorized, verified provider-specific executor.")}</p>
     <div className="plan-options">
       {choices.map(c=><label key={c.kind}><input type="checkbox"
         checked={value.actions.includes(c.kind)}
@@ -95,16 +108,17 @@ export function AdvanceSettingsEditor({planId,provider}:{
         ?"예매 세션 동안 허용된 화면 캡처를 TixBam API 및 외부 AI 모델로 자동 전송하는 데 동의"
         :"Allow approved booking-stage screenshots to be sent automatically to the TixBam API and external AI model during this session"}
     </label>
-    {planId && provider?.kind==="ticketing" && developerAvailable &&
+    {developerCanTest &&
       <div className="copilot-note">
         <strong>{ko?"개발자 클릭 진단 (로컬 실행 전용)":"Developer click diagnostic (local only)"}</strong>
         <label><input type="checkbox"
-          disabled={!override || effectiveMode!=="observe"}
-          checked={Boolean(value.developerClickTest && effectiveMode==="observe")}
+          disabled={!override || effectiveMode==="authorized" || effectiveMode==="manual"}
+          checked={effectiveMode==="authorized" ||
+            Boolean(value.developerClickTest && effectiveMode==="observe")}
           onChange={event=>change({developerClickTest:event.target.checked})}/>
           {ko
-            ?"이 공연에서 AI가 식별한 좌석 선택 항목을 실제 예매 창에 최대 1회 자동 클릭해 보기"
-            :"Test one automatically approved native click on a detected ticket-selection target"}
+            ?"좌석 선택 화면에서 자동 클릭 최대 1회 테스트 (자동 클릭 테스트 모드에서는 필수)"
+            :"Test at most one native click during ticket selection (required in auto-click test mode)"}
         </label>
         <p>{ko
           ?"이 테스트는 예매처 정책상의 자동화 허가를 뜻하지 않습니다. 클릭은 실제 사이트에 전달될 수 있습니다. 선택한 좌석 또는 매수가 바뀔 수 있으며 예매·결제는 수행하지 않습니다. 승인 후 첫 유효 후보가 나올 때까지 기다리며, 실행 후 자동으로 중지됩니다."
