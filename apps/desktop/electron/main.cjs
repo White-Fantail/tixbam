@@ -25,7 +25,12 @@ function notifyLanguage() {
     win.webContents.send("tixbam:language-changed", desktopLanguage);
 }
 const ticketWindows = new Map();
-const copilot = new LiveCopilot({ticketWindows,requireInstalled});
+const copilot = new LiveCopilot({ticketWindows,requireInstalled,
+  // Two independent process-owned checks: no packaged build, and a CLI-only
+  // explicit opt-in flag. Remote pages never receive this capability.
+  developerClickTestEnabled:()=> !app.isPackaged &&
+    process.env.TIXBAM_COPILOT_DEV_CLICK_TEST==='1'
+});
 copilot.onAutoUpdate = info => {
   if (dashboard && !dashboard.isDestroyed())
     dashboard.webContents.send('tixbam:copilot-advance-update',info);
@@ -481,6 +486,10 @@ app.whenReady().then(() => {
       void copilot.observe(opened.id);
     }
     return {...opened,reused:false};
+  });
+  ipcMain.handle("tixbam:copilot-developer-capabilities", event => {
+    dashboardOnly(event);
+    return copilot.developerCapabilities();
   });
   ipcMain.handle("tixbam:copilot-advance-arm", (event, windowId, conditions, consent) => {
     dashboardOnly(event);
