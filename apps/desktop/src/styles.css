@@ -503,3 +503,6 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .copilot-brief-list{display:grid;gap:10px;padding-left:22px}
 .copilot-brief-list li{padding:8px 0}
 .copilot-brief-list p{margin:5px 0 0;font-size:12px;line-height:1.5}
+
+.copilot-candidates{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.copilot-candidates .button{white-space:normal;text-align:left;line-height:1.4}

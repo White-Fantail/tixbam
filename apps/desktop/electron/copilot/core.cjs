@@ -1,7 +1,7 @@
 'use strict';
 const { isSafeWebUrl, isHostAllowed } = require('../security.cjs');
 const SENSITIVE_ROUTE = /(?:^|[\/._-])(checkout|payment|pay|3ds|3dsecure|captcha|login|signin|sign-in|auth|queue|waiting|verify|bank|otp)(?:[\/._-]|$)/i;
-const SNAPSHOT_TTL_MS = 8000;
+const SNAPSHOT_TTL_MS = 30000;
 function screenAllowed(entry, allowedHosts, windowId) {
   if (!entry || entry.popup || !entry.planId || entry.win?.isDestroyed?.() ||
       entry.win?.webContents?.isDestroyed?.() || entry.win?.webContents?.isLoading?.() ||

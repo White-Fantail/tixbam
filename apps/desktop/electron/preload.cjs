@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld("tixbam", {
   copilotCapture: id => ipcRenderer.invoke("tixbam:copilot-capture", id),
   copilotHighlight: (id, token, point) => ipcRenderer.invoke("tixbam:copilot-highlight", id, token, point),
   copilotClick: (id, token, point) => ipcRenderer.invoke("tixbam:copilot-click", id, token, point),
+  copilotAnalyze: (id, token, conditions) => ipcRenderer.invoke("tixbam:copilot-analyze", id, token, conditions),
   listWindows: () => ipcRenderer.invoke("tixbam:list-windows"),
   focusWindow: (id) => ipcRenderer.invoke("tixbam:focus-window", id),
   closeWindow: (id) => ipcRenderer.invoke("tixbam:close-window", id),

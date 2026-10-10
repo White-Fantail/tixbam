@@ -324,6 +324,7 @@ app.whenReady().then(() => {
       for(const entry of rehearsalWindows.values())entry.labRecovery.invalidate();
     }
   });
+  copilot.setVisionProvider(payload=>account.aiVision(payload));
   ipcMain.handle("tixbam:ai-advice", (event, payload) => {
     if (event.sender === dashboard?.webContents) dashboardOnly(event);
     else {
@@ -473,6 +474,10 @@ app.whenReady().then(() => {
   ipcMain.handle("tixbam:copilot-highlight", (event, windowId, token, point) => {
     dashboardOnly(event);
     return copilot.highlight(windowId,token,point);
+  });
+  ipcMain.handle("tixbam:copilot-analyze", (event, windowId, token, preferences) => {
+    dashboardOnly(event);
+    return copilot.analyze(windowId,token,preferences);
   });
   ipcMain.handle("tixbam:copilot-click", (event, windowId, token, point) => {
     dashboardOnly(event);

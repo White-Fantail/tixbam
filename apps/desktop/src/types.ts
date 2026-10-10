@@ -112,6 +112,15 @@ export interface LiveHistory {
   reason: "closed" | "interrupted";
 }
 
+export interface CopilotSuggestion {
+  x:number;y:number;label:string;reason:string;confidence:number;
+  kind:"performance"|"price_tier"|"seat"|"quantity"|"continue";
+}
+export interface CopilotVisionResult {
+  status:"candidates"|"uncertain"|"human_required";
+  targets:CopilotSuggestion[];advisoryOnly:true;humanApprovalRequired:true;
+  snapshotToken:string;
+}
 export interface CopilotSnapshot {
   token: string;windowId:number;expiresAt:number;
   image:string;width:number;height:number;
@@ -174,6 +183,7 @@ export interface DesktopBridge {
   copilotCapture: (id:number) => Promise<CopilotSnapshot>;
   copilotHighlight: (id:number, token:string, point:{x:number;y:number}) => Promise<{highlighted:boolean;expiresAt:number}>;
   copilotClick: (id:number, token:string, point:{x:number;y:number}) => Promise<{clicked:boolean;verifiedPurchase:false;automatic:false}>;
+  copilotAnalyze: (id:number, token:string, conditions:{quantity:number;currency:string;budgetMinor:number;locale:"ko"|"en"}) => Promise<CopilotVisionResult>;
   listWindows: () => Promise<TicketWindow[]>;
   focusWindow: (id: number) => Promise<boolean>;
   closeWindow: (id: number) => Promise<boolean>;

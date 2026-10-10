@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { Crosshair, Eye, MousePointerClick, ShieldAlert } from "lucide-react";
 import type { BookingPlan } from "../booking-plans";
-import type { CopilotSnapshot, TicketWindow } from "../types";
+import type { CopilotSnapshot, CopilotSuggestion, TicketWindow } from "../types";
 import { useLanguage } from "../i18n";
 
 /** The image is a local one-shot provider preview, not an AI prediction.
@@ -14,16 +14,17 @@ export function LiveCopilotPanel({ bookingWindow, plan }: {
   const ko = language === "ko";
   const [snapshot, setSnapshot] = useState<CopilotSnapshot | null>(null);
   const [point, setPoint] = useState<{x:number;y:number} | null>(null);
+  const [targets, setTargets] = useState<CopilotSuggestion[]>([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  useEffect(() => { setSnapshot(null); setPoint(null); setError("");setNotice(""); },
+  useEffect(() => { setSnapshot(null); setPoint(null); setTargets([]);setError("");setNotice(""); },
     [bookingWindow?.id, bookingWindow?.phase, bookingWindow?.site, plan.id]);
   const eligible = bookingWindow && !bookingWindow.popup && bookingWindow.phase === "selecting" &&
     !bookingWindow.loading && !bookingWindow.loadError;
   async function capture() {
     if (!bookingWindow || !window.tixbam) return;
-    setBusy("capture");setError("");setNotice("");setSnapshot(null);setPoint(null);
+    setBusy("capture");setError("");setNotice("");setSnapshot(null);setPoint(null);setTargets([]);
     try {
       const next = await window.tixbam.copilotCapture(bookingWindow.id);
       setSnapshot(next);
@@ -39,6 +40,27 @@ export function LiveCopilotPanel({ bookingWindow, plan }: {
     setPoint({x:Math.max(0.001,Math.min(0.999,(event.clientX-rect.left)/rect.width)),
       y:Math.max(0.001,Math.min(0.999,(event.clientY-rect.top)/rect.height))});
     setNotice("");
+  }
+  async function analyze() {
+    if(!snapshot||!window.tixbam||!bookingWindow)return;
+    const consent=ko
+      ? "이 화면 이미지를 AI 분석을 위해 TixBam 서버와 OpenRouter 모델에 1회 전송할까? 화면에 개인정보가 보이면 취소해. AI는 클릭을 실행하지 않아."
+      : "Send this screenshot once to TixBam's server and an OpenRouter AI model? Cancel if personal data is visible. AI will NOT click.";
+    if(!window.confirm(consent))return;
+    setBusy("ai");setError("");setNotice("");setTargets([]);
+    try {
+      const result=await window.tixbam.copilotAnalyze(bookingWindow.id,snapshot.token,{
+        quantity:plan.quantity,currency:plan.currency,budgetMinor:plan.budgetMinor,
+        locale:language
+      });
+      if(!result.advisoryOnly||!result.humanApprovalRequired||result.snapshotToken!==snapshot.token)
+        throw new Error("Unexpected vision result");
+      setTargets(result.targets);
+      setNotice(result.targets.length
+        ? (ko?"AI가 후보를 찾았어. 반드시 화면에서 직접 확인한 뒤 선택해.":"AI found candidate targets. Verify them visually before choosing.")
+        : (ko?"확실한 버튼을 찾지 못했어. 직접 선택하거나 화면을 다시 촬영해.":"No sufficiently confident targets. Choose manually or recapture."));
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+    finally{setBusy("");}
   }
   async function action(kind:"highlight"|"click") {
     if (!snapshot || !point || !window.tixbam || !bookingWindow) return;
@@ -87,6 +109,17 @@ export function LiveCopilotPanel({ bookingWindow, plan }: {
           alt={ko?"공식 예매 창의 임시 로컬 캡처":"Temporary local snapshot of the official ticket browser"}/>
         {point && <span className="copilot-crosshair" style={{left:(point.x*100)+"%",top:(point.y*100)+"%"}} aria-hidden="true">+</span>}
       </div>
+      <div className="booking-actions">
+        <button className="button button-outline" disabled={!!busy} onClick={()=>void analyze()}>
+          {ko?"AI로 버튼 후보 찾기 (이미지 전송 동의)":"Find targets with AI (opt-in upload)"}</button>
+      </div>
+      {targets.length>0 && <div className="copilot-candidates" role="group"
+        aria-label={ko?"AI 버튼 후보":"AI click target candidates"}>
+        {targets.map((target,i)=><button type="button" className="button button-outline"
+          key={i} disabled={!!busy} onClick={()=>setPoint({x:target.x,y:target.y})}>
+          {target.label} · {Math.round(target.confidence*100)}% · {target.reason}
+        </button>)}
+      </div>}
       <div className="booking-actions">
         <button className="button button-outline" disabled={!point||!!busy}
           onClick={()=>void action("highlight")}><Crosshair size={15}/>{ko?"사이트에 위치 표시":"Highlight on site"}</button>

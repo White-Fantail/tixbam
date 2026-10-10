@@ -11,7 +11,11 @@ const MAX_JPEG_BYTES = 1500000;
 class LiveCopilot {
   constructor({ticketWindows,requireInstalled}) {
     this.ticketWindows=ticketWindows;this.requireInstalled=requireInstalled;
-    this.snapshots=new Map();this.overlays=new Map();
+    this.snapshots=new Map();this.overlays=new Map();this.visionProvider=null;
+  }
+  setVisionProvider(provider) {
+    if(typeof provider!=='function')throw new TypeError('Trusted Vision service required');
+    this.visionProvider=provider;
   }
   verify(windowId) {
     if(!Number.isInteger(windowId))throw new Error('Invalid Copilot window.');
@@ -67,7 +71,37 @@ class LiveCopilot {
     validSnapshot(preview,entry,token,entry.win.webContents.getURL());
     if(crypto.createHash('sha256').update(current).digest('hex')!==preview.digest)
       throw new Error('The visible screen changed. Take a new preview before clicking.');
-    return {entry,preview,target};
+    return {entry,preview,target,current};
+  }
+  /** AI proposals remain advisory. A signed-in user must opt in for EACH
+   * screenshot upload and still explicitly choose and approve a target.
+   */
+  async analyze(windowId,token,preferences) {
+    if(!this.visionProvider)throw new Error('Copilot Vision is unavailable.');
+    const {entry,preview,current}=await this.verifiedTarget(windowId,token,{x:0.5,y:0.5});
+    if(!preferences || !Number.isInteger(preferences.quantity) || preferences.quantity<1 ||
+       preferences.quantity>20 || !Number.isSafeInteger(preferences.budgetMinor) ||
+       preferences.budgetMinor<0 || preferences.budgetMinor>10000000000 ||
+       !/^[A-Z]{3}$/.test(preferences.currency||'') ||
+       !['ko','en'].includes(preferences.locale))
+      throw new Error('Invalid Copilot ticket conditions.');
+    const response=await this.visionProvider({
+      providerId:entry.providerId,quantity:preferences.quantity,
+      currency:preferences.currency,budgetMinor:preferences.budgetMinor,
+      locale:preferences.locale,imageBase64:current.toString('base64')
+    });
+    await this.verifiedTarget(windowId,token,{x:0.5,y:0.5});
+    if(response?.advisoryOnly!==true || response.humanApprovalRequired!==true ||
+       !Array.isArray(response.targets) || response.targets.length>5)
+      throw new Error('Invalid read-only Copilot Vision response.');
+    const {validPoint}=require('./core.cjs');
+    const targets=response.targets.filter(t=>validPoint(t) &&
+      typeof t.label==='string'&&t.label.length<=60 &&
+      typeof t.reason==='string'&&t.reason.length<=160 &&
+      typeof t.confidence==='number'&&t.confidence>=0.85 &&
+      ['seat','price_tier','performance','quantity','continue'].includes(t.kind));
+    return {status:response.status,targets,advisoryOnly:true,
+      humanApprovalRequired:true,snapshotToken:preview.token};
   }
   async highlight(windowId,token,point) {
     const {entry,target}=await this.verifiedTarget(windowId,token,point);
@@ -89,6 +123,10 @@ class LiveCopilot {
     overlay.setBounds(entry.win.getContentBounds());
     await overlay.webContents.executeJavaScript('window.setCopilotHighlight('+JSON.stringify(target)+')');
     overlay.showInactive();
+    const activeOverlay=overlay;
+    setTimeout(()=>{
+      if(this.overlays.get(windowId)===activeOverlay)this.clear(windowId);
+    },5000).unref?.();
     return {highlighted:true,expiresAt:Date.now()+5000};
   }
   /** One real click per FRESH screenshot, with a separate explicit user

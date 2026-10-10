@@ -235,6 +235,14 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell, onSe
       if(load()!==active)throw new Error('Planner session changed');
       return result;
     },
+    async aiVision(payload) {
+      const active=load();
+      if(!active)throw new Error('Sign in to use Copilot Vision.');
+      const result=await request(active.apiUrl,'/v1/ai/copilot/vision',
+        'POST',payload,active.token,16500);
+      if(load()!==active)throw new Error('Copilot Vision account changed.');
+      return result;
+    },
     async aiAdvice(payload) {
       const active = load();
       if (!active) throw new Error("Sign in to TIXBAM to use AI guidance.");
