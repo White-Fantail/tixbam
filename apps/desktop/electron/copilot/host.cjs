@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { BrowserWindow } = require('electron');
-const { screenAllowed,pixelPoint,validSnapshot,SNAPSHOT_TTL_MS } = require('./core.cjs');
+const { screenAllowed,pixelPoint,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
@@ -20,6 +20,11 @@ class LiveCopilot {
   verify(windowId, options = {}) {
     if(!Number.isInteger(windowId))throw new Error('Invalid Copilot window.');
     const entry=this.ticketWindows.get(windowId);
+    if (entry?.popup) {
+      const parent=this.ticketWindows.get(entry.parentId);
+      if (!parent || parent.planId !== entry.planId || parent.providerId !== entry.providerId)
+        throw new Error('This popup is not linked to an active booking plan browser.');
+    }
     const provider=entry&&this.requireInstalled(entry.providerId);
     const result=screenAllowed(entry,provider?.allowedHosts,windowId,options);
     if(!result.allowed)throw new Error(result.reason);
@@ -54,32 +59,35 @@ class LiveCopilot {
     this.snapshots.set(windowId,{token,windowId,planId:entry.planId,
       providerId:entry.providerId,phase:entry.phase,url,issuedAt,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       digest:crypto.createHash('sha256').update(bytes).digest('hex'),
-      width:bounds.width,height:bounds.height,consumed:false});
+      width:bounds.width,height:bounds.height,bytes,consumed:false});
     return {token,windowId,expiresAt:issuedAt+SNAPSHOT_TTL_MS,
       image:'data:image/jpeg;base64,'+bytes.toString('base64'),
       width:bounds.width,height:bounds.height,
       mode,automaticClickAvailable:false};
   }
-  async verifiedTarget(windowId,token,point) {
-    const entry=this.verify(windowId),preview=this.snapshots.get(windowId);
-    validSnapshot(preview,entry,token,entry.win.webContents.getURL());
+  async verifiedTarget(windowId,token,point,{readOnly=false}={}) {
+    const options=readOnly ? {localPreview:true} : {};
+    const entry=this.verify(windowId,options),preview=this.snapshots.get(windowId);
+    const check=readOnly ? validObservation : validSnapshot;
+    check(preview,entry,token,entry.win.webContents.getURL());
     const bounds=entry.win.getContentBounds();
     if(bounds.width!==preview.width || bounds.height!==preview.height)
       throw new Error('Window dimensions changed. Capture a fresh screen.');
     const target=pixelPoint(point,bounds.width,bounds.height);
+    if(readOnly)return {entry,preview,target};
     const current=await this.takeImage(entry);
     this.verify(windowId);
-    validSnapshot(preview,entry,token,entry.win.webContents.getURL());
+    check(preview,entry,token,entry.win.webContents.getURL());
     if(crypto.createHash('sha256').update(current).digest('hex')!==preview.digest)
       throw new Error('The visible screen changed. Take a new preview before clicking.');
-    return {entry,preview,target,current};
+    return {entry,preview,target};
   }
   /** AI proposals remain advisory. A signed-in user must opt in for EACH
    * screenshot upload and still explicitly choose and approve a target.
    */
   async analyze(windowId,token,preferences) {
     if(!this.visionProvider)throw new Error('Copilot Vision is unavailable.');
-    const {entry,preview,current}=await this.verifiedTarget(windowId,token,{x:0.5,y:0.5});
+    const {entry,preview}=await this.verifiedTarget(windowId,token,{x:0.5,y:0.5},{readOnly:true});
     if(!preferences || !Number.isInteger(preferences.quantity) || preferences.quantity<1 ||
        preferences.quantity>20 || !Number.isSafeInteger(preferences.budgetMinor) ||
        preferences.budgetMinor<0 || preferences.budgetMinor>10000000000 ||
@@ -89,9 +97,9 @@ class LiveCopilot {
     const response=await this.visionProvider({
       providerId:entry.providerId,quantity:preferences.quantity,
       currency:preferences.currency,budgetMinor:preferences.budgetMinor,
-      locale:preferences.locale,imageBase64:current.toString('base64')
+      locale:preferences.locale,stage:preview.phase,imageBase64:preview.bytes.toString('base64')
     });
-    await this.verifiedTarget(windowId,token,{x:0.5,y:0.5});
+    await this.verifiedTarget(windowId,token,{x:0.5,y:0.5},{readOnly:true});
     if(response?.advisoryOnly!==true || response.humanApprovalRequired!==true ||
        !Array.isArray(response.targets) || response.targets.length>5)
       throw new Error('Invalid read-only Copilot Vision response.');
@@ -100,12 +108,13 @@ class LiveCopilot {
       typeof t.label==='string'&&t.label.length<=60 &&
       typeof t.reason==='string'&&t.reason.length<=160 &&
       typeof t.confidence==='number'&&t.confidence>=0.85 &&
-      ['seat','price_tier','performance','quantity','continue'].includes(t.kind));
+      ['seat','price_tier','performance','quantity','continue'].includes(t.kind) &&
+      (preview.phase === 'selecting' || t.kind === 'continue'));
     return {status:response.status,targets,advisoryOnly:true,
       humanApprovalRequired:true,snapshotToken:preview.token};
   }
   async highlight(windowId,token,point) {
-    const {entry,target}=await this.verifiedTarget(windowId,token,point);
+    const {entry,target}=await this.verifiedTarget(windowId,token,point,{readOnly:true});
     let overlay=this.overlays.get(windowId);
     if(!overlay || overlay.isDestroyed()) {
       overlay=new BrowserWindow({
