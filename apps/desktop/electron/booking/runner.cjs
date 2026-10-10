@@ -2,6 +2,7 @@
 const crypto = require('node:crypto');
 const { chooseOffer, validOrder } = require('./preferences.cjs');
 const { BookingOrchestrator } = require('./orchestrator.cjs');
+const { assertDeterministicHostAction } = require('./action-registry.cjs');
 
 const TERMINAL = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 const STOP_PRE = 'Stopped. Payment preparation cleared.';
@@ -91,6 +92,7 @@ class BookingRunner {
         if (!this.orchestrator.check(handle)) return;
         this.orchestrator.transition('ACTION_VALIDATED', 'Selecting performance and price.');
         if (!this.orchestrator.check(handle)) return;
+        assertDeterministicHostAction({action:'SELECT_OPTIONS',runner:this,page});
         const chosen = await this.adapter.selectOptions(this.preferences, {signal:handle.signal});
         if (!this.orchestrator.check(handle)) return;
         if (!chosen) {
@@ -113,6 +115,7 @@ class BookingRunner {
         if (!this.orchestrator.check(handle)) return;
         this.orchestrator.transition('ACTION_VALIDATED', 'Reserving preferred offer.');
         if (!this.orchestrator.check(handle)) return;
+        assertDeterministicHostAction({action:'RESERVE_OFFER',runner:this,page,offer});
         await this.adapter.reserve(offer, {signal:handle.signal});
         if (!this.orchestrator.check(handle)) return;
         this.orchestrator.transition('ACTION_RETURNED', 'Selected seats. Checking the final order.');

@@ -130,3 +130,40 @@ export type BookingPhase =
   | 'ORDER_REVIEW' | 'READY_TO_COMMIT' | 'PAYMENT_COMMITTING'
   | 'VERIFYING' | 'WAITING_FOR_USER' | 'CONFIRMED'
   | 'PAYMENT_UNKNOWN' | 'STOPPED' | 'FAILED';
+
+
+/** AB-03: proposals are data only. No payment, CSS selectors, XPath,
+ * coordinates, URLs, JavaScript, or renderer-invocable execution methods.
+ * The Electron host issues opaque snapshot/target IDs and revalidates all
+ * authority and constraints immediately before a reviewed action.
+ */
+export type ProposedActionKind =
+  | 'WAIT' | 'REOBSERVE' | 'ASK_USER' | 'STOP'
+  | 'SELECT_PERFORMANCE' | 'SELECT_PRICE_TIER'
+  | 'SELECT_APPROVED_OFFER' | 'CHOOSE_VERIFIED_DELIVERY'
+  | 'RETURN_TO_VERIFIED_STEP';
+export type ProposedPageStage =
+  | 'unknown' | 'landing' | 'queue' | 'login' | 'options' | 'offers'
+  | 'cart' | 'checkout' | 'bank_challenge' | 'receipt' | 'access_blocked';
+export interface ActionProposalV1 {
+  schemaVersion: 1;
+  requestId: string; runId: string; snapshotId: string;
+  expectedPageGeneration: number; expectedStage: ProposedPageStage;
+  action: ProposedActionKind; targetRef: string | null;
+  rationaleCode: string; expiresAtMs: number;
+}
+export type ActionDecisionCode =
+  | 'ALLOW' | 'UNKNOWN_ACTION' | 'STALE_OBSERVATION' | 'WRONG_OWNER'
+  | 'POLICY_DENY' | 'CAPABILITY_MISSING' | 'CONSENT_MISSING'
+  | 'CHALLENGE_REQUIRED' | 'PLAN_MISMATCH' | 'UNKNOWN_PRICE'
+  | 'LIMIT_EXCEEDED';
+export interface ActionDecision {
+  allowed: boolean; code: ActionDecisionCode; checkedAtMs: number;
+}
+export interface IssuedActionSnapshotV1 {
+  schemaVersion: 1; snapshotId: string; pageGeneration: number;
+  stage: ProposedPageStage;
+  challenge: 'none' | 'captcha' | 'queue' | 'login' | '3ds' | 'consent' | 'unknown';
+  observedAtMs: number; expiresAtMs: number;
+  handles: ReadonlyArray<{ref:string;kind:'performance'|'price_tier'|'offer'|'delivery'|'navigation'}>;
+}
