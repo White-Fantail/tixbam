@@ -20,7 +20,7 @@ function makePreferences(plan,kind){
     allowFallback:plan.allowFallback===true,checkout:'review',
     options:{performance:'practice-performance',priceTier:['practice-standard'],
       section:[],floor:[],seatMode:kind==='standing'?'standing':
-        kind==='automatic'?'automatic':'',fulfillment:''}};
+        ['automatic','auto_unverified'].includes(kind)?'automatic':'',fulfillment:''}};
 }
 function makeSyntheticOffer(key,prefs,seed,kind){
   const qty=prefs.quantity,ticket=Math.max(1,Math.floor(prefs.maxTotalMinor/(3*qty)));
@@ -28,12 +28,23 @@ function makeSyntheticOffer(key,prefs,seed,kind){
   const start=1+deterministicNumber(seed,'seat')%10;
   const seats=Array.from({length:qty},(_,i)=>kind==='standing'?'GA-'+(i+1):
     row+'-'+(start+i*(kind==='adjacency'?2:1)));
-  return {id:'mock-'+crypto.createHash('sha256').update(key+':'+seed).digest('hex').slice(0,20),
-    eventKey:key,quantity:qty,currency:prefs.currency,totalMinor:qty*(ticket+Math.max(1,Math.floor(ticket/10))),
+  const serviceFeeMinor=qty*Math.max(1,Math.floor(ticket/10));
+  const ticketSubtotalMinor=qty*ticket;
+  return {schemaVersion:2,id:'mock-'+crypto.createHash('sha256').update(key+':'+seed).digest('hex').slice(0,20),
+    eventKey:key,quantity:qty,currency:prefs.currency,totalMinor:ticketSubtotalMinor+serviceFeeMinor,
     feesIncluded:true,available:kind!=='sold_out',adjacent:kind!=='adjacency',
+    totalVerified:true,availabilityVerified:true,identityVerified:true,
+    restrictedView:kind==='restricted_view',realNameRequired:false,
+    ageRestricted:false,accessibilityRestricted:false,
+    feeBreakdown:kind==='unknown_fees'?undefined:{
+      ticketSubtotalMinor,serviceFeeMinor,taxMinor:0,deliveryFeeMinor:0,extrasMinor:0},
+    extras:[],
     priceTier:'practice-standard',performance:'practice-performance',section:'Mock-A',floor:'Mock',
-    seatMode:kind==='standing'?'standing':kind==='automatic'?'automatic':'assigned',
-    verifiedAllocation:kind==='automatic'?true:undefined,
+    seatMode:kind==='standing'?'standing':
+      ['automatic','auto_unverified'].includes(kind)?'automatic':'assigned',
+    areaId:kind==='standing'?'Mock-Pit':undefined,
+    verifiedAllocation:kind==='automatic'?true:
+      kind==='auto_unverified'?false:undefined,
     fulfillment:'eticket',seats};
 }
 class ScenarioAdapter{

@@ -210,3 +210,24 @@ test('invalid budget and quantity cannot open a mock payment flow',async t=>{
     await assert.rejects(()=>d.start('standard'),/budget and quantity/);
   }
 });
+
+
+test('AB-10 strict rehearsal offer metadata reconciles fees and rejects risky scenarios',async t=>{
+  for(const kind of ['standard','standing','automatic']){
+    const d=lab(t);
+    await d.start(kind,2027);
+    await d.next();await d.next();await d.next();
+    assert.equal(d.state.status,'review',kind);
+    assert.equal(d.adapter.offer.schemaVersion,2);
+    assert.equal(d.adapter.offer.totalMinor,
+      Object.values(d.adapter.offer.feeBreakdown).reduce((a,b)=>a+b,0));
+    assert.equal(d.adapter.offer.totalVerified,true);
+  }
+  for(const kind of ['restricted_view','unknown_fees','auto_unverified']){
+    const d=lab(t);
+    await d.start(kind,2027);await d.next();await d.next();
+    assert.equal(d.state.status,'awaiting_user',kind);
+    assert.equal(d.state.paymentAttempts,0);
+    assert.equal(d.adapter.order,null);
+  }
+});

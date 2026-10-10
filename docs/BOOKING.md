@@ -122,3 +122,11 @@ Configure Admin → AI Models → PlannerV1 model ID, strict structured-output v
 ## AB-09 bounded rehearsal AI recovery
 
 Safety Stress Lab displays a second explicit **Execute ONE approved mock recovery step** control only for valid `REOBSERVE` or `SELECT_APPROVED_OFFER` model suggestions. The Electron host consumes the model proposal once, checks the current AB-04 snapshot and AB-03 action/consent, confirms quantity, adjacency and fees, and performs only an offline synthetic observation or mock seat selection. Each is verified afterward; failure, timeout or changed state requires manual takeover. Queue, CAPTCHA, 3DS, real browser navigation and payment remain human-only. Per run: 3 attempts, 2 failures, 1 mutating mock offer, 2-second deadline. See [Rehearsal Lab guide](REHEARSAL_LAB.md).
+
+## AB-10 Seat/Offer Policy Engine
+
+The host `offer-policy.cjs` normalizes legacy v1 and strict v2 seat offers across providers. Strict v2 offers must include reconciled `ticketSubtotalMinor + serviceFeeMinor + taxMinor + deliveryFeeMinor + extrasMinor === totalMinor`, verified availability/identity, and explicit risk flags. Price/currency are safe integer minor units with no implied exchange conversion.
+
+Before ranking, the host excludes incompatible event/provider/performance, quantity, budget, currency, mode, seat adjacency, unresolved automatic allocation, mandatory consent, restricted view and unapproved optional extras. Remaining offers are ranked deterministically by explicitly ordered price tier, section and floor before all-in amount. Final order verification compares the entire canonical purchase fingerprint, rejecting new fees, extras, seats, mode or seller even if the headline total is unchanged.
+
+`chooseOffer` and `validOrder` still accept existing v1 Cityline/BookingRunner inputs, but the new verified rehearsal simulator uses strict v2 evidence. This does not enable live provider seat mapping, official cart mutation or autonomous payment. See [Rehearsal Lab guide](REHEARSAL_LAB.md).

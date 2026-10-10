@@ -246,6 +246,16 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** generative offer variants, no stable seat labels, invalid adjacency, secondary tier fallback consent, optional extras.
 **Do not:** claim a provider has verified seat-map support until separately proven.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/offer-policy.cjs`: 업체 종속 코드 없이 v1/v2 offer를 정규화. 모의/실제 제공업체 관찰의 providerId/eventKey/performance, 수량/통화/가격대/구역/층/좌석 유형/수령 방식, 판매 수량 제한, 실제 정합성 증거, 지정석·스탠딩 GA·자동배정, 연석·가려진 시야·실명·연령·접근성 제한·추가 상품을 제약 조건으로 평가. **v2**는 수수료 5개 항목의 합이 최종 총액과 같고 검증됨이 확인돼야 인정.
+- hard filter 후 사용자가 명시적으로 정한 가격 등급 → 구역 → 층 순서, 총액, 고정 ID 순으로 결정적으로 정렬. 불허된 2순위 fallback, 모르는 총액/수수료, 불일치 통화, 매진, 연석 증거 누락, 자동배정/GA 혼동 및 임의 보험·구독 추가는 후보/최종 주문에서 차단. KRW/JPY 등도 환산 없는 ISO minor unit 정수만 사용.
+- `preferences.cjs`는 기존 공개 `chooseOffer`/`validOrder` 함수 서명과 v1 객체 동일성 유지. `BookingPreferences.terms`는 선택적 명시적 opt-in만 허용하며, renderer에 동의 UI가 없는 상태에서는 기본적으로 모든 위험 조건/추가 상품 차단. 원래 Cityline 예약 옵션 기능/동작은 유지.
+- `runner.cjs`: 선택된 화면의 실제 eventKey 바인딩과 최종 주문의 canonical signature를 대조해 가격/수수료/좌석/업체/좌석 모드/부가 상품/제한 조건 변경 시 결제 전에 거부. `action-validator.cjs`와 `action-registry.cjs`: AB-03 모델/애드온 제안용 immutable offer handles가 v2 리스크·수수료 필드를 빠뜨리지 않으며, 시뮬레이터의 후보를 다시 읽고 동일한 canonical fingerprint인지 확인.
+- AB-07 `rehearsal-driver.cjs` strict v2 모의 주문 및 `rehearsal-fixtures.cjs` 신규 3개 상황(시야 제한, 미확인 수수료, 미검증 자동배정). 가상 판매 단계에서 총 17개 시나리오를 제공하고 운영 사이트 트래픽/결제 없음.
+- 회귀 테스트: 1/2장, 지정석/스탠딩/자동배정, 증거 미확인, GA 번호없는 티켓, 비인접, 다중 통화/예산, 명시적 consent, 통합 수수료 합계, 익명 부가상품, fallback 순위, 동일 점수 ID 정렬, 페이지 변경/가격 drift, 안전한 가상 리허설과 기존 Cityline v1 호환.
+- **권한 경계:** 이것은 정책 데이터/호스트 검증 엔진이지 제공업체의 실제 좌석 맵 지원·자동화 승인을 뜻하지 않음. Cityline의 seats/payment implementation은 여전히 pending. NOL/Ticketmaster/AXS restriction 유지. AB-11에서 동의 및 선택 UX 보강, AB-12에서 업체 권한·프로파일 검증.
+
+
 ## AB-11 — Desktop UX: 권한, 진행 상태, 인계
 
 **명령:** "AB-11 구현해. Desktop에 안전한 자동화 모드/사전승인/진행 이력/사용자 인계 화면을 만들어."
@@ -303,7 +313,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-09 완료 (dev) · AB-10 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-10 완료 (dev) · AB-11 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -314,11 +324,11 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-07 Offline Rehearsal — common 14-scenario simulator, isolated mock Ledger and restart-safe UI (CI verified)
   - [x] AB-08 AI Planner — strict OpenRouter proposal-only pipeline, privacy and quota, rehearsal manual trigger (CI verified)
   - [x] AB-09 Recovery Engine — explicit rehearsal approval, fresh host validation, one-shot synthetic selection/reobserve, deadline & loop guard (CI verified)
-  - [ ] AB-10 Seat/Offer Policy
+  - [x] AB-10 Seat/Offer Policy — strict all-in fee normalization, deterministic seat ranking, v1 compatibility and 17 offline drills (CI verified)
   - [ ] AB-11 Desktop UX
   - [ ] AB-12 Provider Onboarding
   - [ ] AB-13 Gated Payment Executor (mock)
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-10 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-11 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

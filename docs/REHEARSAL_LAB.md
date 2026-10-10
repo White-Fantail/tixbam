@@ -13,7 +13,7 @@ The Stress Lab runs entirely inside TixBam's isolated rehearsal window. It **doe
 5. For a successful synthetic receipt, use **Save completed practice** to update the Booking Plan rehearsal timestamp. For an unknown payment, acknowledge the no-retry rule before marking the *exercise* practised.
 6. Use **Simulate app restart** to verify that the old run cannot be resumed. A new exercise is always separate from any real provider purchase.
 
-## Fixed provider-neutral scenarios
+## Fixed provider-neutral scenarios (17)
 
 | Scenario | Demonstrates | Safe expected outcome |
 |---|---|---|
@@ -31,6 +31,9 @@ The Stress Lab runs entirely inside TixBam's isolated rehearsal window. It **doe
 | Automatic allocation | Synthetic assigned seats | Constrained order review |
 | Seats separated | Nonadjacent fake seats | Reject when together is mandatory |
 | Page changes | Selected fake inventory disappears | Fail safely before checkout |
+| Restricted-view seats | View limitation requires explicit consent | No eligible offer with default preferences |
+| Unverified fees | Missing verified fee components | No eligible offer |
+| Unverified automatic seats | Group adjacency not confirmed by provider | No eligible offer when together is required |
 
 ## Architecture and persistence
 
@@ -64,3 +67,13 @@ With **Safety Stress Lab** running and Admin-enabled PlannerV1 configured, click
 - At most 3 attempted one-step approvals, 2 failures, and 1 synthetic offer mutation per rehearsal run; identical steps are blocked. Each step has a 2s deadline and cooperative cancellation in the simulator. A timeout or postcondition failure locks further AI recovery for that run.
 
 The host's approval action is exposed only by a sender-verified Electron main-process IPC. No action callback, arbitrary URL, JavaScript or selector becomes accessible to downloaded add-ons or AI. This exercise offers no guarantee about live-site capability, ticket inventory or payment success.
+
+## AB-10 seat and all-in price policy exercises
+
+All synthetic rehearsal offers use an explicit `schemaVersion:2` data model with ticket subtotal, service fee, tax, delivery charge, optional extras, restrictions, assignment evidence and a verified total. This does not mean real Cityline seat or payment support has been confirmed.
+
+Run a normal, standing or automatic-seating drill to review a fully validated mock offer. The **restricted-view**, **unknown-fees** and **auto-unverified** drills stop before cart/payment, because the current practice plan has not approved those risks or lacks evidence. The original price/fee-change drills still reject a changed final quote during checkout.
+
+The host ranks only *eligible* candidates. It uses ordered price tier, section and floor preferences before the cheapest all-in total, then a stable ID tie-break. The preference fallback flag is never bypassed by AI. Standing group admission uses an explicitly identified GA area rather than requiring numbered adjacent seats; assigned seats require exact seat references; automatically assigned seats require verified allocation and exact final seats before a payment could be contemplated.
+
+Consent for risky visibility, identity/age/accessibility requirements and optional extras must be explicitly provided in the host booking plan. Those permissions default to false and are not inferred from model advice or provider page labels. The extra consent UI is an AB-11 follow-up.

@@ -47,6 +47,8 @@ export interface BookingPreferences {
   schemaVersion: 1; quantity: number; maxTotalMinor: number; currency: string;
   requireTogether: boolean; allowFallback: boolean; checkout: 'review' | 'automatic';
   options: Record<string, string | string[]>;
+  /** Explicit opt-in. Omitted permissions mean no consent. */
+  terms?: SeatRestrictionConsentV2;
 }
 export interface BookingOrder {
   id: string; eventKey: string; quantity: number; totalMinor: number; currency: string;
@@ -313,4 +315,57 @@ export interface RehearsalRecoveryResultV1 {
   action?:ProposedActionKind;
   attempts?:number;
   remaining?:number;
+}
+
+
+/** AB-10 host seat/offer model. All amounts are safe integer ISO currency
+ * minor units (no FX, no float conversion). This describes seller evidence,
+ * NOT a verified provider integration or an automation permission.
+ */
+export type NormalizedSeatModeV2 = 'assigned' | 'standing' | 'automatic';
+export interface SeatRestrictionConsentV2 {
+  allowRestrictedView?:boolean;
+  allowRealName?:boolean;
+  allowAgeRestricted?:boolean;
+  allowAccessibilityRestricted?:boolean;
+  allowedExtraIds?:string[];
+}
+export interface VerifiedFeeBreakdownV2 {
+  ticketSubtotalMinor:number;
+  serviceFeeMinor:number;
+  taxMinor:number;
+  deliveryFeeMinor:number;
+  extrasMinor:number;
+}
+export interface SelectedOptionalExtraV2 {
+  id:string;priceMinor:number;selected:true;
+}
+export interface NormalizedSeatOfferV2 {
+  schemaVersion:2;
+  id:string;providerId:string;eventKey:string;performance:string;
+  quantity:number;currency:string;priceTier:string;
+  section?:string;floor?:string;fulfillment?:string;
+  seatMode:NormalizedSeatModeV2;
+  /** Confirmed group/GA area, required for standing admission. */
+  areaId?:string;
+  /** May be empty at initial offer only for standing or automatic. */
+  seats:string[];
+  adjacent?:boolean;
+  /** Required for automatic allocation. False means final payment cannot pass. */
+  verifiedAllocation?:boolean;
+  maxPerOrder?:number;
+  available:true;feesIncluded:true;totalVerified:true;
+  availabilityVerified:true;identityVerified:true;
+  restrictedView:boolean;realNameRequired:boolean;ageRestricted:boolean;
+  accessibilityRestricted:boolean;
+  totalMinor:number;
+  feeBreakdown:VerifiedFeeBreakdownV2;
+  extras?:SelectedOptionalExtraV2[];
+}
+/** A host must evaluate seller and attendee constraints before selecting.
+ * A parsed offer NEVER implies provider permission, approved actions or checkout.
+ */
+export interface OfferPolicyDecisionV2 {
+  ok:boolean;
+  code:string;
 }
