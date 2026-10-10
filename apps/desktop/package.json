@@ -9,6 +9,7 @@
     "desktop": "electron .",
     "check": "tsc --noEmit",
     "test": "node --test electron/*.test.cjs",
+    "test:copilot": "node --test electron/copilot*.test.cjs",
     "build": "npm run check && vite build",
     "preview": "vite preview"
   },
