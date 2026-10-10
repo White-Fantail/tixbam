@@ -32,6 +32,19 @@ function pixelPoint(point,width,height) {
     throw new Error('Invalid or out-of-bounds Copilot target.');
   return {x:Math.floor(point.x*width),y:Math.floor(point.y*height)};
 }
+// Compare the originally observed TARGET neighbourhood rather than every
+// pixel of an otherwise live site. A countdown elsewhere must not invalidate
+// a safe user-directed click; a moved or redrawn target still fails closed.
+function targetRegion(point,width,height) {
+  const centre=pixelPoint(point,width,height);
+  const halfWidth=Math.max(42,Math.min(100,Math.floor(width*0.065)));
+  const halfHeight=Math.max(32,Math.min(70,Math.floor(height*0.075)));
+  const regionWidth=Math.min(width,halfWidth*2);
+  const regionHeight=Math.min(height,halfHeight*2);
+  return {x:Math.min(width-regionWidth,Math.max(0,centre.x-halfWidth)),
+    y:Math.min(height-regionHeight,Math.max(0,centre.y-halfHeight)),
+    width:regionWidth,height:regionHeight};
+}
 function validObservation(snapshot, entry, token, currentUrl, now = Date.now()) {
   if (!snapshot || typeof token !== 'string' || snapshot.token !== token ||
       !entry || entry.win.id !== snapshot.windowId ||
@@ -46,4 +59,4 @@ function validSnapshot(snapshot, entry, token, currentUrl, now = Date.now()) {
   if (snapshot.phase !== 'selecting')
     throw new Error('Clicking is available only at actual ticket selection.');
 }
-module.exports={screenAllowed,validPoint,pixelPoint,validSnapshot,validObservation,SNAPSHOT_TTL_MS};
+module.exports={screenAllowed,validPoint,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS};
