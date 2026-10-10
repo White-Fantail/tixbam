@@ -163,8 +163,8 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   wc.on("did-start-loading", () => { copilot.clear(win.id); entry.loadError = null; broadcast(); });
   wc.on("did-stop-loading", () => {broadcast(); void copilot.observe(win.id);});
   wc.on("page-title-updated", broadcast);
-  wc.on("did-navigate", () => { copilot.clear(win.id); broadcast(); });
-  wc.on("did-navigate-in-page", () => { copilot.clear(win.id); broadcast(); });
+  wc.on("did-navigate", () => { copilot.clear(win.id); broadcast(); void copilot.observe(win.id); });
+  wc.on("did-navigate-in-page", () => { copilot.clear(win.id); broadcast(); void copilot.observe(win.id); });
   wc.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {
     if (isMainFrame && code !== -3) { entry.loadError = Number.isInteger(code) ? code : -1; broadcast(); }
   });
