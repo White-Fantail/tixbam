@@ -4,6 +4,8 @@ const path = require('node:path');
 const { BrowserWindow, nativeImage } = require('electron');
 const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
+const {normalizeConsent,providerAutomationStatus,canRun,MAX_AGE_MS}
+  =require('./advance-authorization.cjs');
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
  * Live unattended actions require a SEPARATE verified provider executor.
@@ -12,6 +14,8 @@ class LiveCopilot {
   constructor({ticketWindows,requireInstalled}) {
     this.ticketWindows=ticketWindows;this.requireInstalled=requireInstalled;
     this.snapshots=new Map();this.overlays=new Map();this.visionProvider=null;
+    this.autoSessions=new Map();this.autoPending=new Set();
+    this.onAutoUpdate=()=>{};
   }
   setVisionProvider(provider) {
     if(typeof provider!=='function')throw new TypeError('Trusted Vision service required');
@@ -36,7 +40,99 @@ class LiveCopilot {
     this.overlays.delete(windowId);
     if(overlay && !overlay.isDestroyed())overlay.destroy();
   }
-  clearAll() {for(const id of [...this.overlays.keys(),...this.snapshots.keys()])this.clear(id);}
+  clearAll() {
+    for(const id of [...this.overlays.keys(),...this.snapshots.keys()])this.clear(id);
+    for(const id of [...this.autoSessions.keys()])this.disarm(id);
+  }
+  autoInfo(session,status,reason,extra={}) {
+    const info={windowId:session.windowId,planId:session.planId,providerId:session.providerId,
+      requestedMode:session.consent.mode,mode:session.mode,status,reason,
+      attempts:session.count,expiresAt:session.expiresAt,
+      targets:[],automaticClicks:session.automaticClicks,...extra};
+    this.onAutoUpdate(info);
+    return info;
+  }
+  arm(windowId,preferences,consentInput) {
+    const consent=normalizeConsent(consentInput);
+    this.disarm(windowId);
+    if(consent.mode==='manual')return {windowId,mode:'manual',status:'off',
+      reason:'Advance assistance not enabled.',targets:[]};
+    const entry=this.ticketWindows.get(windowId);
+    if(!entry?.planId || entry.popup)throw new Error('Arm only a main Booking Plan browser.');
+    this.requireInstalled(entry.providerId);
+    if(!preferences || preferences.planId!==entry.planId ||
+       !Number.isInteger(preferences.quantity) || preferences.quantity<1 || preferences.quantity>20 ||
+       !Number.isSafeInteger(preferences.budgetMinor) || preferences.budgetMinor<0 ||
+       preferences.budgetMinor>10000000000 ||
+       !/^[A-Z]{3}$/.test(preferences.currency||'') ||
+       !['ko','en'].includes(preferences.locale))
+      throw new Error('Invalid or mismatched advance-authorized booking conditions.');
+    const addon=this.requireInstalled(entry.providerId);
+    // Never treat a user-granted preference as the vendor's automation permission.
+    const permission=providerAutomationStatus(addon,'seat');
+    const mode=consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
+    const session={windowId,planId:entry.planId,providerId:entry.providerId,
+      consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
+      count:0,lastAttemptAt:0,stopped:false,automaticClicks:0};
+    this.autoSessions.set(windowId,session);
+    return this.autoInfo(session,'armed',mode==='observe'&&consent.mode==='authorized'
+      ? 'Provider automation unavailable: '+permission.reason+' Visual guidance only.'
+      : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
+  }
+  disarm(windowId) {
+    const session=this.autoSessions.get(windowId);
+    if(!session)return false;
+    session.stopped=true;
+    this.autoSessions.delete(windowId);
+    this.clear(windowId);
+    this.autoInfo(session,'stopped','Advance authorization revoked.');
+    return true;
+  }
+  autoStatus(windowId){
+    const s=this.autoSessions.get(windowId);
+    return s ? this.autoInfo(s,'armed','Active until stopped or expired.')
+      : {windowId,mode:'manual',status:'off',reason:'Not armed.',targets:[]};
+  }
+  async observe(windowId) {
+    const session=this.autoSessions.get(windowId);
+    if(!session || this.autoPending.has(windowId))return;
+    const entry=this.ticketWindows.get(windowId);
+    const check=canRun(session,entry);
+    if(!check.allowed) {
+      if(check.reason!=='Automatic AI cooldown.')
+        this.autoInfo(session,'paused',check.reason);
+      return;
+    }
+    // Screen restrictions are rechecked before EVERY capture and after AI latency.
+    try {this.verify(windowId,{localPreview:true});}
+    catch(error){
+      this.autoInfo(session,'paused',error.message);
+      return;
+    }
+    session.lastAttemptAt=Date.now();
+    session.count+=1;
+    this.autoPending.add(windowId);
+    this.autoInfo(session,'observing','Reviewing the current official screen.');
+    try {
+      const shot=await this.snapshot(windowId);
+      if(session.stopped || this.autoSessions.get(windowId)!==session)return;
+      const response=await this.analyze(windowId,shot.token,session.preferences);
+      if(session.stopped || this.autoSessions.get(windowId)!==session)return;
+      const candidates=response.targets.filter(t=>session.consent.actions.includes(t.kind));
+      if(candidates.length) {
+        // Highlight the first candidate without clicking or changing provider state.
+        await this.highlight(windowId,shot.token,{x:candidates[0].x,y:candidates[0].y});
+      }
+      const reason=candidates.length ? 'Candidate highlighted; inspect the official site.' :
+        'No confident approved action found. Continue manually.';
+      this.autoInfo(session,'guiding',reason,{targets:candidates});
+      // Auto coordinate clicks are intentionally not sent without a trusted,
+      // vendor-specific target verifier. AI pixel guesses are not such a verifier.
+    }catch(error){
+      if(!session.stopped && this.autoSessions.get(windowId)===session)
+        this.autoInfo(session,'paused',error instanceof Error?error.message:String(error));
+    }finally {this.autoPending.delete(windowId);}
+  }
   async takeImage(entry) {
     const image=await entry.win.webContents.capturePage();
     if(image.isEmpty())throw new Error('The provider screen could not be captured.');
