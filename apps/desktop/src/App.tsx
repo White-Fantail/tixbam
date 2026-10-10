@@ -556,8 +556,13 @@ function App() {
     if (!window.tixbam) { inform("Live booking requires the desktop app.", true); return; }
     const saved=effectiveAdvanceSettings(plan.id);
     const policy=providerAutoClickEligibility(addons.find(x=>x.id===target.id));
-    const settings=saved.mode==="authorized" && !policy.allowed
-      ? {...saved,mode:"observe" as const} : saved;
+    const devCapability=await window.tixbam.copilotDeveloperCapabilities();
+    const settings={
+      ...saved,
+      mode:saved.mode==="authorized" && !policy.allowed ? "observe" as const : saved.mode,
+      // Browser UI and local storage cannot enable a packaged app's test mode.
+      developerClickTest:Boolean(devCapability.singleClickTest && saved.developerClickTest)
+    };
     const consent=advanceConsent(settings);
     if(settings.mode!=="manual" && !consent) {
       inform("Enable screenshot sharing in the advance authorization settings first.",true);
@@ -567,11 +572,14 @@ function App() {
       const message=language==="ko"
         ? "이번 예매에서 사전 승인한 AI 화면 분석을 자동 실행할까요?\\n"
           +"대상: "+plan.title+"\\n"
-          +"모드: "+(consent.mode==="authorized"?"예매처 허용 작업 자동 진행":"화면 분석 및 위치 안내")+"\\n"
+          +"모드: "+(consent.developmentOverride
+              ?"개발자 진단: 실제 화면에서 자동 클릭 최대 1회"
+              :consent.mode==="authorized"?"예매처 허용 작업 자동 진행":"화면 분석 및 위치 안내")+"\\n"
           +"허용 항목: "+consent.actions.join(", ")+"\\n"
           +"최대 15분, AI 분석 5회. 로그인·대기열·결제는 제외되며 이미지가 외부 AI에 전송됩니다. 중지할 수 있습니다."
         : "Start your advance-approved AI guidance for "+plan.title+"?\\n"
-          +"Mode: "+consent.mode+"; allowed kinds: "+consent.actions.join(", ")+"\\n"
+          +"Mode: "+(consent.developmentOverride?"developer test: ONE real click":consent.mode)
+            +"; allowed kinds: "+consent.actions.join(", ")+"\\n"
           +"Up to 15 minutes and 5 AI uploads. Login, queue and checkout excluded. Stop anytime.";
       if(!window.confirm(message))return;
     }
