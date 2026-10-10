@@ -103,7 +103,7 @@ export const bookingKo: Record<string,string> = {
   "Within budget": "예산 이내",
   "Select a ticket": "티켓 선택",
   "Open a ticket provider": "예매처 열기",
-  "A valid ticketing URL is required": "올바른 예매 주소가 필요해요"
+  "A valid ticketing URL is required": "올바른 예매 주소가 필요해요",
   "Seat and purchase restrictions": "좌석 및 구매 제한 조건",
   "These are hard limits, not AI suggestions. Unspecified permissions are denied.": "AI 추천이 아닌 필수 구매 조건입니다. 허용하지 않은 조건은 모두 거부합니다.",
   "Price tier priority (one per line)": "가격 등급 우선순위 (한 줄에 하나)",
