@@ -178,12 +178,13 @@ class LiveCopilot {
             {targets:candidates});
           return;
         }
+        const observedDigest=this.snapshots.get(windowId)?.digest;
         const result=await this.click(windowId,shot.token,
           {x:decision.target.x,y:decision.target.y},
           {autoSession:session,autoTarget:decision.target});
         session.automaticClicks+=1;
         session.lastActionKey=decision.key;
-        session.lastActionDigest=crypto.createHash('sha256').update(shot.image).digest('hex');
+        session.lastActionDigest=observedDigest || null;
         session.lastAction=decision.target.kind;
         this.autoInfo(session,'progress',
           'Step '+session.automaticClicks+' input sent ('+decision.target.kind+'). Verifying next screen.',
@@ -269,7 +270,7 @@ class LiveCopilot {
     const target=pixelPoint(point,bounds.width,bounds.height);
     if(readOnly)return {entry,preview,target};
     const current=await this.takeImage(entry);
-    this.verify(windowId);
+    this.verify(windowId,options);
     check(preview,entry,token,entry.win.webContents.getURL());
     // Check the exact proposed target neighbourhood, not unrelated moving
     // countdowns, advertising or seat-availability animations elsewhere.
@@ -362,8 +363,8 @@ class LiveCopilot {
     // Focus can trigger website overlays, layout changes or browser redraws.
     // Always perform the final image comparison AFTER bringing it forward.
     const autoSession=options.autoSession;
-    const live=this.verify(windowId,autoSession?.lastAction==='continue' ||
-      (autoSession && this.ticketWindows.get(windowId)?.phase==='preparing')
+    const live=this.verify(windowId,autoSession &&
+      this.ticketWindows.get(windowId)?.phase==='preparing'
         ? {localPreview:true} : {});
     if(live.win.isMinimized())live.win.restore();
     live.win.show();live.win.focus();
