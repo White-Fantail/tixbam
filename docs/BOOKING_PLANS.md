@@ -28,7 +28,7 @@ sessions, or bank challenges. Payment and provider-specific dynamic options
 remain local to the desktop host.
 
 ## Rehearsal and safety
-The general offline rehearsal simulates queue admission, accepting/rejecting
+Advanced offline rehearsal (optional) simulates queue admission, accepting/rejecting
 offers against a known budget, review and bank verification. It never accesses
 any ticketing website, reserves seats or charges money. Its completion means
 only that an offline walkthrough was finished.
@@ -124,3 +124,8 @@ Electron-only manual QA still required on a packaged macOS build: window
 creation/focusing, native close behavior, account switching, and cloud
 completion acknowledgment. Unit tests cover the minimal plan transfer and
 renderer sender validation; desktop build and tests run on CI.
+
+
+## Live Copilot pivot (October 2026)
+
+Provider briefing is now the default content in the standalone practice window. The existing drills are retained under advanced tabs. Sessions hosts Live Copilot: local, opt-in selection-screen preview; isolated click-through pointer overlay; a single user-approved, freshness-validated native click; and optional signed-in opt-in remote Vision button proposals when Admin enables the model. Site-specific unattended execution remains separately gated and disabled. See [LIVE_COPILOT.md](LIVE_COPILOT.md).

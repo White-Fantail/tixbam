@@ -1,6 +1,6 @@
 # TIXBAM
 
-**Prepare. Practice. Book.** TIXBAM is a ticketing-first desktop assistant focused on reducing preventable mistakes before and during high-demand ticket sales. Dashboard and My Bookings organize each goal as a Booking Plan: target show/performance/sale, hard requirements, readiness checks, offline rehearsal and official booking launch. Artist/event favorites are secondary. Development happens on the dev branch. Cityline's live seat selection and payment automation are not yet verified; no queue/CAPTCHA bypass or guaranteed purchases. See [Booking-first architecture](docs/BOOKING_PLANS.md) and [Booking workflow](docs/BOOKING.md).
+**Prepare. Copilot. Book.** TIXBAM prioritizes live, provider-specific ticket selection assistance. It helps users assess the current screen and choose the next action in their own official browser. Dashboard and My Bookings organize each goal as a Booking Plan: target show/performance/sale, hard requirements, readiness checks, offline rehearsal and official booking launch. Artist/event favorites are secondary. Development happens on the dev branch. Cityline's live seat selection and payment automation are not yet verified; no queue/CAPTCHA bypass or guaranteed purchases. See [Booking-first architecture](docs/BOOKING_PLANS.md) and [Booking workflow](docs/BOOKING.md).
 
 ## Repository
 
@@ -111,6 +111,12 @@ export TIXBAM_ADMIN_API_KEY="your-long-random-development-secret"
 python -m crawler.run
 pytest tests -q
 ```
+
+## Live Copilot (development)
+
+The first working Copilot bridge is now in the dev branch: opt-in local screen capture for a plan-linked browser at the ticket-selection stage; user-selected target overlays; one explicit, freshness-checked native click per screenshot; and optional AI candidate recognition with separate per-frame external-image consent (admin-controlled `copilot_vision` model policy; default OFF). Predictions are read-only; the user chooses and approves each click. No automatic retry, queue bypass, CAPTCHA handling, verified seats, autonomous cart holds or payments are enabled. Official checkout is the source of truth. [Architecture, limitations and QA](docs/LIVE_COPILOT.md).
+
+Preview expected provider steps through the separate rehearsal window's default **Provider briefing** mode. Historical full rehearsal and Stress Lab are optional advanced tabs, not the primary booking workflow. This preview never claims event-specific actual inventory.
 
 ## Booking
 

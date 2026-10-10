@@ -109,3 +109,8 @@ Validated queue states/offer lists from authorized APIs, event-specific
 rehearsal fixtures, site-change diagnostics, provider receipts and legitimate
 provider-supported automation remain future work. None are claimed by the
 current Control Room.
+
+
+## Live Copilot extension
+
+Live Copilot now offers local, user-initiated screenshots for the manually selected 'Selecting tickets' phase only. It blocks known queue/login/checkout routes and clears targets on navigation, phase or account changes. A read-only AI image analysis request, if explicitly consented to and enabled by Admin, uses the signed-in TIXBAM API and OpenRouter; unlike the normal workspace this does transmit one JPEG outside the device. The model may only propose targets; verified human confirmation is required for any native click. No real reservation or receipt verification is implied. For the exact API/snapshot and site-policy boundaries, see [LIVE_COPILOT.md](LIVE_COPILOT.md).
