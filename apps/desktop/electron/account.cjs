@@ -201,6 +201,30 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell, onSe
     }
   });
   return {
+    async bookingTarget(planId, providerId) {
+      if(!/^[0-9a-f-]{36}$/i.test(planId||''))throw new Error('Registered Booking Plan required.');
+      const active=load();
+      if(!active)throw new Error('Sign in to coordinate a booking across devices.');
+      // A fresh authenticated read is mandatory: stale offline snapshots cannot
+      // authorize server-side ownership or payment.
+      const result=await request(active.apiUrl,'/v1/me','GET',undefined,active.token,6500);
+      const plan=result.bookingPlans?.find(x=>x.id===planId);
+      if(!plan||plan.providerId!==providerId||!plan.saleId||!plan.performanceId)
+        throw new Error('This plan lacks a verified sale and performance. Use manual booking.');
+      if(!/^[0-9a-f-]{36}$/i.test(plan.saleId)||!/^[0-9a-f-]{36}$/i.test(plan.performanceId)||
+         !/^[0-9a-f-]{36}$/i.test(result.user?.id||''))
+        throw new Error('Invalid server target identifiers.');
+      return {accountId:result.user.id,providerId,
+        planId,saleId:plan.saleId,performanceId:plan.performanceId};
+    },
+    async bookingLease(operation, body) {
+      if(!['acquire','renew','release','claim'].includes(operation))
+        throw new Error('Unrecognized booking lease operation.');
+      const active=load();
+      if(!active)throw new Error('Sign in before coordinating booking sessions.');
+      return request(active.apiUrl,'/v1/me/automation/leases/'+operation,
+        'POST',body,active.token,6500);
+    },
     async aiAdvice(payload) {
       const active = load();
       if (!active) throw new Error("Sign in to TIXBAM to use AI guidance.");

@@ -6,14 +6,18 @@ const { CitylineAdapter, schemaFor } = require('./cityline.cjs');
 const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
 const { BookingRunner, TERMINAL } = require('./runner.cjs');
 const { PaymentAttemptLedger } = require('./payment-attempts.cjs');
+const { SessionCoordinator } = require('./session-coordinator.cjs');
 const { resolveOfficialSaleUrl } = require('../security.cjs');
 const { assertBookingWindow } = require('./window-binding.cjs');
 const { ObservationPipeline } = require('./observation.cjs');
-function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send }) {
+function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send,
+  bookingTarget=null, bookingLease=null }) {
   const vault = new CardVault(path.join(app.getPath('userData'), 'cards.enc'), safeStorage);
   const preferences = new PreferenceStore(path.join(app.getPath('userData'), 'booking-preferences.json'));
   const contexts = new Map(), runs = new Map();
   const observations = new ObservationPipeline();
+  const sessionCoordinator = new SessionCoordinator({remote:bookingLease});
+  const renewing=new Set();
   // Ledger initialization is fail-closed but cannot prevent manual browsing.
   // A corruption/lock is shown in the booking list instead of being silently
   // treated as an empty journal. Real auto-payment remains disabled by AB-01.
@@ -21,6 +25,9 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   try { paymentLedger = new PaymentAttemptLedger(app.getPath('userData')); }
   catch { journalUnavailable = true; }
   function emit(state) {
+    if (TERMINAL.has(state.status)) void sessionCoordinator.release(state.id,{
+      mayHaveCommitted: state.status==='payment_unknown'||state.status==='completed',
+    });
     send('tixbam:booking-changed', state);
     if (['awaiting_user', 'review', 'completed', 'payment_unknown', 'failed'].includes(state.status) && Notification.isSupported()) {
       try { new Notification({ title: state.rehearsal ? 'TIXBAM rehearsal' : 'TIXBAM booking', body: state.message }).show(); } catch { /* Notifications do not interrupt bookings. */ }
@@ -93,11 +100,13 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status) && (r.state.eventKey === ctx.eventKey || (!ctx.rehearsal && r.state.windowId === ctx.windowId)))) throw new Error('A booking is already active for this event or window.');
     // A context is not authority to use a window indefinitely. Revalidate
     // its exact browser and plan before starting, then before every step.
+    let ownerAcquired=false,runnerId=null;
     const assertWindow = ctx.rehearsal ? null : () => {
       const entry = ticketWindows.get(ctx.windowId);
       if (!entry || entry.providerId !== ctx.providerId || entry.win !== ctx.windowRef)
         throw new Error('The original booking window changed or was closed.');
       assertBookingWindow(entry, ctx.planId);
+      if(ownerAcquired) sessionCoordinator.assertOwner(runnerId,ctx.windowId,ctx.eventKey);
     };
     if (assertWindow) assertWindow();
     const prefs = validatePreferences(input, ctx.schema);
@@ -116,6 +125,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     const onPageRead=ctx.rehearsal?null:(page,state)=>
       observations.noteRead({windowId:ctx.windowId,providerId:ctx.providerId,page,runId:state.id});
     const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow, onPageRead,
+      sessionCoordinator:ctx.rehearsal?null:sessionCoordinator,
       // Rehearsal is simulated and never charges. Live checkout requires a
       // verified permit and journal before a payment executor can be attached.
       ledger: ctx.rehearsal ? null : paymentLedger,
@@ -129,6 +139,25 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
         allow_fallback: prefs.allowFallback
       }
     });
+    if(!ctx.rehearsal){
+      // Lease acquisition is based exclusively on a fresh authenticated
+      // account/plan read, never a renderer-supplied user or sale ID.
+      try{
+        if(typeof bookingTarget!=='function'||typeof bookingLease!=='function'||
+           !ctx.planId)throw new Error('A registered Booking Plan and signed-in account are required.');
+        const target=await bookingTarget(ctx.planId,ctx.providerId);
+        if(!target||!target.performanceId||!target.saleId||!target.accountId)
+          throw new Error('A verified performance and sale are required.');
+        await sessionCoordinator.acquire({
+          runId:runner.state.id,windowId:ctx.windowId,
+          eventKey:ctx.eventKey,...target,
+        });
+        ownerAcquired=true;runnerId=runner.state.id;
+        if(assertWindow)assertWindow();
+      }catch{
+        runner.stop();throw new Error('Cannot acquire the verified booking session on this device. Use the official provider window manually.');
+      }
+    }
     runs.set(runner.state.id, runner);
     await runner.step(); return runner.state;
   });
@@ -163,9 +192,23 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     await runner.step(reviewing && confirm === true); return runner.state;
   });
   handle('stop-booking', id => { const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.'); runner.stop(); return runner.state; });
-  const timer = setInterval(() => { for (const r of runs.values()) if (r.state.status === 'running') void r.step(); }, 2000);
-  const stopAll = () => { for (const r of runs.values()) if (!TERMINAL.has(r.state.status)) r.stop(); observations.invalidateAll(); };
+  const timer = setInterval(() => {
+    for(const r of runs.values()){
+      if(TERMINAL.has(r.state.status))continue;
+      if(!r.state.rehearsal){
+        try{
+          const own=sessionCoordinator.assertOwner(r.state.id,r.state.windowId,r.state.eventKey);
+          if(own.expiresAtMs-Date.now()<20000 && !renewing.has(r.state.id)){
+            renewing.add(r.state.id);
+            void sessionCoordinator.renew(r.state.id).catch(()=>r.stop()).finally(()=>renewing.delete(r.state.id));
+          }
+        }catch{r.stop();continue;}
+      }
+      if(r.state.status==='running')void r.step();
+    }
+  },2000);
+  const stopAll = () => { for (const r of runs.values()) if (!TERMINAL.has(r.state.status)) r.stop(); sessionCoordinator.invalidateAll(); observations.invalidateAll(); };
   app.on('before-quit', () => { clearInterval(timer); stopAll(); });
-  return { stopAll, invalidateObservations() { observations.invalidateAll(); }, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { observations.unwatchWindow(id); for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
+  return { stopAll, accountChanged() { stopAll(); contexts.clear(); }, invalidateObservations() { observations.invalidateAll(); }, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { sessionCoordinator.invalidateWindow(id); observations.unwatchWindow(id); for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
 }
 module.exports = { registerBooking };

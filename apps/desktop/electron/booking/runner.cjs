@@ -16,11 +16,12 @@ const FAIL_POST = 'Payment outcome is unknown. Check the provider order history;
 class BookingRunner {
   constructor({adapter, preferences, eventKey, windowId, secret,
                notify, payment = null, rehearsal = false, assertWindow = null, onPageRead = null,
-               ledger = null, purchasePermit = null}) {
+               ledger = null, purchasePermit = null, sessionCoordinator = null}) {
     this.adapter = adapter;
     this.onPageRead = onPageRead;
     this.payment = payment;
     this.ledger = ledger;
+    this.sessionCoordinator = sessionCoordinator;
     this.purchasePermit = purchasePermit;
     this.paymentIntent = null;
     this.preferences = structuredClone(preferences);
@@ -169,10 +170,18 @@ class BookingRunner {
         // Unlock succeeds before the latch; errors before then remain precommit.
         // A payment can be attempted only by the verified host-owned payment
         // service. AB-05 will record durable commit intent *before* this call.
-        await this.secret.use(card => {
+        await this.secret.use(async card => {
           if (!this.orchestrator.check(handle)) return;
           this.orchestrator.transition('COMMIT_READY', 'Final order was rechecked.');
           if (!this.orchestrator.check(handle)) return;
+          if(!this.state.rehearsal){
+            // Durable *server* claim precedes local fsync. A lost response,
+            // expired lease, or ownership change permanently blocks retry.
+            if(!this.sessionCoordinator)throw new Error('Shared purchase lease required.');
+            await this.sessionCoordinator.claimBeforeCommit(
+              this.state.id,this.state.windowId,this.state.eventKey);
+            if(!this.orchestrator.check(handle))return;
+          }
           if (this.ledger) {
             // Synchronous, write-ahead, fsync-before-submit. A disk error
             // throws here, before any external payment side effect.

@@ -293,7 +293,7 @@ app.whenReady().then(() => {
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
   const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell,
-    onSessionChanged: () => booking?.invalidateObservations?.()
+    onSessionChanged: () => booking?.accountChanged?.()
   });
   ipcMain.handle("tixbam:ai-advice", (event, payload) => {
     if (event.sender === dashboard?.webContents) dashboardOnly(event);
@@ -465,6 +465,7 @@ app.whenReady().then(() => {
     return result;
   });
   booking = registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl,
+    bookingTarget: account.bookingTarget, bookingLease: account.bookingLease,
     send(channel, state) { if (dashboard && !dashboard.isDestroyed()) dashboard.webContents.send(channel, state); }
   });
   createDashboard();

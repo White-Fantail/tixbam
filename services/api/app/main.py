@@ -15,6 +15,7 @@ from .oauth import router as oauth_router
 from .booking_plans import router as booking_plan_router, migrate_watch_items_to_plans
 from .ai import router as ai_router, admin_router as ai_admin_router
 from .automation_policies import router as automation_router, admin_router as automation_admin_router
+from .booking_leases import router as booking_lease_router
 
 # Local monorepo execution (cd services/api && uvicorn app.main:app) still works.
 # Docker installs this module into /app/tixbam_mcp instead.
@@ -61,6 +62,7 @@ app.include_router(ai_router)
 app.include_router(ai_admin_router)
 app.include_router(automation_router)
 app.include_router(automation_admin_router)
+app.include_router(booking_lease_router)
 
 
 @app.get("/healthz")
