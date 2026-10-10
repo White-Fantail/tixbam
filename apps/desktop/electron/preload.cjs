@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("tixbam", {
     ipcRenderer.on("tixbam:addons-changed", handler);
     return () => ipcRenderer.removeListener("tixbam:addons-changed", handler);
   },
+  openAssistanceGuide: (providerId, kind) => ipcRenderer.invoke("tixbam:open-assistance-guide", providerId, kind),
   openWindow: (options) => ipcRenderer.invoke("tixbam:open-window", options),
   openSaleWindow: (options) => ipcRenderer.invoke("tixbam:open-sale-window", options),
   openPlanWindow: options => ipcRenderer.invoke("tixbam:open-plan-window", options),

@@ -50,6 +50,7 @@ type Props = {
   selectedPlanId: string | null;
   onSelectPlan: (id: string) => void;
   onBackToPlan: (id: string) => void;
+  onAssist: (plan: BookingPlan) => void;
   onStart: (plan: BookingPlan) => Promise<void>;
   onFocus: (id: number) => Promise<void>;
   onClose: (id: number) => Promise<void>;
@@ -60,7 +61,7 @@ type Props = {
 
 export function LiveBookingWorkspace({
   plans, windows, addons, history, selectedPlanId, onSelectPlan, onBackToPlan,
-  onStart, onFocus, onClose, onPhase, onDismissHistory, onTicketAgent
+  onAssist, onStart, onFocus, onClose, onPhase, onDismissHistory, onTicketAgent
 }: Props) {
   const [runs, setRuns] = useState<BookingRun[]>([]);
   const [busy, setBusy] = useState("");
@@ -198,6 +199,8 @@ export function LiveBookingWorkspace({
               <span className="live-state">Not opened</span>}
           </div>
           <div className="live-actions">
+            {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" &&
+              <button className="button button-outline" onClick={() => onAssist(plan)}>{tx("Manual booking assistance")}</button>}
             {selectedWindow ? <button className="button button-primary" disabled={busy !== ""}
                 onClick={() => void invoke("focus", () => onFocus(selectedWindow.id))}><ExternalLink size={16}/> Focus official site</button> :
               remainingPopup ? <button className="button button-primary" disabled={busy !== ""}

@@ -3,6 +3,7 @@ const path = require("node:path");
 const { readLanguage, persistLanguage } = require("./language.cjs");
 const { MAX_WINDOWS, isSafeWebUrl, resolveOfficialSaleUrl } = require("./security.cjs");
 const { findAddon, requireInstalled, listAddons, setInstalled, resolveAddonUrl } = require("./addon-manager.cjs");
+const { resolveAssistanceGuide } = require("./assistance-guide.cjs");
 const { resolveAgentHandoff } = require("./agent-handoff.cjs");
 
 const { registerBooking } = require("./booking/controller.cjs");
@@ -424,6 +425,12 @@ app.whenReady().then(() => {
     if (success === true) pending.resolve({ saved: true });
     else pending.reject(new Error(typeof message === "string" && message.length <= 300 ?
       message : "Could not save rehearsal. Retry after checking the main TIXBAM window."));
+    return true;
+  });
+  ipcMain.handle("tixbam:open-assistance-guide", async (event, providerId, kind) => {
+    dashboardOnly(event);
+    requireInstalled(providerId);
+    await shell.openExternal(resolveAssistanceGuide(providerId, kind));
     return true;
   });
   ipcMain.handle("tixbam:open-window", (event, options) => {

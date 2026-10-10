@@ -59,6 +59,11 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     if (!rehearsal && destination.providerId !== providerId) {
       throw new Error('This is an event/promoter page, not a Cityline booking URL. Open the official Cityline event booking form and save its direct URL before reading live options. The offline demo can still run.');
     }
+    // Bundled provider policy controls page access, independently of renderer flags.
+    const policy = require('../../addons/catalog.json').find(item => item.id === providerId);
+    if (!rehearsal && policy?.bookingAssistance?.mode === 'manual') {
+      throw new Error('This provider uses manual booking assistance. Configure local preferences and continue in the official window; live page reading is disabled.');
+    }
     const url = rehearsal ? destination.url : resolveAddonUrl(providerId, eventUrl).url;
     let key = eventKey(providerId, 'rehearsal:' + url);
     if ([...runs.values()].some(r => r.state.eventKey === key && !TERMINAL.has(r.state.status))) throw new Error('Stop this event’s active run before changing its settings.');

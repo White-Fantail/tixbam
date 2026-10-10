@@ -115,7 +115,14 @@
         }
       ]
     },
-    "kind": "ticketing"
+    "kind": "ticketing",
+    "bookingAssistance": {
+      "mode": "manual",
+      "guide": "cityline",
+      "payment": "user",
+      "guideUrl": "https://www.cityline.com.hk/en_US/BuyEventTickets.html",
+      "faqUrl": "https://www.cityline.com/data/website_content/General_FAQ_en_US.pdf"
+    }
   },
   {
     "id": "nol",

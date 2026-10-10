@@ -17,6 +17,7 @@ export interface AddonAutomationSupport {
 
 export interface TicketAddon extends Provider {
   booking?: BookingSchema;
+  bookingAssistance?: { mode: "manual"; guide: "cityline"; payment: "user"; guideUrl: string; faqUrl: string };
   automation: AddonAutomationSupport;
   version: string;
   description: string;
@@ -150,6 +151,7 @@ export interface DesktopBridge {
   resumeBooking: (id: string, confirm?: boolean) => Promise<BookingRun>;
   stopBooking: (id: string) => Promise<BookingRun>;
   onBookingChanged: (listener: (run: BookingRun) => void) => () => void;
+  openAssistanceGuide: (providerId: string, kind: "guide" | "faq") => Promise<boolean>;
   openWindow: (options: { providerId: string; url?: string }) => Promise<{ id: number; providerId: string; url: string }>;
   openSaleWindow: (options: { providerId: string; url: string }) => Promise<{ id: number; providerId: string; url: string }>;
   openRehearsalWindow: (plan: BookingPlan, accountId: string | null) => Promise<{ reused: boolean; planId: string }>;

@@ -1091,14 +1091,14 @@ function App() {
             plans={plans} windows={windows} addons={addons} history={liveHistory}
             selectedPlanId={selectedPlanId} onSelectPlan={setSelectedPlanId}
             onBackToPlan={id => { setSelectedPlanId(id); setSection("plans"); }}
-            onStart={openPlanBooking} onFocus={focusLiveWindow} onClose={closeLiveWindow}
+            onAssist={configurePlan} onStart={openPlanBooking} onFocus={focusLiveWindow} onClose={closeLiveWindow}
             onPhase={setLiveStage} onDismissHistory={dismissLiveReminder}
             onTicketAgent={handoffToTicketAgent}/>}
           {section === "providers" && <>
             {remoteAddons.length > 0 && <div className="remote-banner"><Globe2 size={17}/><span>Server registry connected. {remoteAddons.filter(remote => { const local = addons.find(a => a.id === remote.id); return local && local.version !== remote.version; }).length} version updates available as metadata. Remote executable installation is not enabled yet.</span></div>}
 
             <SectionHeading eyebrow="ONE HUB. EVERY STAGE." title="Add-on Store" description="Install only the ticketing providers you use. Remove them whenever you like." />
-            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Event / presale providers publish official event pages and member sale links; ticketing providers handle seat selection and checkout. Level 1 is browser assistance, Level 2 seat / order assistance, and Level 3 authorized checkout. “Via agent” indicates that a different official ticket agent performs that step. Cityline currently has performance and price selection plus checkout rehearsal only.</p></div>
+            <div className="provider-intro"><div><Zap size={20} /><strong>ADD-ON CAPABILITIES</strong></div><p>Event / presale providers publish official event pages and member sale links; ticketing providers handle seat selection and checkout. Level 1 is browser assistance, Level 2 seat / order assistance, and Level 3 authorized checkout. “Via agent” indicates that a different official ticket agent performs that step. Cityline provides local preparation, manual booking guidance and offline rehearsal.</p></div>
             <div className="automation-legend" aria-label="Automation support legend">
               <span><span className="automation-legend-dot ready" />Available in TIXBAM</span>
               <span><span className="automation-legend-dot limited" />Restricted by published terms</span>

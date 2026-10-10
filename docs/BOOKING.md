@@ -1,21 +1,12 @@
 # Booking preferences and local payment preparation
 
-## Try it
+## Current Cityline workflow
 
-1. Start the desktop app (`npm run dev`). Add a Cityline event to **My events**.
-2. Open the event in its provider window, manually sign in and open the booking form.
-3. In **My events → Booking preferences & automation**, choose that window and select **Read event options**. Check the provider's event title and ID shown in the panel.
-4. Select the performance and rank price tiers. Set quantity, adjacency, total budget including fees, acceptable sections/floors, seat mode and collection requirements. Empty optional fields impose no requirement. With fallback disabled, only the first ranked choice is accepted. With fallback enabled, only explicitly listed alternatives are eligible.
-5. Save preferences locally or start booking. **Live windows → Booking runs** supports resume and stop after the settings panel is closed.
-6. **Try rehearsal** uses simulated inventory and checkout. It does not access saved cards, contact Cityline or make a charge. It exercises seat reservation, final review (or automatic mode), a simulated bank verification handoff and confirmation. Actual and rehearsal preferences use different keys.
+Cityline now uses provider-specific **manual booking assistance**. See [CITYLINE_MANUAL_ASSIST.md](CITYLINE_MANUAL_ASSIST.md) for preparation, seat-selection guidance, user-entered cart checks and the optional reminder. Open it from Booking Plan preferences or the Live workspace's Manual booking assistance button. It works without provider DOM access, booking contexts, a card vault or an automation run.
 
-## What works on live Cityline
+The historical `cityline-event-detail-v1` option adapter remains for fixtures and future independently authorized integration work. The live `booking-context` IPC rejects Cityline page reading under the bundled manual-only policy. Neither its existing selectors nor a renderer flag can activate live selection. The current controller attaches no live reservation or payment service.
 
-The bundled `cityline-event-detail-v1` adapter reads and selects the observed `button.date-time-position[data-perf-id]`, `button.price-btn` and `button.purchase-btn` controls on Cityline's `/utsvInternet/internet/eventDetail` page. The performance ID and displayed price are discovered per event, not hard-coded. This was observed on the public Swan Lake event form on 8 October 2026. Re-reading options rejects removed choices.
-
-**Live seat selection and payment entry/submission are not implemented yet.** The public booking flow leads to login, and no signed-in seat or payment screen was available to verify. These pages pause with a user-action message rather than guessed selectors. Provider authorization remains unverified; the existing published restriction metadata for other providers remains intact. No CAPTCHA, queue or bank authentication bypass is implemented. Unknown layouts are handed to the user without repeated clicking or queue refreshes.
-
-To complete the Cityline integration, inspect representative signed-in assigned-seat, automatic-allocation and standing pages; implement verified offer/reservation/receipt extraction; and add a host-owned payment profile for the exact payment origins and frame structure. Validate on a sandbox or controlled non-charging workflow before declaring live payment supported. The current production controller supplies no payment service to the Cityline runner, so changing capability metadata alone cannot enable payment.
+Cityline seat selection, queue handling, login, verification and payment take place through the user's own interaction with the official browser. Offline rehearsal stays separate and exercises only synthetic allocation and payment. Other providers retain their individual automation restrictions and release checks; Cityline's assistance mode does not assign them a shared policy.
 
 ## Contracts and ownership
 

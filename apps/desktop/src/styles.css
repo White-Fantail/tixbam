@@ -481,3 +481,8 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .booking-review-panel dd{margin:0;overflow-wrap:anywhere}
 .booking-review-panel dt{color:#d0d0bf}
 @media(max-width:600px){.seat-priority-grid,.seat-rules-editor .form-row{grid-template-columns:1fr}.seat-rules-editor{padding:12px}}
+
+.assist-stages { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+.assist-stages .selected { border-color: #bba9fc; background: #bba9fc20; }
+.assist-priorities { padding: 14px 18px; border: 1px solid #bba9fc45; border-radius: 12px; margin: 16px 0; }
+.assist-priorities p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }

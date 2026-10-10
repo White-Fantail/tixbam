@@ -137,6 +137,9 @@ test('booking IPC authorizes callers, protects duplicate runs, requires payment 
   assert.equal(promoterRun.rehearsal,true);
   assert.equal(promoterRun.status,'running');
   assert.equal(invoke('stop-booking',promoterRun.id).status,'stopped');
+  // Even a compromised renderer cannot make the manual-only provider read a live page.
+  await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:addon.url,windowId:314}),
+    /manual booking assistance.*live page reading is disabled/);
   await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:promoterUrl,windowId:314}),
     /event\/promoter page, not a Cityline booking URL/);
   await assert.rejects(()=>invoke('booking-context',{providerId:'cityline',eventUrl:'https://www.livenation.hk.evil.example/event',rehearsal:true}),

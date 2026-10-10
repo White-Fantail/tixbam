@@ -7,15 +7,22 @@ import { SeatRulesEditor } from './SeatRulesEditor';
 import { tx, useLanguage } from '../i18n';
 import { RunAIAdvisor } from './RunAIAdvisor';
 import { ReservationNotice } from './ReservationNotice';
+import { ManualBookingAssist } from './ManualBookingAssist';
 const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
   return ctx.preferences || { schemaVersion: 1, quantity: 2, maxTotalMinor: 200000, currency: ctx.schema.currency, requireTogether: true, allowFallback: true, checkout: 'review', options: Object.fromEntries(ctx.schema.fields.map(f => [f.id, f.type === 'ranked' ? [] : ''])) };
 }
-export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPreferencesSaved, onRehearse }: {
+type BookingPanelProps = {
   event: WatchEvent; addon: TicketAddon; windows: TicketWindow[]; onClose: () => void;
   plan?: BookingPlan; onPlanPreferencesSaved?: (prefs: BookingPreferences) => Promise<void>;
   onRehearse?: () => void;
-}) {
+};
+export function BookingPanel(props: BookingPanelProps) {
+  return props.addon.bookingAssistance?.mode === "manual"
+    ? <ManualBookingAssist key={props.event.id} {...props}/>
+    : <AutomationBookingPanel {...props}/>;
+}
+function AutomationBookingPanel({ event, addon, windows, onClose, plan, onPlanPreferencesSaved, onRehearse }: BookingPanelProps) {
   useLanguage(); // Re-render both Korean and English text after language switch.
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
@@ -126,7 +133,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
   return <div className="modal-backdrop"><div className="modal booking-modal" ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="booking-title">
     <div className="modal-top"><span className="eyebrow">{addon.name} · BOOKING PREFERENCES</span><button className="icon-button" aria-label="Close booking settings" onClick={() => { setCvv(''); onClose(); }}>×</button></div>
     <h2 id="booking-title">{event.title}</h2><p>Quantity, adjacency and total budget are required conditions. Ranked alternatives are used only when you allow them.</p>
-    <p className="settings-note">{tx('Cityline terms prohibit automated interaction and purchases. A separately authorized integration and verified checkout are required. Purchase tickets manually in the official window.')}</p>
+    {addon.id === "cityline" && <p className="settings-note">{tx('Cityline terms prohibit automated interaction and purchases. A separately authorized integration and verified checkout are required. Purchase tickets manually in the official window.')}</p>}
     {!directProviderUrl && <p className="rehearsal-note" role="note">The saved link is an event/promoter page, not a Cityline booking URL. Live options are unavailable until the direct official Cityline event link is saved. You can still try the offline demo below.</p>}
     <p className="settings-note">{onRehearse ?
     "For full Cityline training, open the Booking Plan rehearsal: eight scenarios with ticket limits, seat choices, cart, simulated payment and safe recovery." :

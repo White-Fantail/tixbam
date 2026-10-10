@@ -114,7 +114,7 @@ pytest tests -q
 
 ## Booking
 
-Use **My events → Booking preferences & automation** on a Cityline event. Read the open booking form’s options, rank preferences and set required conditions. **Try rehearsal** exercises the full simulated workflow without charges. Manage runs in **Live windows**, and encrypted local cards in **Settings**. Details and current live limitations: [docs/BOOKING.md](docs/BOOKING.md).
+Cityline uses **Manual booking assistance** from a Booking Plan or Live windows. Save your quantity, all-in HKD budget and ranked seat reminders; follow the Express/Normal guide, check the official cart and optionally enter its displayed remaining time into a local reminder. The helper focuses an existing official window without reloading it. You select seats and pay yourself; cart checks and reminders are user reports, never verified reservations. Offline rehearsal remains available. See [Cityline manual assistance](docs/CITYLINE_MANUAL_ASSIST.md) and [booking contracts](docs/BOOKING.md).
 
 ## Add-ons
 
