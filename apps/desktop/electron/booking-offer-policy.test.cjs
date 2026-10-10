@@ -193,3 +193,38 @@ test('unknown identity, amounts and suspicious objects never reach candidate ran
   assert.equal(chooseOffer([base({available:false}),base()],defaults).id,'a');
   assert.deepEqual(rankOffers(new Array(101).fill(base()),defaults),[]);
 });
+
+
+test('v2 requires actual ticket agent, session and verified delivery evidence',()=>{
+  for(const patch of [
+    {providerId:undefined},{performance:undefined},
+    {priceTier:undefined},{fulfillment:undefined}
+  ]) assert.equal(normalizedOffer(base(patch)),null);
+  assert.equal(checkHard(base(),defaults,{scope}).ok,true);
+  assert.equal(checkHard(base({providerId:'nol'}),defaults,{scope}).ok,false);
+});
+test('durable journal binds v2 fee, identity, GA and optional extras to the permit',t=>{
+  const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+  const {PaymentAttemptLedger}=require('./booking/payment-attempts.cjs');
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'tixbam-offer-ledger-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const runId=crypto.randomUUID();
+  const permit={accountId:'account',providerId:'cityline',saleId:'sale',
+    performanceId:'evening',eventKey:'demo-event',planId:'plan',
+    quantity:2,currency:'HKD',maxAllInMinor:30000,requireTogether:true,
+    allowFallback:true,checkout:'review'};
+  const ledger=new PaymentAttemptLedger(folder);
+  const ga=base({seatMode:'standing',areaId:'GA-A',section:'GA-A',
+    adjacent:undefined,seats:[]});
+  assert.doesNotThrow(()=>ledger.recordCommitIntent({runId,permit,order:ga,rehearsal:true}));
+  assert.equal(ledger.recovered().length,1);
+  assert.equal(ledger.journal.read().length,3);
+  const log=fs.readFileSync(ledger.journal.file,'utf8');
+  for(const data of ['GA-A','demo-event','cityline','ticketSubtotalMinor','serviceFeeMinor'])
+    assert.equal(log.includes(data),false,data);
+  const wrongSeller=base({providerId:'other-agent'});
+  const ledger2=new PaymentAttemptLedger(folder+'-separate');
+  assert.throws(()=>ledger2.recordCommitIntent({
+    runId:crypto.randomUUID(),permit,order:wrongSeller,rehearsal:true
+  }),/unverified_purchase_order/);
+});

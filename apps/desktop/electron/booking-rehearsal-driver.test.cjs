@@ -231,3 +231,16 @@ test('AB-10 strict rehearsal offer metadata reconciles fees and rejects risky sc
     assert.equal(d.adapter.order,null);
   }
 });
+
+
+test('AB-10 standing and automatic strict v2 reach durable synthetic receipt without seat map claims',async t=>{
+  for(const kind of ['standing','automatic']){
+    const d=lab(t);await d.start(kind,2028);
+    await d.next();await d.next();await d.next();
+    assert.equal(d.state.status,'review',kind);
+    if(kind==='standing')assert.deepEqual(d.adapter.order.seats,[]);
+    await d.next({confirm:true});await d.next();
+    assert.equal(d.state.status,'completed',kind);
+    assert.equal(d.state.paymentAttempts,1,kind);
+  }
+});

@@ -31,7 +31,7 @@ function makeSyntheticOffer(key,prefs,seed,kind){
     row+'-'+(start+i*(kind==='adjacency'?2:1)));
   const serviceFeeMinor=qty*Math.max(1,Math.floor(ticket/10));
   const ticketSubtotalMinor=qty*ticket;
-  return {schemaVersion:2,id:'mock-'+crypto.createHash('sha256').update(key+':'+seed).digest('hex').slice(0,20),
+  return {schemaVersion:2,providerId:'rehearsal',id:'mock-'+crypto.createHash('sha256').update(key+':'+seed).digest('hex').slice(0,20),
     eventKey:key,quantity:qty,currency:prefs.currency,totalMinor:ticketSubtotalMinor+serviceFeeMinor,
     feesIncluded:true,available:kind!=='sold_out',adjacent:kind!=='adjacency',
     totalVerified:true,availabilityVerified:true,identityVerified:true,

@@ -150,8 +150,14 @@ class PaymentAttemptLedger{
    */
   recordCommitIntent({runId,permit,order,rehearsal=false}={}){
     if(!UUID.test(runId||''))throw new JournalUnavailable('invalid_run_id');
-    const p=canonicalPermit(permit),o=canonicalOrder(order,p);
+    const p=canonicalPermit(permit);
     const scope=this.scopeDigest(p);
+    // A second attempt for the same account/sale/performance is denied
+    // *before* examining an altered order, quantity, seats or fee model.
+    // The transaction below repeats this check under the exclusive lock.
+    if(this.#events().byScope.has(scope))
+      throw new JournalUnavailable('duplicate_purchase_intent');
+    const o=canonicalOrder(order,p);
     const permitDigest=this.journal.digest(['permit-v1',p]);
     const orderDigest=this.journal.digest(['order-v1',o]);
     const attemptId=crypto.randomUUID();

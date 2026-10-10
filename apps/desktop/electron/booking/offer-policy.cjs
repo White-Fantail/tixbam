@@ -46,6 +46,8 @@ function normalizedOffer(o){
   // A v2 schema cannot hide uncertain fees, restrictions or allocation in
   // omitted fields. Legacy v1 only means the all-in amount was observed.
   const strict=o.schemaVersion===2;
+  if(strict&&(!name(o.providerId)||!name(o.performance)||
+     !name(o.priceTier)||!name(o.fulfillment)))return null;
   if(o.schemaVersion!==undefined&&o.schemaVersion!==1&&o.schemaVersion!==2)return null;
   let feeBreakdown=null;
   if(o.feeBreakdown!==undefined||strict){
