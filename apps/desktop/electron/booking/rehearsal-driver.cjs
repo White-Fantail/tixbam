@@ -5,6 +5,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {BookingRunner,TERMINAL}=require('./runner.cjs');
 const {PaymentAttemptLedger}=require('./payment-attempts.cjs');
+const {SessionCoordinator}=require('./session-coordinator.cjs');
+const {GatedMockPaymentExecutor}=require('./payment-executor.cjs');
 const {DEFINITIONS,getScenario}=require('./rehearsal-fixtures.cjs');
 const ID=/^[0-9a-f-]{36}$/i;
 const STATES=new Set(['running','review','awaiting_user','submitting','completed','payment_unknown','stopped','failed']);
@@ -91,7 +93,8 @@ class ScenarioAdapter{
     if(this.scenario.kind==='stale'){this.offers=[];throw Error('Mock inventory changed during selection');}
     this.order={...this.offer,seats:[...this.offer.seats]};this.stage='payment';
   }
-  async pay(){
+  async pay({signal}={}){
+    if(signal?.aborted)throw Error('Cancelled synthetic payment');
     this.payments++;
     if(this.payments!==1)throw Error('Duplicate mock payment attempt');
     if(['payment_timeout','unknown_charge','restart'].includes(this.scenario.kind))
@@ -192,15 +195,26 @@ class RehearsalDriver{
         allowFallback:prefs.allowFallback,checkout:prefs.checkout};
       this.events=[];
       const runner=new BookingRunner({
-        adapter,preferences:prefs,eventKey:key,rehearsal:true,
+        adapter,preferences:prefs,eventKey:key,windowId:0,rehearsal:true,
         notify:state=>{
           this.events.push({phase:state.phase,status:state.status,message:state.message});
           if(this.events.length>36)this.events.shift();
           this.#persist({runId,scenarioId,seed,status:state.status});
         },
-        payment:{verified:true,submit:()=>adapter.pay()},
+        payment:null,
         secret:{use:async fn=>fn(null),clear(){}},ledger,purchasePermit:permit
       });
+      const coordinator=new SessionCoordinator({clock:this.clock});
+      const lease=await coordinator.acquire({
+        runId:runner.state.id,windowId:0,
+        accountId:permit.accountId,providerId:permit.providerId,
+        saleId:permit.saleId,performanceId:permit.performanceId,
+        eventKey:key,planId:permit.planId,rehearsal:true
+      });
+      runner.payment=new GatedMockPaymentExecutor({
+        adapter,ledger,coordinator,binding:lease,clock:this.clock
+      });
+      this.coordinator=coordinator;
       this.runner=runner;this.adapter=adapter;
       this.#persist({runId,scenarioId,seed,status:runner.state.status});
       return this.state;
@@ -227,6 +241,7 @@ class RehearsalDriver{
     // User cancellation supersedes queued/retrieving AI recovery steps.
     this.recoveryEpoch++;
     if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
+    this.coordinator?.invalidateAll();
     return this.#serialize(async()=>{
       if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
       return this.state;
@@ -237,7 +252,8 @@ class RehearsalDriver{
     if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
     return this.#serialize(async()=>{
       if(this.runner&&!TERMINAL.has(this.runner.state.status))this.runner.stop();
-      this.runner=null;this.adapter=null;this.last=this.#recover();
+      this.coordinator?.invalidateAll();
+      this.coordinator=null;this.runner=null;this.adapter=null;this.last=this.#recover();
       return this.state;
     });
   }

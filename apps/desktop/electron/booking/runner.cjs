@@ -49,6 +49,7 @@ class BookingRunner {
 
   stop() {
     this.clearSecret();
+    this.payment?.invalidate?.();
     if(this.cloudClaimAttempted && !this.submitted && !this.orchestrator.machine.terminal){
       return this.orchestrator.transition('CLOUD_CLAIM_UNKNOWN',
         'A shared purchase claim may be recorded. Automatic retry is blocked; verify the provider order history.',
@@ -94,6 +95,10 @@ class BookingRunner {
         }
         // AB-05: only the synthetic rehearsal receipt can close a durable
         // journal attempt. AB-14 must implement official provider verification.
+        if(this.payment?.kind==='gated-mock'&&!this.payment.verify({
+          run:this.state,order:page.order,expected:this.expected,
+          preferences:this.preferences,receipt:page.receipt,challenge:page.challenge
+        }))throw new Error('Unverified mock receipt');
         if (this.ledger && this.paymentIntent) {
           if (!this.state.rehearsal) throw new Error('Official receipt reconciliation is not implemented.');
           this.ledger.confirmRehearsal(this.paymentIntent, page.receipt);
@@ -180,6 +185,16 @@ class BookingRunner {
           if (!this.orchestrator.check(handle)) return;
           this.orchestrator.transition('COMMIT_READY', 'Final order was rechecked.');
           if (!this.orchestrator.check(handle)) return;
+          let mockPrepared=null;
+          if(this.payment?.kind==='gated-mock'){
+            const approval=this.payment.approveReview({
+              run:this.state,order:fresh.order,confirmed:confirm===true
+            });
+            mockPrepared=this.payment.prepare({
+              run:this.state,order:fresh.order,expected:this.expected,
+              preferences:this.preferences,permit:this.purchasePermit,approval
+            });
+          }
           if(!this.state.rehearsal){
             // Durable *server* claim precedes local fsync. A lost response,
             // expired lease, or ownership change permanently blocks retry.
@@ -205,6 +220,10 @@ class BookingRunner {
           // Stop called synchronously by a UI notification after the durable
           // intent is persisted still prevents the actual provider submit.
           if (!this.orchestrator.check(handle)) return;
+          if(this.payment?.kind==='gated-mock')
+            return this.payment.submitOnce({
+              run:this.state,order:fresh.order,intent:this.paymentIntent,prepared:mockPrepared
+            });
           return this.payment.submit(card, this.expected);
         });
         if (!this.orchestrator.check(handle)) return;

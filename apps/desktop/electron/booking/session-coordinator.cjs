@@ -36,7 +36,14 @@ class SessionCoordinator {
     this.#byRun.set(runId,state);
     this.#byScope.set(scope,state);
     this.#windowOwners.set(windowId,state);
-    if(rehearsal){state.phase='leased';state.expiresAtMs=Number.MAX_SAFE_INTEGER;return this.#view(state);}
+    if(rehearsal){
+      // Host-only synthetic lease. Monotonic local fence is scoped to the
+      // unique offline run; the remote path retains server-supplied fencing.
+      state.leaseId=crypto.randomUUID();
+      state.fence=1;
+      state.phase='leased';state.expiresAtMs=Number.MAX_SAFE_INTEGER;
+      return this.#view(state);
+    }
     if(!this.remote){
       this.#invalidate(state);
       throw new SessionOwnershipError('server_required');
