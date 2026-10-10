@@ -11,7 +11,7 @@ import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
 import { AdvanceSettingsEditor } from "./copilot/AdvanceSettingsEditor";
-import { effectiveAdvanceSettings, advanceConsent } from "./copilot/advance-settings";
+import { effectiveAdvanceSettings, advanceConsent, planAdvanceSettings } from "./copilot/advance-settings";
 import { providerAutoClickEligibility } from "./copilot/provider-auto-click";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
@@ -557,11 +557,17 @@ function App() {
     const saved=effectiveAdvanceSettings(plan.id);
     const policy=providerAutoClickEligibility(addons.find(x=>x.id===target.id));
     const devCapability=await window.tixbam.copilotDeveloperCapabilities();
+    // The developer exception must originate in THIS plan's local settings,
+    // not a blanket default or provider catalogue flag.
+    const devClickEnabled=Boolean(devCapability.singleClickTest &&
+      target.kind==="ticketing" && planAdvanceSettings(plan.id)?.developerClickTest===true);
     const settings={
       ...saved,
-      mode:saved.mode==="authorized" && !policy.allowed ? "observe" as const : saved.mode,
+      mode:saved.mode==="authorized" && !policy.allowed && !devClickEnabled
+        ? "observe" as const : saved.mode,
       // Browser UI and local storage cannot enable a packaged app's test mode.
-      developerClickTest:Boolean(devCapability.singleClickTest && saved.developerClickTest)
+      // The Electron main process independently verifies the dev runtime.
+      developerClickTest:devClickEnabled
     };
     const consent=advanceConsent(settings);
     if(settings.mode!=="manual" && !consent) {
