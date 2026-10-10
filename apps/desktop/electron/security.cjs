@@ -10,7 +10,8 @@ function isSafeWebUrl(value) {
   if (typeof value !== "string" || value.length > 4096) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password && Boolean(url.hostname);
+    return url.protocol === "https:" && !url.username && !url.password && !url.port && Boolean(url.hostname) &&
+      !/[\u0000-\u001f\u007f\\]/.test(value) && !/%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value);
   } catch {
     return false;
   }

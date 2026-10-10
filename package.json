@@ -19,6 +19,7 @@
     "build": "npm run build -w @tixbam/desktop && npm run build -w @tixbam/admin",
     "build:desktop": "npm run build -w @tixbam/desktop",
     "build:admin": "npm run build -w @tixbam/admin",
-    "desktop": "npm run desktop -w @tixbam/desktop"
+    "desktop": "npm run desktop -w @tixbam/desktop",
+    "release:check": "node scripts/release-readiness.cjs"
   }
 }

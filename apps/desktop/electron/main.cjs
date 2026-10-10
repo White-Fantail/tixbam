@@ -139,7 +139,8 @@ function confirmSessionClose(win, entry, event) {
 function trackWindow(win, { providerId, planId = null, popup = false, parentId = null }) {
   const wc = win.webContents;
   if (popup) wc.setWindowOpenHandler(({ url: requestedUrl }) => {
-    if (requestedUrl !== "about:blank" && !isSafeWebUrl(requestedUrl)) return { action: "deny" };
+    if (ticketWindows.size >= MAX_WINDOWS ||
+        (requestedUrl !== "about:blank" && !isSafeWebUrl(requestedUrl))) return { action: "deny" };
     return { action: "allow", overrideBrowserWindowOptions: {
       autoHideMenuBar: true,
       webPreferences: { partition: "persist:tixbam-" + providerId,
@@ -275,7 +276,8 @@ function openTicketWindow({ providerId, url: candidate, planId = null } = {}) {
   });
   const wc = win.webContents;
   wc.setWindowOpenHandler(({ url: requestedUrl }) => {
-    if (requestedUrl !== "about:blank" && !isSafeWebUrl(requestedUrl)) {
+    if (ticketWindows.size >= MAX_WINDOWS ||
+        (requestedUrl !== "about:blank" && !isSafeWebUrl(requestedUrl))) {
       return { action: "deny" };
     }
     return {

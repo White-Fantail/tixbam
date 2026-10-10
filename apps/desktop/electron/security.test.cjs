@@ -86,3 +86,20 @@ test("rejects lookalike hosts, unsafe schemes and credential-bearing URLs", () =
   assert.equal(isSafeWebUrl("https://kktix.com/"), true);
   assert.equal(MAX_WINDOWS, 6);
 });
+
+test("rejects credential-lookalikes, custom TLS ports, and control character URL injection", () => {
+  for(const candidate of [
+    "https://cityline.com.hk:8443/events",
+    "https://cityline.com.hk:444/events",
+    "https://user@cityline.com.hk/",
+    "https://cityline.com.hk/\\n<script>",
+    "https://cityline.com.hk/\n%0a",
+    "https://cityline.com.hk:65535/",
+    "https://evil.test:1234/"
+  ]){
+    assert.equal(isSafeWebUrl(candidate),false,candidate);
+  }
+  assert.equal(isSafeWebUrl("https://cityline.com.hk:443/"),true);
+  assert.equal(isSafeWebUrl("https://venue.cityline.com/utsvInternet/event"),true);
+  assert.throws(()=>resolveOfficialSaleUrl("cityline","https://cityline.com.hk:444/events"));
+});

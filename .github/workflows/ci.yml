@@ -9,12 +9,17 @@ jobs:
   desktop-admin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Install Node workspaces
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Check release readiness hold gates (must never issue GO)
+        run: node scripts/release-readiness.cjs
+      - name: Review production Node advisory status (non-release signal)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - name: Electron security and add-on tests
         run: npm test
       - name: Build Electron renderer and admin
@@ -22,12 +27,14 @@ jobs:
   python-services:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Install API dependencies
         run: python -m pip install -r services/api/requirements-dev.txt
+      - name: Verify Python dependency compatibility
+        run: python -m pip check
       - name: Verify root-context Railway API Docker image
         run: docker build -f services/api/Dockerfile -t tixbam-api-ci .
       - name: Run API and MCP tests
