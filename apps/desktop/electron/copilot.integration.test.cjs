@@ -3,6 +3,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const Module=require('node:module');
+const catalog=require('../addons/catalog.json');
 
 const electronStub={
   BrowserWindow:class { constructor(){throw new Error('Overlay creation is not part of this test');} },
@@ -37,16 +38,20 @@ function fakeBrowser(id, initialUrl='https://nol.yanolja.com/product/123'){
   };
   return {state,win};
 }
-function setup({developerMode=false,seatConfidence=.93}={}){
-  const {state,win}=fakeBrowser(42);
-  const entry={win,providerId:'nol',planId:'test-plan',phase:'preparing',popup:false};
+function setup({developerMode=false,seatConfidence=.93,providerId='nol'}={}){
+  const addon=catalog.find(item=>item.id===providerId);
+  assert.ok(addon,'Fixture must use a bundled provider');
+  const startingUrl=providerId==='cityline'
+    ? 'https://www.cityline.com.hk/en_US/BuyEventTickets.html'
+    : 'https://nol.yanolja.com/product/123';
+  const {state,win}=fakeBrowser(42,startingUrl);
+  const entry={win,providerId,planId:'test-plan',phase:'preparing',popup:false};
   const ticketWindows=new Map([[win.id,entry]]);
   const host=new LiveCopilot({ticketWindows,
     developerClickTestEnabled:()=>developerMode,
     requireInstalled:id=>{
-      assert.equal(id,'nol');
-      return {kind:'ticketing',allowedHosts:['nol.yanolja.com'],
-        automation:{level2:{status:'restricted'}},bookingAssistance:{mode:'manual'}};
+      assert.equal(id,providerId);
+      return addon;
     }});
   const requests=[];
   host.setVisionProvider(async payload=>{
@@ -179,5 +184,50 @@ test('developer test stopping during AI latency blocks late native input',async(
   release();
   await pending;
   assert.equal(state.events.length,0);
+  host.clearAll();
+});
+
+test('Cityline manual-only addon: explicit developer automatic mode is configurable and runs one click',async()=>{
+  const {host,entry,state,requests}=setup({providerId:'cityline',developerMode:true,seatConfidence:.99});
+  entry.phase='selecting';
+  const consent={mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['seat','quantity'],developmentOverride:true};
+  const armed=host.arm(42,{...developerConditions,currency:'HKD'},consent);
+  assert.equal(armed.requestedMode,'authorized','chosen mode must not be silently downgraded');
+  assert.equal(armed.mode,'dev_single_click','only developer test executor is permitted');
+  await host.observe(42);
+  assert.equal(requests[0].providerId,'cityline');
+  assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
+  assert.equal(state.events.length,2);
+  assert.equal(host.autoSessions.size,0);
+  host.clearAll();
+});
+
+test('NOL restricted addon: developer automatic mode works only in an explicit developer runtime',async()=>{
+  const {host,entry,state}=setup({developerMode:true,seatConfidence:.97});
+  entry.phase='selecting';
+  const consent={...developerConsent,mode:'authorized'};
+  const armed=host.arm(42,developerConditions,consent);
+  assert.equal(armed.mode,'dev_single_click');
+  await host.observe(42);
+  assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
+  host.clearAll();
+  const production=setup({developerMode:false,seatConfidence:.97});
+  production.entry.phase='selecting';
+  assert.throws(()=>production.host.arm(42,developerConditions,consent),
+    /developer click test requires/i);
+  const normal=production.host.arm(42,developerConditions,
+    {...consent,developmentOverride:false});
+  assert.equal(normal.mode,'observe','normal runtime must downgrade restricted provider');
+  assert.equal(production.state.events.length,0);
+  production.host.clearAll();
+});
+
+test('developer click requires a real ticket provider and an approved selection target',()=>{
+  const {host,entry}=setup({developerMode:true});
+  entry.phase='selecting';
+  assert.throws(()=>host.arm(42,developerConditions,{
+    mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['continue'],developmentOverride:true}),/approved selection action/i);
   host.clearAll();
 });
