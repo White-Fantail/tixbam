@@ -23,6 +23,8 @@ function remoteStub(clock=()=>Date.now()) {
       row={leaseId:row?.leaseId||crypto.randomUUID(),
         leaseToken:'a'.repeat(64),fencingToken:seq,status:'leased',
         expiresAtMs:clock()+45000,ownerId:body.ownerId,
+        providerId:body.providerId,saleId:body.saleId,
+        performanceId:body.performanceId,
         autonomousCheckoutAvailable:false};
       return {...row,expiresAt:new Date(row.expiresAtMs).toISOString()};
     }
@@ -80,7 +82,7 @@ test('two simultaneously starting windows reserve local owner before network res
   const first=info();
   const pending=s.acquire(first);
   await assert.rejects(()=>s.acquire(info(run(),6)),/already_owned/);
-  gate.done({leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'b'.repeat(64),
+  gate.done({providerId,saleId,performanceId,leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'b'.repeat(64),
     status:'leased',autonomousCheckoutAvailable:false,
     expiresAt:new Date(Date.now()+45000).toISOString()});
   await pending;
@@ -93,7 +95,7 @@ test('release while lease acquisition is in flight invalidates late ownership',a
     gate.promise:Promise.resolve({})});
   const first=info(),p=s.acquire(first);
   await s.release(first.runId);
-  gate.done({leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'c'.repeat(64),
+  gate.done({providerId,saleId,performanceId,leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'c'.repeat(64),
     status:'leased',autonomousCheckoutAvailable:false,
     expiresAt:new Date(Date.now()+45000).toISOString()});
   await assert.rejects(p,/cancelled/);
@@ -120,6 +122,7 @@ test('server outage refuses acquire and commit; a lost claim response cannot ret
   const s=new SessionCoordinator({remote:async(op)=>{
     if(op==='claim')throw Error('connection lost after server committed');
     if(op==='acquire')return {
+      providerId,saleId,performanceId,
       leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'f'.repeat(64),
       status:'leased',autonomousCheckoutAvailable:false,
       expiresAt:new Date(Date.now()+45000).toISOString()};
@@ -145,8 +148,11 @@ test('a committed claim can never be released as a pre-commit owner',async()=>{
 
 test('stale server fencing or invalid status cannot be accepted',async()=>{
   for(const spoof of [{fencingToken:0},{leaseToken:'invalid'},{status:'claimed'},
-    {autonomousCheckoutAvailable:true},{expiresAt:new Date(0).toISOString()}]){
+    {autonomousCheckoutAvailable:true},{providerId:'wrong-provider'},
+    {saleId:'other-sale'},{performanceId:'other-performance'},
+    {expiresAt:new Date(0).toISOString()}]){
     const s=new SessionCoordinator({remote:async()=>({
+      providerId,saleId,performanceId,
       leaseId:crypto.randomUUID(),fencingToken:1,leaseToken:'e'.repeat(64),
       status:'leased',autonomousCheckoutAvailable:false,
       expiresAt:new Date(Date.now()+45000).toISOString(),...spoof})});

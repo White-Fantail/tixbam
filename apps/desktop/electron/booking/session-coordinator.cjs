@@ -53,7 +53,10 @@ class SessionCoordinator {
         }).catch(()=>{});
         throw new SessionOwnershipError('cancelled');
       }
-      if(value?.status!=='leased'||!UUID.test(value.leaseId||'')||
+      if(value?.status!=='leased'||
+         value.providerId!==providerId||value.saleId!==saleId||
+         value.performanceId!==performanceId||
+         !UUID.test(value.leaseId||'')||
          !/^[0-9a-f]{64}$/.test(value.leaseToken||'')||
          !Number.isSafeInteger(value.fencingToken)||
          value.fencingToken<1||value.autonomousCheckoutAvailable!==false){
@@ -108,7 +111,9 @@ class SessionCoordinator {
     try{
       const r=await this.remote('renew',this.#operation(s));
       if(s.invalidated||this.#byRun.get(runId)!==s||
-         r.status!=='leased'||r.fencingToken!==s.fence||
+         r.status!=='leased'||r.providerId!==s.providerId||
+         r.saleId!==s.saleId||r.performanceId!==s.performanceId||
+         r.fencingToken!==s.fence||
          r.leaseId!==s.leaseId||Date.parse(r.expiresAt)<=this.clock()+1000)
         throw new SessionOwnershipError('renew_not_verified');
       s.expiresAtMs=Date.parse(r.expiresAt);s.phase='leased';
@@ -133,7 +138,9 @@ class SessionCoordinator {
     try {
       const r=await this.remote('claim',this.#operation(s));
       if(s.invalidated||this.#byRun.get(runId)!==s ||
-         r?.status!=='claimed'||r.fencingToken!==s.fence||r.leaseId!==s.leaseId)
+         r?.status!=='claimed'||r.providerId!==s.providerId||
+         r.saleId!==s.saleId||r.performanceId!==s.performanceId||
+         r.fencingToken!==s.fence||r.leaseId!==s.leaseId)
         throw new SessionOwnershipError('claim_not_verified');
       s.claimed=true;s.phase='claimed';
       return this.#view(s);
