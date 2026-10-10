@@ -164,6 +164,9 @@ Immutable input: ProposalV1 cannot hold arbitrary JS, CSS selector, URL, screens
 
 Validator decision must not depend on AI textual confidence or rationale. Explicit receipt and purchase evidence validated independently.
 
+**AB-03 implemented contract (2026-10-10):** Host-only `ActionValidator.issueSnapshot` creates process-local opaque handles, scoped to run/window/account/plan/provider/event, page generation, policy revision, and a short TTL. `strictProposal` rejects fields not in the exact schema, getter/prototype pollution, executable instructions, URLs and payment actions. Any approved rehearsal mutation consumes the snapshot/request before side effects; the host verifies a fresh matching offer and checks the postcondition. Live AI mutation execution is not enabled; actual observation/AI planning/recovery remain AB-04/AB-08/AB-09.
+
+
 ## D. Durable journal and payment boundary
 
 ~~~ts

@@ -33,6 +33,14 @@ CVV is never persisted. It is entered once when preparing a run and kept with th
 
 Actual card details are unnecessary for rehearsal. This release's live Cityline payment service is unavailable, even if a card has been prepared.
 
+## AB-03 Host Action Contracts and Validator
+
+Electron main-process modules `booking/action-validator.cjs` and `booking/action-registry.cjs` provide the bounded proposal-only contract in `packages/addon-sdk/index.d.ts`. The trusted host issues short-lived opaque target references; an AI or add-on cannot submit a selector, URL, JavaScript, payment action or arbitrary instruction.
+
+The validator binds each proposal to the exact run, window, user/account, plan, provider, event, page generation, FSM revision and permission revision. It checks consent and purchase quantity, currency, all-in price including fees, seat availability, action expiry and one-shot replay protections. The host re-observes a selected offer before executing and verifies the resulting order. No arbitrary add-on callback may be registered.
+
+Passive actions (WAIT, REOBSERVE, ASK_USER, STOP) return recommendations only, without browser mutations or automatic cancellation. The initial mutating executor operates only on the synthetic `RehearsalAdapter` offer; **all live AI/add-on mutations remain disabled**. Existing host-driven Cityline selection is retained with added stage/event/offer preconditions; this is not newly authorized provider automation. AB-04 will provide sanitized observations, AB-08 AI planning, and AB-09 controlled recovery. No real card payment is implemented by AB-03.
+
 ## Execution and payment guards
 
 As of AB-02, `booking/state-machine.cjs` and `booking/orchestrator.cjs`

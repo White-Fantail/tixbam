@@ -99,6 +99,15 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** malicious prompt output, prototype pollution, arbitrary JS/selector injection, replay, unknown action, cross-window.
 **Do not:** 웹페이지 텍스트에 포함된 instructions를 실행.
 
+**완료 기록 (2026-10-10):**
+- `packages/addon-sdk/index.d.ts`: `ActionProposalV1`, `ProposedActionKind`, `IssuedActionSnapshotV1`, `ActionDecision` 공통 타입.
+- `apps/desktop/electron/booking/action-validator.cjs`: 호스트 생성 불투명 snapshot/target IDs, 전이 revision, 페이지 generation, 제한시간, 실행 사용자/창/계획/업체/이벤트 및 정책 revision 바인딩. 엄격한 필드 허용 목록, 단일 사용 토큰, 통화/예산/수량/수수료 검증.
+- `apps/desktop/electron/booking/action-registry.cjs`: 제3자/AI가 실행 함수를 등록할 수 없는 정적 호스트 실행 레지스트리. WAIT/REOBSERVE/ASK_USER/STOP은 조언만 반환. 테스트 전용 가상 RehearsalAdapter offer reserve는 실행 직전 재관찰과 postcondition 확인 후 1회 실행.
+- 기존 BookingRunner의 직접 options/reserve에 FSM 상태/이벤트/허용된 오퍼 사전검증 추가. Cityline과 기존 리허설 호환, AB-01의 운영 자율 결제 차단 유지.
+- 공격 회귀: 임의 코드/selector/URL/결제 명령, prototype 오염, stale snapshot, 권한/승인 불일치, 가격/재고 변경, 동시 실행/재사용, 창/이벤트 불일치.
+- 검증 커밋 `9a0563b299656e9c007df08d90c1e15a9658339b`: [GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38008129200) SUCCESS (Desktop 96/96, API/MCP 29/29, crawler 3/3, Desktop/Admin build).
+- **범위 제한:** 호스트 계약/테스트 전용 실행까지 구현. 실제 AI 제안 생성은 AB-08, 실제 화면 관찰은 AB-04, 안전한 복구 연결은 AB-09. 업체 허가나 실결제를 새로 활성화하지 않았음.
+
 ## AB-04 — Provider-neutral Observation Pipeline
 
 **명령:** "AB-04 구현해. 안전한 ObservationV1 생성/마스킹/만료 검증을 도입해."
@@ -233,11 +242,11 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01 및 AB-02 완료 (dev) · AB-03 다음 단계**. AI 명령 실행과 실제 라이브 자율 결제는 여전히 비활성.
+- 현 단계: **AB-01~AB-03 완료 (dev) · AB-04 다음 단계**. AI 명령의 실사이트 실행과 실제 라이브 자율 결제는 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
-  - [ ] AB-03 Action Validator
+  - [x] AB-03 Action Validator — `9a0563b` (strict proposals/host registry, rehearsal mock & regression verified)
   - [ ] AB-04 Observation
   - [ ] AB-05 Journal
   - [ ] AB-06 Session Coordinator
@@ -251,4 +260,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-03 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-04 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
