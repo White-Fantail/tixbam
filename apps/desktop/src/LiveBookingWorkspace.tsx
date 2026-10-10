@@ -227,8 +227,10 @@ export function LiveBookingWorkspace({
             </div>)}
           </div>}
         </div>
-        {selectedWindow?.popup && <p className="live-manual-label">Copilot target: linked popup #{selectedWindow.id} · {selectedWindow.site}. Only supported ticket-provider pages are eligible.</p>}
-        {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>Use main browser in Copilot</button>}
+        {selectedWindow?.popup && <p className="live-manual-label">
+          {tr("Copilot target: linked popup #{id}",{id:selectedWindow.id})} · {selectedWindow.site}. {tx("Only supported ticket-provider pages are eligible.")}
+        </p>}
+        {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>{tx("Use main browser in Copilot")}</button>}
         <LiveCopilotPanel
           key={String(selectedWindow?.id ?? plan.id)+":"+String(selectedWindow?.phase)+":"+String(selectedWindow?.url)+":"+String(selectedWindow?.loading)}
           bookingWindow={selectedWindow} plan={plan}
