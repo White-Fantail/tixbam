@@ -156,7 +156,9 @@ export async function saveAiPolicy(f: FormData) {
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        error = typeof data.detail === "string" ? data.detail : "Could not save AI settings (" + response.status + ")";
+        error = typeof data.detail === "string" ? data.detail
+          : Array.isArray(data.detail) ? data.detail.map((item: {msg?: string}) => item.msg || "Invalid AI setting").join("; ")
+          : "Could not save AI settings (" + response.status + ")";
       }
     } catch { error = "Could not reach the API"; }
   }
