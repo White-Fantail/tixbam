@@ -13,6 +13,9 @@ export interface AddonAutomationSupport {
   level1: AutomationLevelSupport;
   level2: AutomationLevelSupport;
   level3: AutomationLevelSupport;
+  /** Bundled, audited execution capability; remote catalog metadata cannot enable it. */
+  verifiedNativeExecutor?: "host-reviewed-v1";
+  verifiedActionKinds?: Array<"continue"|"performance"|"price_tier"|"quantity"|"seat">;
 }
 
 export interface TicketAddon extends Provider {
@@ -120,6 +123,12 @@ export interface CopilotVisionResult {
   targets:CopilotSuggestion[];advisoryOnly:true;humanApprovalRequired:true;
   snapshotToken:string;
 }
+export interface CopilotAdvanceInfo {
+  windowId:number;planId?:string;providerId?:string;
+  requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized";
+  status:string;reason:string;attempts?:number;expiresAt?:number;
+  targets:CopilotSuggestion[];automaticClicks?:number;
+}
 export interface CopilotSnapshot {
   token: string;windowId:number;expiresAt:number;
   image:string;width:number;height:number;
@@ -173,12 +182,19 @@ export interface DesktopBridge {
     requestId: number; planId: string; ownerId: string | null;
   }) => void) => () => void;
   onRehearsalClosed: (listener: (planId: string) => void) => () => void;
-  openPlanWindow: (options: { planId: string; providerId: string; url: string }) =>
+  openPlanWindow: (options: { planId: string; providerId: string; url: string;
+    copilotConsent?: import("./copilot/advance-settings").AdvanceConsent;
+    copilotConditions?: {planId:string;quantity:number;currency:string;budgetMinor:number;locale:"ko"|"en"}
+  }) =>
     Promise<{ id: number; providerId: string; planId: string; reused: boolean; site?: string }>;
   setLivePhase: (windowId: number, phase: LivePhase) => Promise<boolean>;
   listLiveHistory: () => Promise<LiveHistory[]>;
   dismissLiveHistory: (planId: string) => Promise<LiveHistory[]>;
   openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
+  copilotAdvanceArm: (id:number,conditions:{planId:string;quantity:number;currency:string;budgetMinor:number;locale:"ko"|"en"},consent:import("./copilot/advance-settings").AdvanceConsent) => Promise<CopilotAdvanceInfo>;
+  copilotAdvanceStop: (id:number) => Promise<boolean>;
+  copilotAdvanceStatus: (id:number) => Promise<CopilotAdvanceInfo>;
+  onCopilotAdvanceUpdate: (listener:(info:CopilotAdvanceInfo)=>void) => () => void;
   copilotCapture: (id:number) => Promise<CopilotSnapshot>;
   copilotHighlight: (id:number, token:string, point:{x:number;y:number}) => Promise<{highlighted:boolean;expiresAt:number}>;
   copilotClick: (id:number, token:string, point:{x:number;y:number}) => Promise<{clicked:boolean;verifiedPurchase:false;automatic:false}>;
