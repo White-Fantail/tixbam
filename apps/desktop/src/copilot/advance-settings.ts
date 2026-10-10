@@ -1,8 +1,10 @@
 /** Device-local preferences only. Never sync a blanket automation approval to cloud plans. */
 export type AdvanceMode = "manual" | "observe" | "authorized";
 export type AdvanceKind = "performance" | "price_tier" | "quantity" | "seat" | "continue";
-export type AdvanceSettings = {mode:AdvanceMode; actions:AdvanceKind[]; shareScreenshots:boolean};
-export type AdvanceConsent = AdvanceSettings & {confirmed:true};
+export type AdvanceSettings = {mode:AdvanceMode; actions:AdvanceKind[]; shareScreenshots:boolean;
+  /** Local plan-only diagnostic; never grants permission in a packaged app. */
+  developerClickTest?:boolean};
+export type AdvanceConsent = AdvanceSettings & {confirmed:true;developmentOverride?:boolean};
 const DEFAULT: AdvanceSettings = {mode:"manual",actions:["continue","performance","price_tier","quantity","seat"],shareScreenshots:false};
 const GLOBAL_KEY="tixbam.copilot.advance.global.v1";
 const PLAN_PREFIX="tixbam.copilot.advance.plan.v1.";
@@ -14,7 +16,8 @@ export function normalizeAdvanceSettings(value:unknown):AdvanceSettings {
     ? input.mode as AdvanceMode : "manual";
   const actions=Array.isArray(input.actions)
     ? KINDS.filter(kind=>input.actions.includes(kind)): [...DEFAULT.actions];
-  return {mode,actions,shareScreenshots:input.shareScreenshots===true};
+  return {mode,actions,shareScreenshots:input.shareScreenshots===true,
+    developerClickTest:input.developerClickTest===true};
 }
 function read(key:string):AdvanceSettings|null {
   try {const value=localStorage.getItem(key);return value?normalizeAdvanceSettings(JSON.parse(value)):null;}
@@ -24,7 +27,8 @@ export function globalAdvanceSettings():AdvanceSettings {return read(GLOBAL_KEY)
 export function planAdvanceSettings(id:string):AdvanceSettings|null {return read(PLAN_PREFIX+id);}
 export function effectiveAdvanceSettings(id:string):AdvanceSettings {return planAdvanceSettings(id)||globalAdvanceSettings();}
 export function saveGlobalAdvanceSettings(value:AdvanceSettings){
-  localStorage.setItem(GLOBAL_KEY,JSON.stringify(normalizeAdvanceSettings(value)));
+  localStorage.setItem(GLOBAL_KEY,JSON.stringify({
+    ...normalizeAdvanceSettings(value),developerClickTest:false}));
 }
 export function savePlanAdvanceSettings(id:string,value:AdvanceSettings|null){
   if(value===null)localStorage.removeItem(PLAN_PREFIX+id);
@@ -33,5 +37,8 @@ export function savePlanAdvanceSettings(id:string,value:AdvanceSettings|null){
 export function advanceConsent(value:AdvanceSettings):AdvanceConsent|null {
   const normalized=normalizeAdvanceSettings(value);
   return normalized.mode!=="manual" && normalized.shareScreenshots && normalized.actions.length>0
-    ? {...normalized,confirmed:true} : null;
+    ? {...normalized,confirmed:true,
+        // Never treat stored settings as runtime proof; Electron independently
+        // checks an explicit local CLI flag and app.isPackaged.
+        developmentOverride:normalized.mode==="observe" && normalized.developerClickTest===true} : null;
 }
