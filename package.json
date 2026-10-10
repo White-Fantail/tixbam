@@ -15,6 +15,7 @@
     "dev:web": "npm run dev:web -w @tixbam/desktop",
     "dev:admin": "npm run dev -w @tixbam/admin",
     "test": "npm run test -w @tixbam/desktop",
+    "test:copilot": "npm run test:copilot -w @tixbam/desktop",
     "check": "npm run check -w @tixbam/desktop",
     "build": "npm run build -w @tixbam/desktop && npm run build -w @tixbam/admin",
     "build:desktop": "npm run build -w @tixbam/desktop",
