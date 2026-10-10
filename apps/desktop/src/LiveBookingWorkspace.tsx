@@ -272,7 +272,7 @@ export function LiveBookingWorkspace({
           <p className="settings-note">{language==="ko"
             ?"사전 승인한 동작만 화면별로 검증해 이어서 진행합니다. 로그인·대기열·CAPTCHA·결제는 사용자가 직접 처리해야 합니다. 클릭 자체는 좌석 확보의 증거가 아닙니다."
             :"Approved non-payment actions continue across screens. Login, queue and payment require you. A click does not prove a seat hold."}</p>
-          {advance.attempts!==undefined&&<small>{language==="ko"?"AI 분석":"AI observations"}: {advance.attempts}/8 · {language==="ko"?"자동 클릭":"Automatic clicks"}: {advance.automaticClicks??0}/6</small>}
+          {advance.attempts!==undefined&&<small>{language==="ko"?"AI 분석":"AI observations"}: {advance.attempts}/24 · {language==="ko"?"자동 클릭":"Automatic clicks"}: {advance.automaticClicks??0}/20</small>}
           {advance.targets.length>0&&<div className="copilot-candidates">
             {advance.targets.map((target,index)=><p key={index}>
               {target.label} · {Math.round(target.confidence*100)}% · {target.reason}
