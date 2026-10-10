@@ -4,7 +4,8 @@ const path = require('node:path');
 const { BrowserWindow, nativeImage } = require('electron');
 const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
-const {normalizeConsent,providerAutomationStatus,developerClickAllowed,canRun,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
+const {normalizeConsent,providerAutomationStatus,developerClickAllowed,canRun,
+  DEV_CLICK_KINDS,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
   =require('./advance-authorization.cjs');
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
@@ -76,8 +77,11 @@ class LiveCopilot {
     const developerTest=consent.developmentOverride===true;
     // Only opt-in, unbundled Electron developer mode can request a one-click
     // native input test. A cloud flag or renderer IPC field can never enable it.
-    if(developerTest && (this.developerClickTestEnabled()!==true || consent.mode!=='observe'))
-      throw new Error('Developer click test requires the explicitly enabled local development runtime.');
+    if(developerTest && (this.developerClickTestEnabled()!==true ||
+       !['observe','authorized'].includes(consent.mode) ||
+       addon.kind!=='ticketing' ||
+       !consent.actions.some(kind=>DEV_CLICK_KINDS.includes(kind))))
+      throw new Error('Developer click test requires the local development runtime, a ticketing provider and an approved selection action.');
     const permission=providerAutomationStatus(addon,'seat');
     const mode=developerTest ? 'dev_single_click' :
       consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
