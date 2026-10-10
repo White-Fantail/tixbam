@@ -56,7 +56,7 @@ test('run secrets are wiped on stop and expire without persistence',()=> {
   assert.equal(secret.use(c=>c.cvv),'123');secret.clear();assert.ok(buffer.every(b=>b===0));assert.ok(cvv.every(b=>b===0));assert.throws(()=>secret.use(()=>{}));
   const expired=new RunSecret(card,'123');expired.expiresAt=Date.now()-1;assert.throws(()=>expired.use(()=>{}));assert.equal(expired.card,null);
 });
-function runner(adapter, overrides={}) {return new BookingRunner({adapter,preferences:prefs,eventKey:'event1',notify:()=>{},payment: adapter.paymentVerified ? {verified:true,submit:()=>adapter.pay()} : null,secret:{use:fn=>fn(card),clear(){}},...overrides});}
+function runner(adapter, overrides={}) {return new BookingRunner({adapter,preferences:prefs,eventKey:'event1',rehearsal:true,notify:()=>{},payment: adapter.paymentVerified ? {verified:true,submit:()=>adapter.pay()} : null,secret:{use:fn=>fn(card),clear(){}},...overrides});}
 test('rehearsal runs selection, reservation, review, single payment, 3DS handoff and verified confirmation',async()=> {
   const adapter=new RehearsalAdapter('event1',prefs), r=runner(adapter);
   await r.step();assert.equal(adapter.stage,'offers');await r.step();assert.equal(adapter.stage,'payment');await r.step();assert.equal(r.state.status,'review');

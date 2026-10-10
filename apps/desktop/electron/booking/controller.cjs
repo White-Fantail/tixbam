@@ -5,6 +5,7 @@ const { PreferenceStore, eventKey, validatePreferences } = require('./preference
 const { CitylineAdapter, schemaFor } = require('./cityline.cjs');
 const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
 const { BookingRunner, TERMINAL } = require('./runner.cjs');
+const { PaymentAttemptLedger } = require('./payment-attempts.cjs');
 const { resolveOfficialSaleUrl } = require('../security.cjs');
 const { assertBookingWindow } = require('./window-binding.cjs');
 const { ObservationPipeline } = require('./observation.cjs');
@@ -13,6 +14,12 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   const preferences = new PreferenceStore(path.join(app.getPath('userData'), 'booking-preferences.json'));
   const contexts = new Map(), runs = new Map();
   const observations = new ObservationPipeline();
+  // Ledger initialization is fail-closed but cannot prevent manual browsing.
+  // A corruption/lock is shown in the booking list instead of being silently
+  // treated as an empty journal. Real auto-payment remains disabled by AB-01.
+  let paymentLedger = null, journalUnavailable = false;
+  try { paymentLedger = new PaymentAttemptLedger(app.getPath('userData')); }
+  catch { journalUnavailable = true; }
   function emit(state) {
     send('tixbam:booking-changed', state);
     if (['awaiting_user', 'review', 'completed', 'payment_unknown', 'failed'].includes(state.status) && Notification.isSupported()) {
@@ -108,7 +115,11 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     const adapter = ctx.rehearsal ? new RehearsalAdapter(ctx.eventKey, prefs) : ctx.adapter;
     const onPageRead=ctx.rehearsal?null:(page,state)=>
       observations.noteRead({windowId:ctx.windowId,providerId:ctx.providerId,page,runId:state.id});
-    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow, onPageRead });
+    const runner = new BookingRunner({ adapter, preferences: prefs, eventKey: ctx.eventKey, windowId: ctx.windowId, secret, notify: emit, payment: ctx.rehearsal ? { verified: true, submit: () => adapter.pay() } : null, rehearsal: ctx.rehearsal, assertWindow, onPageRead,
+      // Rehearsal is simulated and never charges. Live checkout requires a
+      // verified permit and journal before a payment executor can be attached.
+      ledger: ctx.rehearsal ? null : paymentLedger,
+      purchasePermit: null });
     // Provider-neutral, non-secret AI context. No cards, CVV, cookies or page content.
     runner.setMetadata({
       providerId: ctx.providerId,
@@ -121,7 +132,22 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     runs.set(runner.state.id, runner);
     await runner.step(); return runner.state;
   });
-  handle('list-bookings', () => [...runs.values()].map(r => r.state));
+  handle('list-bookings', () => {
+    const live=[...runs.values()].map(r=>r.state);
+    if(journalUnavailable || !paymentLedger) return [...live,{
+      id:'journal-unavailable',eventKey:'unverified',status:'payment_unknown',
+      phase:'PAYMENT_UNKNOWN',revision:0,generation:0,
+      message:'Payment safety journal is unavailable. Automatic payment is blocked until reviewed.',
+      startedAt:0,rehearsal:false,storageRecovered:true
+    }];
+    try {return [...live,...paymentLedger.recovered()];}
+    catch {return [...live,{
+      id:'journal-unavailable',eventKey:'unverified',status:'payment_unknown',
+      phase:'PAYMENT_UNKNOWN',revision:0,generation:0,
+      message:'Payment safety journal cannot be verified. Automatic payment is blocked.',
+      startedAt:0,rehearsal:false,storageRecovered:true
+    }];}
+  });
   handle('resume-booking', async (id, confirm = false) => {
     const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.');
     if (!['awaiting_user', 'review'].includes(runner.state.status) || runner.busy) throw new Error('This run cannot be resumed now.');

@@ -15,10 +15,14 @@ const FAIL_POST = 'Payment outcome is unknown. Check the provider order history;
  */
 class BookingRunner {
   constructor({adapter, preferences, eventKey, windowId, secret,
-               notify, payment = null, rehearsal = false, assertWindow = null, onPageRead = null}) {
+               notify, payment = null, rehearsal = false, assertWindow = null, onPageRead = null,
+               ledger = null, purchasePermit = null}) {
     this.adapter = adapter;
     this.onPageRead = onPageRead;
     this.payment = payment;
+    this.ledger = ledger;
+    this.purchasePermit = purchasePermit;
+    this.paymentIntent = null;
     this.preferences = structuredClone(preferences);
     this.secret = secret;
     this.secretCleared = false;
@@ -43,6 +47,10 @@ class BookingRunner {
 
   stop() {
     this.clearSecret();
+    if (this.paymentIntent && this.ledger) {
+      try { this.ledger.markUnknown(this.paymentIntent); }
+      catch { /* The already-durable commit record remains unresolved. */ }
+    }
     return this.orchestrator.interrupt(STOP_PRE, STOP_POST);
   }
 
@@ -76,6 +84,12 @@ class BookingRunner {
             !validOrder(page.order, this.preferences, this.expected) || !page.receipt) {
           this.orchestrator.fail(FAIL_PRE, 'Completion could not be verified. Check the provider order history. Automatic retry is disabled.');
           return;
+        }
+        // AB-05: only the synthetic rehearsal receipt can close a durable
+        // journal attempt. AB-14 must implement official provider verification.
+        if (this.ledger && this.paymentIntent) {
+          if (!this.state.rehearsal) throw new Error('Official receipt reconciliation is not implemented.');
+          this.ledger.confirmRehearsal(this.paymentIntent, page.receipt);
         }
         this.orchestrator.transition('VERIFIED_RECEIPT', 'Booking confirmed by the provider.',
           {receipt:page.receipt}, {verifiedReceipt:true});
@@ -159,14 +173,27 @@ class BookingRunner {
           if (!this.orchestrator.check(handle)) return;
           this.orchestrator.transition('COMMIT_READY', 'Final order was rechecked.');
           if (!this.orchestrator.check(handle)) return;
+          if (this.ledger) {
+            // Synchronous, write-ahead, fsync-before-submit. A disk error
+            // throws here, before any external payment side effect.
+            this.paymentIntent = this.ledger.recordCommitIntent({
+              runId:this.state.id,permit:this.purchasePermit,
+              order:this.expected,rehearsal:this.state.rehearsal,
+            });
+          } else if (!this.state.rehearsal) {
+            // AB-13 must supply both a verified executor and this ledger.
+            throw new Error('A durable journal is required before live payment.');
+          }
           this.orchestrator.transition('COMMIT_STARTED', 'Submitting payment once.', {},
             {paymentProfileVerified:true});
-          // A synchronous host notification may stop the run at this exact
-          // boundary. The latched attempt then stays UNKNOWN but must not call
-          // the payment service after cancellation.
+          // Stop called synchronously by a UI notification after the durable
+          // intent is persisted still prevents the actual provider submit.
           if (!this.orchestrator.check(handle)) return;
           return this.payment.submit(card, this.expected);
         });
+        if (!this.orchestrator.check(handle)) return;
+        if (this.ledger && this.paymentIntent)
+          this.ledger.submissionReturned(this.paymentIntent);
         if (!this.orchestrator.check(handle)) return;
         this.orchestrator.transition('SUBMIT_RETURNED', 'Waiting for provider confirmation.');
         this.orchestrator.transition('CONTINUE', 'Waiting for provider confirmation.');
@@ -174,6 +201,10 @@ class BookingRunner {
       }
       this.orchestrator.transition('NEED_USER', 'This page needs your attention. Continue in the provider window, then resume.');
     } catch {
+      if (this.paymentIntent && this.ledger) {
+        try { this.ledger.markUnknown(this.paymentIntent); }
+        catch { /* Unresolved COMMIT_INTENT_RECORDED always blocks replay. */ }
+      }
       if (this.orchestrator.machine.terminal || this.cancelled) return;
       this.orchestrator.fail(FAIL_PRE, FAIL_POST);
     } finally {

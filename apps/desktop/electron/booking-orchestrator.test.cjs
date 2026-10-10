@@ -20,7 +20,7 @@ const offer = {
 };
 function make(adapter, overrides = {}) {
   return new BookingRunner({
-    adapter, preferences:prefs, eventKey:'event-1', windowId:7,
+    adapter, preferences:prefs, eventKey:'event-1', windowId:7, rehearsal:true,
     notify:()=>{}, payment:adapter.paymentVerified
       ? {verified:true,submit:()=>adapter.pay()} : null,
     secret:{use:fn=>fn({testCard:true}),clear(){}}, ...overrides
