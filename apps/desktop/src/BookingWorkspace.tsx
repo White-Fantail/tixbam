@@ -7,6 +7,7 @@ import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
 import { type BookingPlan, EMPTY_SEAT_SELECTIONS, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
 import { SeatRulesEditor } from "./booking/SeatRulesEditor";
+import { AdvanceSettingsEditor } from "./copilot/AdvanceSettingsEditor";
 
 
 type Change = (next: BookingPlan) => Promise<void>;
@@ -333,8 +334,9 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
           })();
         }}><ExternalLink size={16}/> Preview expected steps</button>
       </div>
+      <AdvanceSettingsEditor key={draft.id+"-"+draft.providerId} planId={draft.id} provider={addon}/>
       <div className="settings-panel"><h3><TicketCheck size={19}/> Live Copilot booking</h3>
-        <p>Open the official ticketing site and use the Live Copilot in Sessions for screen guidance and approved individual clicks.</p>
+        <p>Choose advance permissions above before opening the official ticket site. Only verified provider actions can run unattended; visual guidance remains available otherwise.</p>
         <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing" || !addon?.installed}>
           <ExternalLink size={16}/> Start live booking</button>
         {addon?.booking && addon.bookingAssistance?.mode !== "manual" && <button className="button button-outline" onClick={() => onConfigure(draft)}
