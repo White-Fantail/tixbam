@@ -37,7 +37,7 @@ class PolicyInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     model: str = Field(min_length=3, max_length=160, pattern=MODEL_PATTERN)
     enabled: bool = False
-    timeout_seconds: int = Field(default=6, ge=2, le=12)
+    timeout_seconds: int = Field(default=6, ge=2, le=30)
     max_output_tokens: int = Field(default=450, ge=128, le=1200)
     structured_output_verified: bool = False
 
