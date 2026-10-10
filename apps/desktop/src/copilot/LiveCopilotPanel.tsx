@@ -4,6 +4,28 @@ import type { BookingPlan } from "../booking-plans";
 import type { CopilotSnapshot, CopilotSuggestion, TicketWindow } from "../types";
 import { useLanguage } from "../i18n";
 
+function readableCopilotError(error: unknown, ko: boolean): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!ko) return message;
+  if (/sign in to use copilot vision|please sign in first/i.test(message))
+    return "AI 분석을 사용하려면 TixBam 계정에 로그인해야 해. 화면 캡처와 수동 위치 지정은 계속 사용할 수 있어.";
+  if (/vision is disabled|not enabled by tixbam/i.test(message))
+    return "AI Vision이 비활성화돼 있어. Admin → AI Models → Copilot Vision에서 모델을 지정하고 기능을 켜야 해. 수동 안내는 사용 가능해.";
+  if (/vision is not configured|ai is not configured/i.test(message))
+    return "Railway API에 OPENROUTER_API_KEY 설정이 필요해. 설정 전에는 수동 안내를 사용해.";
+  if (/screen analysis failed|timed out|timeout/i.test(message))
+    return "AI 응답을 받지 못했어. Admin에서 비전 지원 모델과 제한 시간을 확인하고 재시도해. 화면을 직접 선택해도 돼.";
+  if (/hourly limit|429/i.test(message))
+    return "AI 분석 사용 한도에 도달했어. 나중에 다시 시도하거나 수동으로 표시해.";
+  if (/not linked|provider domain|untrusted browser url/i.test(message))
+    return "공식 예매처로 연결된 창인지 확인해. 다른 예매처로 이동했다면 해당 예매처 애드온이 필요할 수 있어.";
+  if (/preview expired|capture again|take a new preview|selected button or seat changed/i.test(message))
+    return "화면이나 대상 버튼이 바뀌었어. 다시 캡처하고 위치를 확인해.";
+  if (/fully loaded|could not be captured|too small/i.test(message))
+    return "공식 예매 창이 로딩 중이거나 캡처할 수 없어. 예매 창이 열린 상태인지 확인하고 다시 시도해.";
+  return message;
+}
+
 /** The image is a local one-shot provider preview, not an AI prediction.
  * Never run background captures, make automatic clicks or upload the image.
  */
@@ -36,7 +58,7 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
           "Official browser connected. AI suggestions and highlights are available; click the official site yourself.")
         : (ko ? "아래 이미지는 로컬에서 캡처한 현재 화면이야. 직접 클릭할 위치를 지정해." :
           "This is a local preview. Choose a target yourself; AI has not selected a button."));
-    } catch(e) { setError(e instanceof Error ? e.message : String(e)); }
+    } catch(e) { setError(readableCopilotError(e,ko)); }
     finally { setBusy(""); }
   }
   function choose(event: MouseEvent<HTMLImageElement>) {
@@ -62,12 +84,13 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
       if(!result.advisoryOnly||!result.humanApprovalRequired||result.snapshotToken!==snapshot.token)
         throw new Error("Unexpected vision result");
       setTargets(result.targets);
+      if (result.targets.length) setPoint({x:result.targets[0].x,y:result.targets[0].y});
       setNotice(result.targets.length
         ? (snapshot.mode === "diagnostic_preview"
           ? (ko?"AI가 예매 진입 버튼 후보를 찾았어. 위치를 표시한 뒤 공식 창에서 직접 눌러줘.":"AI found a booking-entry candidate. Highlight it, then click in the official site yourself.")
           : (ko?"AI가 후보를 찾았어. 반드시 화면에서 직접 확인한 뒤 선택해.":"AI found candidate targets. Verify them visually before choosing."))
         : (ko?"확실한 버튼을 찾지 못했어. 직접 선택하거나 화면을 다시 촬영해.":"No sufficiently confident targets. Choose manually or recapture."));
-    }catch(e){setError(e instanceof Error?e.message:String(e));}
+    }catch(e){setError(readableCopilotError(e,ko));}
     finally{setBusy("");}
   }
   async function action(kind:"highlight"|"click") {
@@ -89,7 +112,7 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
           "One user-approved click sent. Verify any reservation on the official site.");
       }
     } catch(e) {
-      setError(e instanceof Error?e.message:String(e));
+      setError(readableCopilotError(e,ko));
       setSnapshot(null);setPoint(null);
     } finally {setBusy("");}
   }
@@ -98,9 +121,16 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
     <p>{ko?"예매 시작 화면에서는 AI가 다음 버튼을 제안하고 표시할 수 있어. 티켓 선택 단계에서는 승인 후 1회 클릭을 테스트할 수 있어. 무인 자동 예매는 활성화되지 않았어.":
       "Check the official booking page with a local, read-only preview. At ticket selection, choose a target for a user-approved click. Unattended booking is disabled."}</p>
     <p className="copilot-state"><ShieldAlert size={14}/>
-      {ko?"현재 모드: 수동 지정 · 화면 변경 시 클릭 거부 · 자동 클릭 잠금":
-        "Mode: human-directed · stale screen protection · unattended click locked"}
+      {ko?"안내 모드: 캡처 · 선택적 AI 후보 · 직접 승인 · 무인 클릭 차단":
+        "Guide mode: local capture · optional AI proposals · explicit approval · no unattended clicks"}
     </p>
+    <div className="copilot-test-guide">
+      <strong>{ko?"NOL 실전 점검 순서":"Live booking test"}</strong>
+      <p>{ko
+        ? "① 예매 화면 캡처 → ② 위치를 직접 찍거나 AI 후보 요청 → ③ 공식 창에 위치 표시 → ④ 예매 진입은 직접 클릭 → ⑤ 실제 좌석 선택 단계에서 승인 클릭 테스트"
+        : "1. Capture  2. Mark a point or request AI  3. Highlight  4. Enter booking manually  5. Test an approved click at seat selection."}</p>
+      {bookingWindow && <small>{ko?"선택된 창":"Target window"}: #{bookingWindow.id}{bookingWindow.popup?" · Popup":""} · {bookingWindow.site||"..."}</small>}
+    </div>
     <div className="booking-actions">
       <button className="button button-primary" disabled={!eligible||!!busy} onClick={()=>void capture()}>
         <Eye size={15}/>{previewOnly
