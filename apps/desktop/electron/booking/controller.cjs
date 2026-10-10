@@ -140,6 +140,6 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   const timer = setInterval(() => { for (const r of runs.values()) if (r.state.status === 'running') void r.step(); }, 2000);
   const stopAll = () => { for (const r of runs.values()) if (!TERMINAL.has(r.state.status)) r.stop(); observations.invalidateAll(); };
   app.on('before-quit', () => { clearInterval(timer); stopAll(); });
-  return { stopAll, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { observations.unwatchWindow(id); for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
+  return { stopAll, invalidateObservations() { observations.invalidateAll(); }, providerActive(id) { return [...runs.values()].some(r => !TERMINAL.has(r.state.status) && r.adapter.addon?.id === id); }, windowClosed(id) { observations.unwatchWindow(id); for (const [key, ctx] of contexts) if (ctx.windowId === id) contexts.delete(key); for (const r of runs.values()) if (r.state.windowId === id && !TERMINAL.has(r.state.status)) r.stop(); } };
 }
 module.exports = { registerBooking };

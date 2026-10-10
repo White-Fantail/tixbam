@@ -292,7 +292,9 @@ app.whenReady().then(() => {
   desktopLanguage = readLanguage(app.getPath("userData"));
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
-  const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell });
+  const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell,
+    onSessionChanged: () => booking?.invalidateObservations?.()
+  });
   ipcMain.handle("tixbam:ai-advice", (event, payload) => {
     if (event.sender === dashboard?.webContents) dashboardOnly(event);
     else {

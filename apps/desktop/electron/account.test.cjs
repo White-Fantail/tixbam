@@ -35,3 +35,28 @@ test("OAuth account flow URLs cannot be used to bypass the self-service API allo
     assert.equal(allowedAccountEndpoint("POST", endpoint), false);
   }
 });
+
+
+test("account sign-out invalidates host observation tokens without touching provider data", () => {
+  const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+  const {registerAccount} = require("./account.cjs");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tixbam-observation-account-"));
+  const handlers = new Map();
+  let invalidated = 0;
+  try {
+    registerAccount({
+      ipcMain:{handle:(name,handler)=>handlers.set(name,handler)},
+      dashboardOnly:event=>{if(!event.authorized)throw Error("Unauthorized");},
+      safeStorage:{isEncryptionAvailable:()=>false},
+      app:{getPath:()=>dir,isPackaged:true},
+      shell:{openExternal:async()=>{}},
+      onSessionChanged:()=>invalidated++,
+    });
+    const signout=handlers.get("tixbam:account-sign-out");
+    assert.equal(typeof signout,"function");
+    assert.equal(signout({authorized:true}),true);
+    assert.equal(invalidated,1);
+    assert.throws(()=>signout({authorized:false}),/Unauthorized/);
+    assert.equal(invalidated,1);
+  } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});

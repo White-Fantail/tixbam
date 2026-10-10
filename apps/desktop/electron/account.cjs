@@ -26,7 +26,7 @@ function allowedAccountEndpoint(method, endpoint) {
   );
 }
 
-function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
+function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell, onSessionChanged = () => {} }) {
   const file = path.join(app.getPath("userData"), "tixbam-account.enc");
   let session = null;
   let pending = null;
@@ -153,6 +153,8 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
     }
     // Avoid races if the user cancelled this attempt while polling.
     if (pending !== attempt) return null;
+    // Revoke every host-only observation token before changing identity.
+    onSessionChanged();
     const previous = session;
     session = { apiUrl: attempt.apiUrl, token: result.accessToken, expiresAt: result.expiresAt };
     try { save(); } catch (error) { session = previous; throw error; }
@@ -171,6 +173,7 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell }) {
   ipcMain.handle("tixbam:account-sign-out", event => {
     dashboardOnly(event);
     ++oauthGeneration;
+    onSessionChanged();
     session = null;
     pending = null;
     save();
