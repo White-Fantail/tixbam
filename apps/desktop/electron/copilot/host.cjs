@@ -4,7 +4,7 @@ const path = require('node:path');
 const { BrowserWindow, nativeImage } = require('electron');
 const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
-const {normalizeConsent,providerAutomationStatus,canRun,MAX_AGE_MS}
+const {normalizeConsent,providerAutomationStatus,canRun,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
   =require('./advance-authorization.cjs');
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
@@ -14,7 +14,7 @@ class LiveCopilot {
   constructor({ticketWindows,requireInstalled}) {
     this.ticketWindows=ticketWindows;this.requireInstalled=requireInstalled;
     this.snapshots=new Map();this.overlays=new Map();this.visionProvider=null;
-    this.autoSessions=new Map();this.autoPending=new Set();
+    this.autoSessions=new Map();this.autoPending=new Set();this.autoTimers=new Map();
     this.onAutoUpdate=()=>{};
   }
   setVisionProvider(provider) {
@@ -80,6 +80,8 @@ class LiveCopilot {
       : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
   }
   disarm(windowId) {
+    const pendingTimer=this.autoTimers.get(windowId);
+    if(pendingTimer){clearTimeout(pendingTimer);this.autoTimers.delete(windowId);}
     const session=this.autoSessions.get(windowId);
     if(!session)return false;
     session.stopped=true;
@@ -99,8 +101,20 @@ class LiveCopilot {
     const entry=this.ticketWindows.get(windowId);
     const check=canRun(session,entry);
     if(!check.allowed) {
-      if(check.reason!=='Automatic AI cooldown.')
-        this.autoInfo(session,'paused',check.reason);
+      if(check.reason==='Automatic AI cooldown.') {
+        // Coalesce short-lived navigation changes into one approved AI
+        // observation; never bypass the per-session limit or URL/stage checks.
+        if(!this.autoTimers.has(windowId)) {
+          const delay=Math.max(250,MIN_ANALYSIS_GAP_MS-(Date.now()-session.lastAttemptAt)+50);
+          const timer=setTimeout(()=>{
+            this.autoTimers.delete(windowId);
+            if(!session.stopped && this.autoSessions.get(windowId)===session)
+              void this.observe(windowId);
+          },delay);
+          timer.unref?.();
+          this.autoTimers.set(windowId,timer);
+        }
+      } else this.autoInfo(session,'paused',check.reason);
       return;
     }
     // Screen restrictions are rechecked before EVERY capture and after AI latency.
