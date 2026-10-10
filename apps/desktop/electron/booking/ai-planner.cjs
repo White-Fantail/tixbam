@@ -44,6 +44,7 @@ class RehearsalPlanner{
     const runner=driver?.runner, adapter=driver?.adapter;
     const state=runner?.state;
     if(!runner||!adapter||runner.busy||runner.orchestrator.machine.terminal||
+       ['MANUAL_PAYMENT','RESERVATION_UNKNOWN'].includes(state?.phase)||
        typeof send!=='function'||!['ko','en'].includes(locale)||
        typeof providerId!=='string'||!/^[a-z0-9_-]{2,60}$/.test(providerId))
       throw new Error('Planner requires an idle active rehearsal run.');

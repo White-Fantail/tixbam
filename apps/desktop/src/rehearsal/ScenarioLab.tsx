@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RehearsalLabScenario, RehearsalLabState, RehearsalTarget, RehearsalPlannerView, RehearsalRecoveryResult } from "../types";
 import { tx, useLanguage } from "../i18n";
+import { ReservationNotice } from '../booking/ReservationNotice';
 
 
 const practiceMessagesKo:Record<string,string>={
@@ -158,6 +159,7 @@ export function ScenarioLab({plan,onComplete}:{
           {ko?"시드":"Seed"} {state.seed??seed}</small>
       </div>
       <p aria-live="polite">{present(state.message)}</p>
+      <ReservationNotice {...state} rehearsal/>
       {state.recovered&&<p className="cl-drill-block">
         {ko?"중단 전 실행 권한은 복구하지 않았습니다. 결제 결과가 불명확하면 재결제하지 않고 영수증을 확인해야 합니다.":
           "Old execution authority was NOT restored. Unknown payments must never be retried without independent verification."}

@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const { chooseOffer, validOrder } = require('./preferences.cjs');
 const { BookingOrchestrator } = require('./orchestrator.cjs');
 const { assertDeterministicHostAction } = require('./action-registry.cjs');
+const {ReservationTransaction}=require('./reservation.cjs');
 
 const TERMINAL = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 const STOP_PRE = 'Stopped. Payment preparation cleared.';
@@ -16,7 +17,10 @@ const FAIL_POST = 'Payment outcome is unknown. Check the provider order history;
 class BookingRunner {
   constructor({adapter, preferences, eventKey, windowId, secret,
                notify, payment = null, rehearsal = false, assertWindow = null, onPageRead = null,
-               ledger = null, purchasePermit = null, sessionCoordinator = null}) {
+               ledger = null, purchasePermit = null, sessionCoordinator = null, reservation=null,
+               runId=crypto.randomUUID()}) {
+    if(reservation!==null&&!(reservation instanceof ReservationTransaction))throw Error('Trusted reservation transaction required');
+    this.reservation=reservation;
     this.adapter = adapter;
     this.onPageRead = onPageRead;
     this.payment = payment;
@@ -31,7 +35,7 @@ class BookingRunner {
     this.selectionMade = false;
     this.expected = null;
     this.orchestrator = new BookingOrchestrator({
-      runId: crypto.randomUUID(), eventKey, windowId, rehearsal, notify, assertWindow,
+      runId, eventKey, windowId, rehearsal, notify, assertWindow,
     });
   }
 
@@ -48,7 +52,10 @@ class BookingRunner {
   }
 
   stop() {
-    const manual = this.state.phase === 'MANUAL_PAYMENT';
+    const pendingReservation=this.reservation?.requested===true&&!this.state.manualPayment;
+    const manual = pendingReservation||['MANUAL_PAYMENT','RESERVATION_UNKNOWN'].includes(this.state.phase);
+    if(pendingReservation)this.orchestrator.setMetadata({reservationRecoveryRequired:true,reservationVerified:false});
+    this.reservation?.invalidate();
     this.clearSecret();
     this.payment?.invalidate?.();
     if((this.cloudClaimAttempted||this.paymentIntent?.claimOnly) && !this.submitted && !this.orchestrator.machine.terminal){
@@ -84,6 +91,35 @@ class BookingRunner {
       // Authentication, queue, CAPTCHA and bank verification remain user-owned.
       if (page.challenge) {
         this.orchestrator.transition('NEED_USER', page.challenge);
+        return;
+      }
+      if(page.stage==='allocation'){
+        if(!this.reservation){
+          this.orchestrator.transition('NEED_USER','Express allocation is not verified for this provider. Continue manually in the provider window.');
+          return;
+        }
+        this.reservation.assertBinding({runId:this.state.id,eventKey:this.state.eventKey,windowId:this.state.windowId});
+        this.orchestrator.transition('VALIDATE_ACTION','Validating Express allocation.');
+        if(!this.orchestrator.check(handle))return;
+        this.orchestrator.transition('ACTION_VALIDATED','Requesting seat allocation once.');
+        if(!this.orchestrator.check(handle))return;
+        const result=await this.reservation.reserve();
+        if(!this.orchestrator.check(handle))return;
+        if(result.status==='held'){
+          this.expected=structuredClone(result.order);this.clearSecret();
+          this.orchestrator.transition('HOLD_VERIFIED','Provider seat hold verified.',
+            {order:result.order,reservationVerified:true,holdExpiresAtMs:result.holdExpiresAtMs,
+              holdObservedAtMs:result.holdObservedAtMs},{reservationVerified:true});
+          if(!this.orchestrator.check(handle))return;
+          this.orchestrator.transition('HANDOFF_PAYMENT',
+            'Provider seat hold verified. Complete payment now in the same provider window. Automation will not resume.',
+            {manualPayment:true,paymentMode:'user'});
+        }else{
+          this.clearSecret();
+          this.orchestrator.transition('RESERVATION_UNCERTAIN',
+            'Seat reservation is not verified. Check the same provider window. Automatic reservation retry is blocked.',
+            {reservationVerified:false,reservationRecoveryRequired:true});
+        }
         return;
       }
       if (page.stage === 'confirmation') {

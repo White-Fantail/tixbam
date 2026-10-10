@@ -9,6 +9,8 @@ const {PaymentReconciler}=require('./reconciliation.cjs');
 const {SessionCoordinator}=require('./session-coordinator.cjs');
 const {GatedMockPaymentExecutor}=require('./payment-executor.cjs');
 const {DEFINITIONS,getScenario}=require('./rehearsal-fixtures.cjs');
+const {ExpressRehearsalAdapter}=require('./express-rehearsal.cjs');
+const {ReservationLedger,ReservationTransaction}=require('./reservation.cjs');
 const ID=/^[0-9a-f-]{36}$/i;
 const STATES=new Set(['running','review','awaiting_user','submitting','completed','payment_unknown','stopped','failed']);
 function deterministicNumber(seed,salt){
@@ -23,7 +25,7 @@ function makePreferences(plan,kind){
     allowFallback:plan.allowFallback===true,checkout:'review',
     options:{performance:'practice-performance',priceTier:['practice-standard'],
       section:[],floor:[],seatMode:kind==='standing'?'standing':
-        ['automatic','auto_unverified'].includes(kind)?'automatic':'',fulfillment:''}};
+        (kind.startsWith('express')||['automatic','auto_unverified'].includes(kind))?'automatic':'',fulfillment:''}};
 }
 function makeSyntheticOffer(key,prefs,seed,kind){
   const qty=prefs.quantity,ticket=Math.max(1,Math.floor(prefs.maxTotalMinor/(3*qty)));
@@ -45,9 +47,9 @@ function makeSyntheticOffer(key,prefs,seed,kind){
     extras:[],
     priceTier:'practice-standard',performance:'practice-performance',section:'Mock-A',floor:'Mock',
     seatMode:kind==='standing'?'standing':
-      ['automatic','auto_unverified'].includes(kind)?'automatic':'assigned',
+      (kind.startsWith('express')||['automatic','auto_unverified'].includes(kind))?'automatic':'assigned',
     areaId:kind==='standing'?'Mock-Pit':undefined,
-    verifiedAllocation:kind==='automatic'?true:
+    verifiedAllocation:kind.startsWith('express')||kind==='automatic'?true:
       kind==='auto_unverified'?false:undefined,
     fulfillment:'eticket',seats};
 }
@@ -170,6 +172,8 @@ class RehearsalDriver{
       seed:this.last.seed,status:run.status,phase:run.phase,message:run.message,
       challenge:this.adapter?.challengeType||'none',recovered:false,
       paymentAttempts:this.adapter?.payments||0,
+      reservationVerified:run.reservationVerified,holdExpiresAtMs:run.holdExpiresAtMs,
+      holdObservedAtMs:run.holdObservedAtMs,reservationRecoveryRequired:run.reservationRecoveryRequired,
       order:run.order?{quantity:run.order.quantity,totalMinor:run.order.totalMinor,
         currency:run.order.currency,seats:run.order.seats}:null,
       events:this.events.slice(-16),
@@ -194,7 +198,18 @@ class RehearsalDriver{
       const prefs=makePreferences(this.plan,scenario.kind);
       const runId=crypto.randomUUID();
       const key='rehearsal-'+crypto.createHash('sha256').update(runId+':'+scenario.id).digest('hex');
-      const adapter=new ScenarioAdapter(key,prefs,scenario,seed);
+      let adapter=new ScenarioAdapter(key,prefs,scenario,seed);
+      let reservationScope=null;
+      if(scenario.kind.startsWith('express')){
+        reservationScope={accountId:'offline-rehearsal',providerId:'rehearsal',
+          performanceId:'practice-performance',providerEventId:'synthetic-event',
+          providerPerformanceId:'practice-performance',eventKey:key,
+          sessionId:'synthetic-'+runId,runId,windowId:0,generation:1};
+        const order={...adapter.offer,providerEventId:reservationScope.providerEventId,
+          canonicalPerformanceId:reservationScope.performanceId};
+        adapter=new ExpressRehearsalAdapter({scope:reservationScope,preferences:prefs,
+          order,kind:scenario.kind,clock:this.clock});
+      }
       const dir=path.join(this.folder,'runs',runId);
       fs.mkdirSync(dir,{recursive:true,mode:0o700});
       const ledger=new PaymentAttemptLedger(dir,{clock:this.clock});
@@ -205,6 +220,7 @@ class RehearsalDriver{
         allowFallback:prefs.allowFallback,checkout:prefs.checkout};
       this.events=[];
       const runner=new BookingRunner({
+        runId,
         adapter,preferences:prefs,eventKey:key,windowId:0,rehearsal:true,
         notify:state=>{
           this.events.push({phase:state.phase,status:state.status,message:state.message});
@@ -221,7 +237,14 @@ class RehearsalDriver{
         saleId:permit.saleId,performanceId:permit.performanceId,
         eventKey:key,planId:permit.planId,rehearsal:true
       });
-      runner.payment=new GatedMockPaymentExecutor({
+      if(reservationScope){
+        const reservationDir=path.join(dir,'reservation');fs.mkdirSync(reservationDir,{mode:0o700});
+        runner.reservation=new ReservationTransaction({scope:reservationScope,preferences:prefs,
+          ledger:new ReservationLedger(reservationDir),read:args=>adapter.read(args),
+          allocate:(request,args)=>adapter.allocate(request,args),
+          authorize:()=>true,assertOwner:()=>coordinator.assertOwner(runner.state.id,0,key),
+          clock:this.clock,rehearsal:true});
+      }else runner.payment=new GatedMockPaymentExecutor({
         adapter,ledger,coordinator,binding:lease,clock:this.clock
       });
       this.coordinator=coordinator;

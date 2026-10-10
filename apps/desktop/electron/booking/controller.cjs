@@ -30,6 +30,14 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
       mayHaveCommitted: state.status==='payment_unknown'||state.status==='completed',
     });
     send('tixbam:booking-changed', state);
+    if(!state.rehearsal&&state.phase==='MANUAL_PAYMENT'){
+      try{
+        const runner=runs.get(state.id);if(!runner)throw Error('Unknown run');
+        runner.orchestrator.assertOwner();
+        const entry=ticketWindows.get(state.windowId);
+        entry.win.show();entry.win.focus();
+      }catch{/* Ownership change or a closed window must not redirect payment. */}
+    }
     if (['awaiting_user', 'review', 'completed', 'payment_unknown', 'failed'].includes(state.status) && Notification.isSupported()) {
       try { new Notification({ title: state.rehearsal ? 'TIXBAM rehearsal' : 'TIXBAM booking', body: state.message }).show(); } catch { /* Notifications do not interrupt bookings. */ }
     }
@@ -191,7 +199,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   });
   handle('resume-booking', async (id, confirm = false) => {
     const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.');
-    if(runner.state.phase==='MANUAL_PAYMENT')
+    if(['MANUAL_PAYMENT','RESERVATION_UNKNOWN'].includes(runner.state.phase))
       throw new Error('Complete payment in the same provider window. This run cannot resume automation.');
     if (!['awaiting_user', 'review'].includes(runner.state.status) || runner.busy) throw new Error('This run cannot be resumed now.');
     if (runner.state.status === 'review' && confirm !== true) throw new Error('Confirm the displayed order before payment.');

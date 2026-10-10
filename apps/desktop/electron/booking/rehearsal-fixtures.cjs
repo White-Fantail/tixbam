@@ -1,6 +1,11 @@
 'use strict';
 /** Offline only. These are simulated exercises, not live vendor capabilities. */
 const DEFINITIONS=Object.freeze([
+  {id:'express',kind:'express',title:'Express hold and user payment',ko:'Express 확보 후 직접 결제',hint:'Synthetic allocation and verified cart hold; no payment.',hintKo:'모의 배정·장바구니 보류 검증 후 직접 결제 인계'},
+  {id:'express_timeout',kind:'express_timeout',title:'Express response lost',ko:'Express 예약 응답 유실',hint:'No automatic reservation retry.',hintKo:'예약 결과 불명확 시 재예약 금지'},
+  {id:'express_separated',kind:'express_separated',title:'Express seats separated',ko:'Express 비인접 배정',hint:'Reject an allocation that violates adjacency.',hintKo:'연석 조건에 맞지 않는 배정은 확보 성공으로 표시하지 않아요'},
+  {id:'express_expired',kind:'express_expired',title:'Express hold expired',ko:'Express 보류 만료',hint:'Expired holds never count as secured.',hintKo:'만료된 보류는 확보로 표시하지 않아요'},
+  {id:'express_missing_hold',kind:'express_missing_hold',title:'Express hold unverified',ko:'Express 보류 미확인',hint:'A seat allocation is not a verified hold.',hintKo:'좌석 배정만으로 보류를 확인했다고 판단하지 않아요'},
   {id:'standard',kind:'success',title:'Normal purchase',ko:'정상 구매',hint:'Mock selection, review, payment and synthetic receipt.',hintKo:'좌석 선택부터 모의 결제 확인까지'},
   {id:'queue',kind:'queue',title:'Waiting room',ko:'대기열',hint:'Pause until the user dismisses the simulated queue.',hintKo:'대기열 통과 후 수동 재개'},
   {id:'sold_out',kind:'sold_out',title:'Sold out',ko:'매진',hint:'No qualifying inventory; never invent replacement seats.',hintKo:'매진 시 임의 대체 구매 금지'},

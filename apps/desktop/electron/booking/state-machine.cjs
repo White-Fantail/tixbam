@@ -8,7 +8,7 @@ const PHASES = Object.freeze([
   'CREATED','WAITING_FOR_SESSION','OBSERVING','DECIDING',
   'VALIDATING_ACTION','EXECUTING_ACTION','OFFER_SELECTED','ORDER_REVIEW',
   'READY_TO_COMMIT','PAYMENT_COMMITTING','VERIFYING','WAITING_FOR_USER',
-  'MANUAL_PAYMENT','CONFIRMED','PAYMENT_UNKNOWN','STOPPED','FAILED',
+  'MANUAL_PAYMENT','RESERVATION_UNKNOWN','CONFIRMED','PAYMENT_UNKNOWN','STOPPED','FAILED',
 ]);
 const TERMINAL_PHASES = new Set(['CONFIRMED','PAYMENT_UNKNOWN','STOPPED','FAILED']);
 
@@ -22,10 +22,11 @@ const NEXT = Object.freeze({
     VERIFIED_RECEIPT:'CONFIRMED',
   },
   VALIDATING_ACTION: { ACTION_VALIDATED:'EXECUTING_ACTION', NEED_USER:'WAITING_FOR_USER' },
-  EXECUTING_ACTION: { ACTION_RETURNED:'OBSERVING', NEED_USER:'WAITING_FOR_USER' },
+  EXECUTING_ACTION: { ACTION_RETURNED:'OBSERVING', NEED_USER:'WAITING_FOR_USER', HOLD_VERIFIED:'ORDER_REVIEW', RESERVATION_UNCERTAIN:'RESERVATION_UNKNOWN' },
   OFFER_SELECTED: { VALIDATE_ACTION:'VALIDATING_ACTION', CONTINUE:'OBSERVING', NEED_USER:'WAITING_FOR_USER' },
   ORDER_REVIEW: { USER_CONFIRMED:'OBSERVING', REVIEW_REQUIRED:'ORDER_REVIEW', COMMIT_READY:'READY_TO_COMMIT', NEED_USER:'WAITING_FOR_USER', HANDOFF_PAYMENT:'MANUAL_PAYMENT' },
   MANUAL_PAYMENT: {}, // Never resume automation after user takeover.
+  RESERVATION_UNKNOWN: {}, // Read-only provider review, never request again.
   READY_TO_COMMIT: { COMMIT_STARTED:'PAYMENT_COMMITTING', NEED_USER:'WAITING_FOR_USER' },
   PAYMENT_COMMITTING: { SUBMIT_RETURNED:'VERIFYING' },
   VERIFYING: { CONTINUE:'OBSERVING', NEED_USER:'WAITING_FOR_USER', VERIFIED_RECEIPT:'CONFIRMED' },
@@ -38,7 +39,7 @@ const PUBLIC_STATUS = Object.freeze({
   DECIDING:'running',VALIDATING_ACTION:'running',EXECUTING_ACTION:'running',
   OFFER_SELECTED:'running',ORDER_REVIEW:'review',READY_TO_COMMIT:'running',
   PAYMENT_COMMITTING:'submitting',VERIFYING:'running',
-  WAITING_FOR_USER:'awaiting_user',MANUAL_PAYMENT:'awaiting_user',CONFIRMED:'completed',
+  WAITING_FOR_USER:'awaiting_user',MANUAL_PAYMENT:'awaiting_user',RESERVATION_UNKNOWN:'awaiting_user',CONFIRMED:'completed',
   PAYMENT_UNKNOWN:'payment_unknown',STOPPED:'stopped',FAILED:'failed',
 });
 
@@ -85,6 +86,8 @@ class BookingStateMachine {
       next = 'PAYMENT_UNKNOWN';
     } else next = NEXT[this.phase]?.[event];
     if (!next || !PHASES.includes(next)) throw new InvalidTransition('Forbidden booking state transition');
+    if(event==='HOLD_VERIFIED'&&evidence.reservationVerified!==true)
+      throw new InvalidTransition('Verified reservation required');
     if (event === 'VERIFIED_RECEIPT' && (!this.commitStarted || evidence.verifiedReceipt !== true))
       throw new InvalidTransition('Provider receipt verification required');
     if (event === 'COMMIT_STARTED') {

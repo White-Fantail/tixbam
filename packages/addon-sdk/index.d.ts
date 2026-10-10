@@ -78,6 +78,7 @@ export interface BookingRun {
   claimOnly?: boolean; legacyScopeUnresolved?: boolean; safetyRecoveryRequired?: boolean;
   providerId?: string; aiPageStage?: string;
   paymentMode?: 'user' | 'automatic'; manualPayment?: boolean; reservationVerified?: boolean;
+  holdExpiresAtMs?: number | null; holdObservedAtMs?: number; reservationRecoveryRequired?: boolean;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
 export interface CheckoutReadiness {
@@ -148,7 +149,7 @@ export type BookingPhase =
   | 'CREATED' | 'WAITING_FOR_SESSION' | 'OBSERVING' | 'DECIDING'
   | 'VALIDATING_ACTION' | 'EXECUTING_ACTION' | 'OFFER_SELECTED'
   | 'ORDER_REVIEW' | 'READY_TO_COMMIT' | 'PAYMENT_COMMITTING'
-  | 'VERIFYING' | 'WAITING_FOR_USER' | 'MANUAL_PAYMENT' | 'CONFIRMED'
+  | 'VERIFYING' | 'WAITING_FOR_USER' | 'MANUAL_PAYMENT' | 'RESERVATION_UNKNOWN' | 'CONFIRMED'
   | 'PAYMENT_UNKNOWN' | 'STOPPED' | 'FAILED';
 
 
@@ -264,7 +265,9 @@ export interface BookingLeaseAcquireV1 extends BookingLeaseStatusV1 {
 export type RehearsalScenarioIdV1 =
   | 'standard' | 'queue' | 'sold_out' | 'price_change' | 'fees_change'
   | 'captcha' | 'bank_3ds' | 'payment_timeout' | 'unknown_charge'
-  | 'restart' | 'standing' | 'automatic' | 'adjacency' | 'stale';
+  | 'restart' | 'standing' | 'automatic' | 'adjacency' | 'stale'
+  | 'restricted_view' | 'unknown_fees' | 'auto_unverified'
+  | 'express' | 'express_timeout' | 'express_separated' | 'express_expired' | 'express_missing_hold';
 export interface RehearsalScenarioInfoV1 {
   id: RehearsalScenarioIdV1;
   title: string; ko: string; hint: string; hintKo: string;
@@ -279,6 +282,8 @@ export interface RehearsalLabObservationV1 {
   recovered: boolean;
   challenge?: 'none' | 'queue' | 'captcha' | '3ds';
   paymentAttempts?: number;
+  reservationVerified?:boolean;holdExpiresAtMs?:number|null;holdObservedAtMs?:number;
+  reservationRecoveryRequired?:boolean;
   /** Entirely synthetic mock-order summary, never real merchant data. */
   order?: null | {quantity: number; totalMinor: number; currency: string; seats: string[]};
   events?: ReadonlyArray<{phase: string;status: string;message: string}>;

@@ -15,7 +15,8 @@ const DIGEST=/^[a-f0-9]{64}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TYPES=new Set(['RUN_CREATED','OFFER_LOCKED','COMMIT_INTENT_RECORDED',
   'PAYMENT_SUBMISSION_RETURNED','PAYMENT_UNKNOWN','PURCHASE_CONFIRMED','RUN_STOPPED',
-  'RECONCILIATION_REVIEWED','CLAIM_REQUESTED']);
+  'RECONCILIATION_REVIEWED','CLAIM_REQUESTED','RESERVATION_REQUESTED',
+  'RESERVATION_HELD','RESERVATION_UNKNOWN']);
 const BASIC=new Set(['version','seq','prevHash','hash','type','atMs','scopeDigest',
   'runId','attemptId','permitDigest','orderDigest','receiptDigest','rehearsal',
   'reviewDigest','reviewOutcome','purchaseScopeVersion']);
@@ -35,12 +36,15 @@ function validEvent(e){
      !DIGEST.test(e.prevHash)||!DIGEST.test(e.hash))return false;
   const has=k=>Object.hasOwn(e,k);
   if(e.version===1&&(has('purchaseScopeVersion')||e.type==='CLAIM_REQUESTED'))return false;
+  if(e.version===1&&e.type.startsWith('RESERVATION_'))return false;
   if(e.version===2&&e.purchaseScopeVersion!==2)return false;
   if(e.type==='RUN_CREATED')return has('permitDigest')&&DIGEST.test(e.permitDigest)&&
     !has('attemptId')&&!has('orderDigest')&&!has('receiptDigest');
   if(e.type==='OFFER_LOCKED')return has('orderDigest')&&DIGEST.test(e.orderDigest)&&
     !has('attemptId')&&!has('permitDigest')&&!has('receiptDigest');
-  if(['COMMIT_INTENT_RECORDED','CLAIM_REQUESTED'].includes(e.type))return UUID.test(e.attemptId)&&
+  if(e.type==='RESERVATION_HELD')return e.version===2&&UUID.test(e.attemptId)&&
+    DIGEST.test(e.orderDigest)&&!has('permitDigest')&&!has('receiptDigest');
+  if(['COMMIT_INTENT_RECORDED','CLAIM_REQUESTED','RESERVATION_REQUESTED'].includes(e.type))return UUID.test(e.attemptId)&&
     DIGEST.test(e.permitDigest)&&DIGEST.test(e.orderDigest)&&!has('receiptDigest');
   if(e.type==='RECONCILIATION_REVIEWED')return UUID.test(e.attemptId)&&
     DIGEST.test(e.reviewDigest)&&

@@ -6,6 +6,7 @@ import { currencyFactor } from '../booking-plans';
 import { SeatRulesEditor } from './SeatRulesEditor';
 import { tx, useLanguage } from '../i18n';
 import { RunAIAdvisor } from './RunAIAdvisor';
+import { ReservationNotice } from './ReservationNotice';
 const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
   return ctx.preferences || { schemaVersion: 1, quantity: 2, maxTotalMinor: 200000, currency: ctx.schema.currency, requireTogether: true, allowFallback: true, checkout: 'review', options: Object.fromEntries(ctx.schema.fields.map(f => [f.id, f.type === 'ranked' ? [] : ''])) };
@@ -216,7 +217,8 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
           tx("Actual provider payment automation is disabled. Finish payment in the official site.")}</p>
       </div>}
       <RunAIAdvisor run={run}/>
-      <div className="booking-actions">{run.phase!=='MANUAL_PAYMENT'&&['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy || (run.status==='review'&&!reviewApproved)} onClick={()=>perform(async()=> {const approved=run.status==='review'&&!!finalApproval&&
+      <ReservationNotice {...run}/>
+      <div className="booking-actions">{!['MANUAL_PAYMENT','RESERVATION_UNKNOWN'].includes(run.phase||'')&&['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy || (run.status==='review'&&!reviewApproved)} onClick={()=>perform(async()=> {const approved=run.status==='review'&&!!finalApproval&&
             finalApproval.runId===run.id&&finalApproval.signature===reviewSignature&&
             Date.now()-finalApproval.approvedAt<60_000;
             if(run.status==='review'&&!approved)throw Error('Final order approval expired. Review the order again.');

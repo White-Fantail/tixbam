@@ -56,7 +56,7 @@ class BookingOrchestrator {
    * never across cancellation, window changes or a newer step.
    */
   begin({confirm = false} = {}) {
-    if (this.machine.phase === 'MANUAL_PAYMENT') return null;
+    if (['MANUAL_PAYMENT','RESERVATION_UNKNOWN'].includes(this.machine.phase)) return null;
     if (this.current || this.cancelled || this.machine.terminal) return null;
     if (this.machine.phase === 'ORDER_REVIEW' && !confirm) return null;
     this.assertOwner();

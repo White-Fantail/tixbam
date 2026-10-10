@@ -64,6 +64,8 @@ export interface RehearsalLabState {
   active:boolean;scenarioId:string|null;status:string;phase?:string;
   message:string;recovered:boolean;seed?:number;
   challenge?:string;paymentAttempts?:number;
+  reservationVerified?:boolean;holdExpiresAtMs?:number|null;holdObservedAtMs?:number;
+  reservationRecoveryRequired?:boolean;
   order?:null|{quantity:number;totalMinor:number;currency:string;seats:string[]};
   events?:Array<{phase:string;status:string;message:string}>;
   reconciliation?:{reviewed:boolean;reviewOutcome:string|null;purchaseBlocked:true};
