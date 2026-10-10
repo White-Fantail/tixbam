@@ -579,14 +579,14 @@ function App() {
         ? "이번 예매에서 사전 승인한 AI 화면 분석을 자동 실행할까요?\\n"
           +"대상: "+plan.title+"\\n"
           +"모드: "+(consent.developmentOverride
-              ?"개발자 자동화: 비결제 단계 최대 6회 클릭 및 재검증"
+              ?"개발자 자동화: 비결제 단계 최대 20회 클릭 및 재검증"
               :consent.mode==="authorized"?"예매처 허용 작업 자동 진행":"화면 분석 및 위치 안내")+"\\n"
           +"허용 항목: "+consent.actions.join(", ")+"\\n"
-          +"최대 15분, AI 분석 8회, 자동 클릭 6회. 로그인·대기열·결제는 사용자가 처리하며 완료 후 재개할 수 있습니다. 이미지는 외부 AI에 전송됩니다. 좌석 확보는 공식 증빙 전까지 확정하지 않습니다."
+          +"최대 2시간, AI 분석 24회, 자동 클릭 20회. 로그인·대기열·결제는 사용자가 처리하며 완료 후 재개할 수 있습니다. 이미지는 외부 AI에 전송됩니다. 좌석 확보는 공식 증빙 전까지 확정하지 않습니다."
         : "Start your advance-approved AI guidance for "+plan.title+"?\\n"
-          +"Mode: "+(consent.developmentOverride?"developer multi-step test: up to SIX non-payment clicks":consent.mode)
+          +"Mode: "+(consent.developmentOverride?"developer multi-step test: up to TWENTY non-payment clicks":consent.mode)
             +"; allowed kinds: "+consent.actions.join(", ")+"\\n"
-          +"Up to 15 minutes, 8 AI uploads and 6 clicks. Login, queue and checkout require user action and resume. Seat holds require provider confirmation. Stop anytime.";
+          +"Up to two hours, 24 AI uploads and 20 clicks. Login, queue and checkout require user action and resume. Seat holds require provider confirmation. Stop anytime.";
       if(!window.confirm(message))return;
     }
     setBusy("plan-" + plan.id);
