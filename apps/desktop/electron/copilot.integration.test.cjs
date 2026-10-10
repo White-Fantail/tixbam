@@ -194,7 +194,7 @@ test('Cityline manual-only addon: explicit developer automatic mode is configura
     actions:['seat','quantity'],developmentOverride:true};
   const armed=host.arm(42,{...developerConditions,currency:'HKD'},consent);
   assert.equal(armed.requestedMode,'authorized','chosen mode must not be silently downgraded');
-  assert.equal(armed.mode,'dev_single_click','only developer test executor is permitted');
+  assert.equal(armed.mode,'dev_flow','only developer multi-step executor is permitted');
   await host.observe(42);
   assert.equal(requests[0].providerId,'cityline');
   assert.deepEqual(state.events.map(x=>x.type),['mouseDown','mouseUp']);
