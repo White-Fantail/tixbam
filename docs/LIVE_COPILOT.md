@@ -10,7 +10,7 @@ Live booking is the primary user journey. A Booking Plan contains hard requireme
 - After a separate user confirmation, the host verifies exact window ownership, plan/provider, URL, phase, viewport size, age and screenshot content **again**, then sends one native mouse-down/up pair into that browser. A consumed or stale snapshot cannot be reused.
 - Changing navigation, window, account, phase or closing the browser invalidates previews. No arbitrary URLs, JavaScript, CSS selectors or page DOM cross the dashboard IPC boundary.
 - Provider pages receive no privileged preload, JS injection, automation extension or payment details.
-- If the page is animated or a countdown changes, the strict pixel-digest comparison may reject an otherwise valid target. This is intentional fail-closed behavior; recapture before trying again.
+- A click rechecks the same URL, window, plan, stage, snapshot age and viewport; it also compares the **exact target neighbourhood** against the original JPEG. Unrelated countdowns/animated banners are tolerated, but a changed target neighbourhood fails closed. Browser focus occurs *before* that comparison. Recapture after a button or seat changes.
 - The native pointer overlay needs packaged macOS/Windows QA for positioning and input pass-through.
 - This mode is a human-directed remote click, **not automatic seat selection**, actual inventory verification or a reservation. Payment outcome is never inferred.
 
