@@ -27,6 +27,14 @@ test('preparation preview is local-only, provider-bound and never an action perm
   assert.equal(screenAllowed({...pre,win:{...pre.win,webContents:{...pre.win.webContents,getURL:()=> 'https://nol.yanolja.com/login'}}},nolHosts,12,{localPreview:true}).allowed,false);
   assert.equal(screenAllowed({...pre,win:{...pre.win,webContents:{...pre.win.webContents,getURL:()=> 'https://notnol.yanolja.com.evil.test/product'}}},nolHosts,12,{localPreview:true}).allowed,false);
 });
+test('user-selected linked popup is eligible only with safe host and stage',()=>{
+  const popup={...entry('https://nol.yanolja.com/ticket/seat'),providerId:'nol',
+    phase:'selecting',popup:true,parentId:12};
+  assert.equal(screenAllowed(popup,['nol.yanolja.com'],12).allowed,true);
+  assert.equal(screenAllowed({...popup,parentId:null},['nol.yanolja.com'],12).allowed,false);
+  assert.equal(screenAllowed({...popup,phase:'checkout'},['nol.yanolja.com'],12).allowed,false);
+  assert.equal(screenAllowed({...popup,win:{...popup.win,webContents:{...popup.win.webContents,getURL:()=> 'https://other.example/ticket'}}},['nol.yanolja.com'],12).allowed,false);
+});
 test('target coordinates are bounded and scaled to the content viewport',()=>{
   assert.deepEqual(pixelPoint({x:0.5,y:0.25},1000,800),{x:500,y:200});
   for(const p of [{x:1,y:0.5},{x:0.5,y:-0.1},{x:NaN,y:0.1},{x:'0.5',y:0.2}])
