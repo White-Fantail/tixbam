@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld("tixbam", {
   openTicketAgent: (sourceWindowId, agentUrl) => ipcRenderer.invoke("tixbam:open-ticket-agent", sourceWindowId, agentUrl),
   copilotDeveloperCapabilities: () => ipcRenderer.invoke("tixbam:copilot-developer-capabilities"),
   copilotAdvanceArm: (id,conditions,consent) => ipcRenderer.invoke("tixbam:copilot-advance-arm", id,conditions,consent),
+  copilotAdvanceResume: id => ipcRenderer.invoke("tixbam:copilot-advance-resume", id),
   copilotAdvanceStop: id => ipcRenderer.invoke("tixbam:copilot-advance-stop", id),
   copilotAdvanceStatus: id => ipcRenderer.invoke("tixbam:copilot-advance-status", id),
   onCopilotAdvanceUpdate: listener => {
