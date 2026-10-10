@@ -91,7 +91,7 @@ class LiveCopilot {
         ? 'Provider automation unavailable: '+permission.reason+' Visual guidance only.'
         : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
   }
-  disarm(windowId) {
+  disarm(windowId,{completed=false}={}) {
     const pendingTimer=this.autoTimers.get(windowId);
     if(pendingTimer){clearTimeout(pendingTimer);this.autoTimers.delete(windowId);}
     const session=this.autoSessions.get(windowId);
@@ -99,7 +99,7 @@ class LiveCopilot {
     session.stopped=true;
     this.autoSessions.delete(windowId);
     this.clear(windowId);
-    this.autoInfo(session,'stopped','Advance authorization revoked.');
+    if(!completed)this.autoInfo(session,'stopped','Advance authorization revoked.');
     return true;
   }
   autoStatus(windowId){
@@ -155,9 +155,9 @@ class LiveCopilot {
         const result=await this.click(windowId,shot.token,
           {x:devCandidate.x,y:devCandidate.y},{developerSession:session,developerTarget:devCandidate});
         session.automaticClicks+=1;
+        this.disarm(windowId,{completed:true});
         this.autoInfo(session,'clicked','Developer test: one native input pair delivered; no seat hold verified.',
           {targets:[devCandidate],clickResult:result});
-        this.disarm(windowId);
         return;
       }
       if(candidates.length) {
