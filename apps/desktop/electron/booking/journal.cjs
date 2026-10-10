@@ -10,15 +10,15 @@ const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
 
-const VERSION=1, MAX_BYTES=8*1024*1024;
+const VERSION=2, MAX_BYTES=8*1024*1024;
 const DIGEST=/^[a-f0-9]{64}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TYPES=new Set(['RUN_CREATED','OFFER_LOCKED','COMMIT_INTENT_RECORDED',
   'PAYMENT_SUBMISSION_RETURNED','PAYMENT_UNKNOWN','PURCHASE_CONFIRMED','RUN_STOPPED',
-  'RECONCILIATION_REVIEWED']);
+  'RECONCILIATION_REVIEWED','CLAIM_REQUESTED']);
 const BASIC=new Set(['version','seq','prevHash','hash','type','atMs','scopeDigest',
   'runId','attemptId','permitDigest','orderDigest','receiptDigest','rehearsal',
-  'reviewDigest','reviewOutcome']);
+  'reviewDigest','reviewOutcome','purchaseScopeVersion']);
 const cleanRecord=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&
   (Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
 const sortedJson=value=>JSON.stringify(value);
@@ -29,16 +29,18 @@ class JournalUnavailable extends Error {
 }
 function validEvent(e){
   if(!cleanRecord(e)||Reflect.ownKeys(e).some(k=>typeof k!=='string'||!BASIC.has(k))||
-     e.version!==VERSION||!Number.isSafeInteger(e.seq)||e.seq<1||
+     ![1,2].includes(e.version)||!Number.isSafeInteger(e.seq)||e.seq<1||
      !Number.isSafeInteger(e.atMs)||e.atMs<1||!TYPES.has(e.type)||
      !DIGEST.test(e.scopeDigest)||!UUID.test(e.runId)||typeof e.rehearsal!=='boolean'||
      !DIGEST.test(e.prevHash)||!DIGEST.test(e.hash))return false;
   const has=k=>Object.hasOwn(e,k);
+  if(e.version===1&&(has('purchaseScopeVersion')||e.type==='CLAIM_REQUESTED'))return false;
+  if(e.version===2&&e.purchaseScopeVersion!==2)return false;
   if(e.type==='RUN_CREATED')return has('permitDigest')&&DIGEST.test(e.permitDigest)&&
     !has('attemptId')&&!has('orderDigest')&&!has('receiptDigest');
   if(e.type==='OFFER_LOCKED')return has('orderDigest')&&DIGEST.test(e.orderDigest)&&
     !has('attemptId')&&!has('permitDigest')&&!has('receiptDigest');
-  if(e.type==='COMMIT_INTENT_RECORDED')return UUID.test(e.attemptId)&&
+  if(['COMMIT_INTENT_RECORDED','CLAIM_REQUESTED'].includes(e.type))return UUID.test(e.attemptId)&&
     DIGEST.test(e.permitDigest)&&DIGEST.test(e.orderDigest)&&!has('receiptDigest');
   if(e.type==='RECONCILIATION_REVIEWED')return UUID.test(e.attemptId)&&
     DIGEST.test(e.reviewDigest)&&
@@ -178,7 +180,7 @@ class DurableBookingJournal {
         if(!cleanRecord(part)||Object.hasOwn(part,'hash')||
            Object.hasOwn(part,'seq')||Object.hasOwn(part,'prevHash')||
            Object.hasOwn(part,'version'))throw new JournalUnavailable('unsafe_event');
-        const unsigned={version:VERSION,seq:++number,prevHash:last,...part};
+        const unsigned={version:VERSION,seq:++number,prevHash:last,purchaseScopeVersion:2,...part};
         const record={...unsigned,hash:hash(sortedJson(unsigned))};
         if(!validEvent(record))throw new JournalUnavailable('invalid_event');
         last=record.hash;built.push(record);

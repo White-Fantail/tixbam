@@ -3,7 +3,7 @@
  * AB-05 — host-owned purchase intent ledger.
  *
  * An attempt is recorded and fsynced before any external submit can happen.
- * Same account + provider + actual sale/performance is single-use until
+ * Same account + canonical performance is single-use until
  * separately reconciled; even CONFIRMED does not authorize an automatic retry.
  * No raw event/order/seat IDs, account IDs, URLs or payment secrets are stored.
  */
@@ -99,21 +99,28 @@ function scan(events){
       if(!run||run.scopeDigest!==e.scopeDigest||offers.has(e.runId))
         throw new JournalUnavailable('invalid_offer_transition');
       offers.set(e.runId,e);
-    }else if(e.type==='COMMIT_INTENT_RECORDED'){
+    }else if(['CLAIM_REQUESTED','COMMIT_INTENT_RECORDED'].includes(e.type)){
       const run=created.get(e.runId),offer=offers.get(e.runId);
-      if(!run||!offer||lastByScope.has(e.scopeDigest)||
+      const prior=lastByScope.get(e.scopeDigest);
+      const upgrade=e.type==='COMMIT_INTENT_RECORDED'&&prior?.claimOnly===true&&
+        prior.runId===e.runId&&prior.attemptId===e.attemptId&&
+        prior.permitDigest===e.permitDigest&&prior.orderDigest===e.orderDigest&&
+        prior.rehearsal===e.rehearsal&&prior.scopeVersion===2;
+      if(!run||!offer||(prior&&!upgrade)||
          run.scopeDigest!==e.scopeDigest||offer.scopeDigest!==e.scopeDigest||
          run.permitDigest!==e.permitDigest||offer.orderDigest!==e.orderDigest||
-         [...pending.values()].some(p=>p.attemptId===e.attemptId))
+         run.version!==e.version||offer.version!==e.version||
+         (!upgrade&&pending.has(e.attemptId)))
         throw new JournalUnavailable('duplicate_or_invalid_commit');
       const attempt={attemptId:e.attemptId,runId:e.runId,
         scopeDigest:e.scopeDigest,permitDigest:e.permitDigest,
-        orderDigest:e.orderDigest,atMs:e.atMs,rehearsal:e.rehearsal,
-        status:'payment_unknown'};
+        orderDigest:e.orderDigest,atMs:prior?.atMs||e.atMs,rehearsal:e.rehearsal,
+        scopeVersion:e.version===1?1:2,
+        claimOnly:e.type==='CLAIM_REQUESTED',status:'payment_unknown'};
       pending.set(e.attemptId,attempt);lastByScope.set(e.scopeDigest,attempt);
     }else if(['PAYMENT_SUBMISSION_RETURNED','PAYMENT_UNKNOWN','PURCHASE_CONFIRMED'].includes(e.type)){
       const p=pending.get(e.attemptId);
-      if(!p||p.runId!==e.runId||p.scopeDigest!==e.scopeDigest||
+      if(!p||p.claimOnly||p.runId!==e.runId||p.scopeDigest!==e.scopeDigest||
          p.rehearsal!==e.rehearsal||p.status==='completed'||
          (e.type==='PAYMENT_SUBMISSION_RETURNED'&&p.returned===true))
         throw new JournalUnavailable('invalid_payment_transition');
@@ -143,49 +150,71 @@ class PaymentAttemptLedger{
   #events(){return scan(this.journal.read());}
   scopeDigest(permit){
     const p=canonicalPermit(permit);
-    // Intentionally excludes plan and quantity to block accidental retries
-    // using another plan, quantity or price for the SAME actual performance.
-    return this.journal.digest(['purchase-scope-v1',p.accountId,p.providerId,
-      p.saleId,p.eventKey,p.performanceId]);
+    // Excludes seller, sale, event page, plan and quantity. Server-verified
+    // performance identity is shared by presale/general sale and all sellers.
+    return this.journal.digest(['purchase-scope-v2',p.accountId,p.performanceId]);
   }
   hasAttempt(permit){
     const scope=this.scopeDigest(permit);
-    return this.#events().byScope.has(scope);
+    const state=this.#events();
+    return state.attempts.some(a=>a.scopeVersion===1&&!a.rehearsal)||state.byScope.has(scope);
   }
   /**
    * One exclusive transaction writes all three records and fsyncs them.
    * It returns only AFTER durable commit intent is guaranteed.
    */
-  recordCommitIntent({runId,permit,order,rehearsal=false}={}){
+  recordClaimRequested(input){
+    // Persist before ANY claim network call. This latch survives lost server
+    // responses, signout and a crash before COMMIT_INTENT can be appended.
+    if(input?.rehearsal!==false)throw new JournalUnavailable('live_claim_only');
+    return this.#record(input,true);
+  }
+  recordCommitIntent(input){return this.#record(input,false);}
+  #record({runId,permit,order,rehearsal=false},claimOnly){
     if(!UUID.test(runId||''))throw new JournalUnavailable('invalid_run_id');
     const p=canonicalPermit(permit);
-    // A crash-after-fsync or poisoned writer is more important than an
-    // ordinary duplicate: never suppress the lock / corruption warning.
     this.journal.assertWritable();
     const scope=this.scopeDigest(p);
-    // A second attempt for the same account/sale/performance is denied
-    // *before* examining an altered order, quantity, seats or fee model.
-    // The transaction below repeats this check under the exclusive lock.
-    if(this.#events().byScope.has(scope))
+    const existing=this.#events();
+    if(existing.attempts.some(a=>a.scopeVersion===1&&!a.rehearsal))
+      throw new JournalUnavailable('legacy_scope_unresolved');
+    const before=existing.byScope.get(scope);
+    if(before&&(claimOnly||!before.claimOnly||before.runId!==runId))
       throw new JournalUnavailable('duplicate_purchase_intent');
     const o=canonicalOrder(order,p);
     const permitDigest=this.journal.digest(['permit-v1',p]);
     const orderDigest=this.journal.digest(['order-v1',o]);
-    const attemptId=crypto.randomUUID();
+    let attemptId=crypto.randomUUID();
     const atMs=this.clock();
     if(!safeInt(atMs))throw new JournalUnavailable('invalid_clock');
     const batch=this.journal.transact(events=>{
-      if(scan(events).byScope.has(scope))throw new JournalUnavailable('duplicate_purchase_intent');
+      const state=scan(events);
+      // A v1 HMAC cannot be reversed to remove seller/sale. Never reset or
+      // silently reclassify real historical attempts, including confirmations.
+      if(state.attempts.some(a=>a.scopeVersion===1&&!a.rehearsal))
+        throw new JournalUnavailable('legacy_scope_unresolved');
+      const prior=state.byScope.get(scope);
+      const type=claimOnly?'CLAIM_REQUESTED':'COMMIT_INTENT_RECORDED';
+      if(prior){
+        if(claimOnly||!prior.claimOnly||prior.runId!==runId||
+           prior.permitDigest!==permitDigest||prior.orderDigest!==orderDigest||
+           prior.rehearsal!==(rehearsal===true))
+          throw new JournalUnavailable('duplicate_purchase_intent');
+        attemptId=prior.attemptId;
+        return [{type,scopeDigest:scope,runId,atMs,rehearsal:rehearsal===true,
+          attemptId,permitDigest,orderDigest}];
+      }
       const base={scopeDigest:scope,runId,atMs,rehearsal:rehearsal===true};
       return [
         {...base,type:'RUN_CREATED',permitDigest},
         {...base,type:'OFFER_LOCKED',orderDigest},
-        {...base,type:'COMMIT_INTENT_RECORDED',attemptId,permitDigest,orderDigest},
+        {...base,type,attemptId,permitDigest,orderDigest},
       ];
     });
     return Object.freeze({
       runId,attemptId,scopeDigest:scope,permitDigest,orderDigest,
-      journalSequence:batch[2].seq,persistedAtMs:atMs,rehearsal:rehearsal===true
+      journalSequence:batch.at(-1).seq,persistedAtMs:atMs,
+      rehearsal:rehearsal===true,claimOnly,purchaseScopeVersion:2
     });
   }
   #event(intent,type,extra={}){
@@ -200,6 +229,7 @@ class PaymentAttemptLedger{
          current.scopeDigest!==intent.scopeDigest||
          current.rehearsal!==(intent.rehearsal===true))
         throw new JournalUnavailable('unknown_commit');
+      if(current.claimOnly)throw new JournalUnavailable('invalid_payment_transition');
       if(current.status==='completed')throw new JournalUnavailable('already_completed');
       if(type==='PAYMENT_SUBMISSION_RETURNED'&&current.returned)
         throw new JournalUnavailable('already_recorded');
@@ -258,21 +288,28 @@ class PaymentAttemptLedger{
       reviewAtMs:p.reviewAtMs||null,
       requiresOfficialReceipt:!p.rehearsal,
       purchaseBlocked:true, // confirmed also remains single-use
-      noAutomaticRetry:true
+      noAutomaticRetry:true,
+      claimOnly:p.claimOnly,legacyScopeUnresolved:p.scopeVersion===1&&!p.rehearsal
     });
   }
   recovered(){
     // Every unresolved attempt remains UNKNOWN, even if there was a returned
     // submit call. Do not infer no-charge from missing confirmation.
-    return this.#events().attempts.filter(a=>a.status!=='completed')
+    return this.#events().attempts.filter(a=>a.status!=='completed'||a.scopeVersion===1&&!a.rehearsal)
       .map(a=>Object.freeze({
         id:'recovered-'+a.attemptId,attemptId:a.attemptId,
         status:'payment_unknown',phase:'PAYMENT_UNKNOWN',revision:0,generation:0,
         eventKey:'unverified',rehearsal:a.rehearsal,
-        message:a.rehearsal
+        message:a.claimOnly
+          ? 'Purchase safety claim needs review. Payment submission is not established; automatic retry is blocked.'
+          : a.scopeVersion===1&&!a.rehearsal
+          ? 'Legacy purchase scope cannot be verified. Automatic payment remains blocked.'
+          : a.rehearsal
           ? 'Interrupted rehearsal attempt. No real charge was made.'
           : 'Previous payment outcome is unknown. Check the official provider order history before another purchase.',
         startedAt:a.atMs,storageRecovered:true,
+        claimOnly:a.claimOnly,legacyScopeUnresolved:a.scopeVersion===1&&!a.rehearsal,
+        safetyRecoveryRequired:a.claimOnly||a.scopeVersion===1&&!a.rehearsal,
         reviewed:a.reviewed===true,reviewOutcome:a.reviewOutcome||null,
       }));
   }

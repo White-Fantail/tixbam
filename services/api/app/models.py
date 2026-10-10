@@ -283,6 +283,7 @@ class AutomationSafetySetting(Base):
 class PurchaseIntentLease(Base):
     """AB-06: exactly one coordination row per authenticated user + real sale
     and performance. A committed claim stays blocked after lease expiry.
+    PurchaseGuard additionally spans every sale/provider for this performance.
     Never stores payment cards, provider cookies, browser URLs or raw orders.
     """
     __tablename__ = "purchase_intent_leases"
@@ -303,6 +304,25 @@ class PurchaseIntentLease(Base):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PurchaseGuard(Base):
+    """Permanent account/performance purchase tombstone, independent of seller.
+
+    No FK to the catalog: deleting catalog data must never delete purchase debt.
+    Current release has no unlock API or live receipt authority.
+    """
+    __tablename__ = "purchase_guards"
+    __table_args__ = (UniqueConstraint("user_id", "performance_id",
+                                       name="uq_guard_user_performance"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    performance_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    claim_id: Mapped[str] = mapped_column(String(36), nullable=False, default=uuid)
+    lease_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    fencing_token: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="claimed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class AIPlannerRequest(Base):

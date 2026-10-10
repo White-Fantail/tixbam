@@ -10,6 +10,23 @@ const root=path.resolve(__dirname,'..');
 function read(name){return fs.readFileSync(path.join(root,name),'utf8');}
 const definitions=[
   {
+    id:'performance-purchase-guard',group:'B',file:'services/api/app/models.py',
+    pattern:/UniqueConstraint\("user_id", "performance_id",/,
+    about:'Server guard spans all sellers and sales for the same account/performance'
+  },{
+    id:'local-performance-scope',group:'B',file:'apps/desktop/electron/booking/payment-attempts.cjs',
+    pattern:/\['purchase-scope-v2',p\.accountId,p\.performanceId\]/,
+    about:'Local purchase scope never partitions by seller, sale or plan'
+  },{
+    id:'legacy-journal-deny',group:'B',file:'apps/desktop/electron/booking/payment-attempts.cjs',
+    pattern:/throw new JournalUnavailable\('legacy_scope_unresolved'\)/,
+    about:'Unmappable legacy real purchase history never resets the payment latch'
+  },{
+    id:'durable-preclaim',group:'B',file:'apps/desktop/electron/booking/runner.cjs',
+    pattern:/this\.ledger\.recordClaimRequested/,
+    about:'Local claim latch is durable before the remote claim request'
+  },
+  {
     id:'live-host-kill-switch',group:'A',file:'apps/desktop/electron/booking/capability-policy.cjs',
     pattern:/const RELEASE_APPROVED = false;/,
     about:'Host-controlled live capability release remains hard-disabled'

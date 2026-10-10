@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, SessionLocal, engine
 from .seed import seed_providers
-from .migrations import migrate_schedule_columns
+from .migrations import migrate_schedule_columns, migrate_purchase_guards
 from .routes import router
 from .admin import router as admin_router
 from .admin_directory import router as directory_router
@@ -38,6 +38,7 @@ mcp_server, mcp_asgi_app = build_mcp(mcp_config) if mcp_config else (None, None)
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_schedule_columns(engine)
+    migrate_purchase_guards(engine)
     with SessionLocal() as db:
         purge_development_accounts(db)
         migrate_watch_items_to_plans(db)

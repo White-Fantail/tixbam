@@ -31,7 +31,8 @@ function remoteStub(clock=()=>Date.now()) {
     if(!row||body.leaseId!==row.leaseId||body.fencingToken!==row.fencingToken||
        body.leaseToken!==row.leaseToken||body.ownerId!==row.ownerId||
        row.status!=='leased'||row.expiresAtMs<=clock())throw Error('stale lease');
-    if(op==='claim')row.status='claimed';
+    if(op==='claim')Object.assign(row,{status:'claimed',purchaseScopeVersion:2,
+      guardStatus:'claimed',guardId:crypto.randomUUID(),claimId:crypto.randomUUID()});
     if(op==='release')row.expiresAtMs=clock()-1;
     if(op==='renew')row.expiresAtMs=clock()+45000;
     return {...row,expiresAt:new Date(row.expiresAtMs).toISOString()};
@@ -185,7 +186,7 @@ test('runner requires a shared lease claim before any real payment and never sub
     adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
     secret:{use:fn=>fn({}),clear(){}},
     payment:{verified:true,submit:()=>{paid++;}},
-    ledger:{recordCommitIntent:()=>{throw Error('journal not ready');}},
+    ledger:{recordClaimRequested:()=>({claimOnly:true}),recordCommitIntent:()=>{throw Error('journal not ready');}},
     sessionCoordinator:{claimBeforeCommit:async()=>{claims++;return {status:'claimed'};}},
     notify:()=>{}
   });
@@ -211,7 +212,7 @@ test('an ambiguous cloud claim never leaves the booking safely retryable',async(
     eventKey:'e1',windowId:7,rehearsal:false,preferences:prefs,
     adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
     payment:{verified:true,submit:()=>{pay++;}},
-    secret:{use:fn=>fn({}),clear(){}},ledger:{recordCommitIntent:()=>assert.fail('must not write')},
+    secret:{use:fn=>fn({}),clear(){}},ledger:{recordClaimRequested:()=>({claimOnly:true}),recordCommitIntent:()=>assert.fail('must not write')},
     sessionCoordinator:{claimBeforeCommit:async()=>{throw Error('timeout after server accepted');}},
     notify:()=>{}
   });
@@ -246,7 +247,7 @@ test('Stop while a cloud claim is in flight remains UNKNOWN after the response a
     adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
     payment:{verified:true,submit:()=>{pay++;}},
     secret:{use:fn=>fn({}),clear(){}},
-    ledger:{recordCommitIntent:()=>assert.fail('cancel must stop')},
+    ledger:{recordClaimRequested:()=>({claimOnly:true}),recordCommitIntent:()=>assert.fail('cancel must stop')},
     sessionCoordinator:{claimBeforeCommit:()=>{reachedClaim();return pending;}},
     notify:()=>{}
   });
@@ -258,4 +259,20 @@ test('Stop while a cloud claim is in flight remains UNKNOWN after the response a
   await task;
   assert.equal(pay,0);
   assert.equal(b.state.status,'payment_unknown');
+});
+
+
+test('claim response without a valid performance guard cannot authorize commit',async()=>{
+  for(const patch of [{purchaseScopeVersion:1},{guardId:'forged'},
+    {claimId:null},{guardStatus:'review_required'}]){
+    const fake=remoteStub();
+    const s=new SessionCoordinator({remote:async(op,body)=>{
+      const value=await fake.remote(op,body);
+      return op==='claim'?{...value,...patch}:value;
+    }});
+    const first=info();await s.acquire(first);
+    await assert.rejects(()=>s.claimBeforeCommit(first.runId,5,eventKey),{code:'claim_outcome_unknown'});
+    assert.equal(fake.peek().status,'claimed');
+    await assert.rejects(()=>s.claimBeforeCommit(first.runId,5,eventKey),{code:'lost_owner'});
+  }
 });

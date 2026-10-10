@@ -72,6 +72,7 @@ export interface BookingRun {
   phase?: BookingPhase; revision?: number; generation?: number;
   /** AB-05: read-only, recovered durable payment safety history; cannot resume or pay. */
   storageRecovered?: boolean; attemptId?: string;
+  claimOnly?: boolean; legacyScopeUnresolved?: boolean; safetyRecoveryRequired?: boolean;
   providerId?: string; aiPageStage?: string;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
@@ -218,11 +219,12 @@ export interface AIObservationV1 {
 export type BookingJournalEventKind =
   | 'RUN_CREATED' | 'OFFER_LOCKED' | 'COMMIT_INTENT_RECORDED'
   | 'PAYMENT_SUBMISSION_RETURNED' | 'PAYMENT_UNKNOWN'
-  | 'PURCHASE_CONFIRMED' | 'RUN_STOPPED';
+  | 'PURCHASE_CONFIRMED' | 'RUN_STOPPED' | 'CLAIM_REQUESTED';
 export interface PaymentCommitIntentV1 {
   runId:string;attemptId:string;scopeDigest:string;
   permitDigest:string;orderDigest:string;
   journalSequence:number;persistedAtMs:number;rehearsal:boolean;
+  claimOnly?:boolean;purchaseScopeVersion?:2;
 }
 /** This is never a renderer callable payment command. */
 export interface RecoveredPurchaseAttemptV1 {
@@ -230,6 +232,7 @@ export interface RecoveredPurchaseAttemptV1 {
   phase:'PAYMENT_UNKNOWN';revision:0;generation:0;
   eventKey:'unverified';rehearsal:boolean;
   message:string;startedAt:number;storageRecovered:true;
+  claimOnly?:boolean;legacyScopeUnresolved?:boolean;safetyRecoveryRequired?:boolean;
 }
 
 
@@ -238,6 +241,7 @@ export interface BookingLeaseStatusV1 {
   leaseId:string;providerId:string;saleId:string;performanceId:string;
   fencingToken:number;status:'leased'|'claimed';expiresAt:string;
   claimedAt:string|null;autonomousCheckoutAvailable:false;
+  purchaseScopeVersion?:2;guardId?:string|null;claimId?:string|null;guardStatus?:'claimed'|'review_required'|null;
 }
 export interface BookingLeaseAcquireV1 extends BookingLeaseStatusV1 {
   leaseToken:string;leaseSeconds:number;
@@ -417,10 +421,13 @@ export interface RecoveredPaymentInspectionV1 {
   reviewAtMs:number|null;
   requiresOfficialReceipt:boolean;
   purchaseBlocked:true;noAutomaticRetry:true;
+  claimOnly?:boolean;legacyScopeUnresolved?:boolean;
 }
 export interface LeaseReconciliationStatusV1 {
   leaseId:string;providerId:string;saleId:string;performanceId:string;
   fencingToken:number;status:'claimed'|'leased';
   paymentOutcome:'unknown';authoritativeMerchantReceipt:false;
   replayAllowed:false;requiresManualReview:boolean;readOnly:true;
+  purchaseBlocked?:boolean;purchaseScopeVersion?:2;guardId?:string|null;
+  claimId?:string|null;guardStatus?:'claimed'|'review_required'|null;
 }

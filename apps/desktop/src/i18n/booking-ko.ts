@@ -1,4 +1,9 @@
 export const bookingKo: Record<string,string> = {
+  "Purchase safety review required": "구매 안전 확인 필요",
+  "Payment submission is not established. Review purchase safety records before any new attempt.": "결제 제출 여부는 확인되지 않았습니다. 새 시도 전에 구매 안전 기록을 확인하세요.",
+  "Purchase safety review is required. Payment submission is not established; automatic retry is disabled.": "구매 안전 확인이 필요합니다. 결제 제출 여부는 확인되지 않았으며 자동 재시도는 차단됩니다.",
+  "Purchase safety claim needs review. Payment submission is not established; automatic retry is blocked.": "구매 claim 기록 확인이 필요합니다. 결제 제출 여부는 확인되지 않았으며 자동 재시도는 차단됩니다.",
+  "Legacy purchase scope cannot be verified. Automatic payment remains blocked.": "이전 버전의 구매 범위를 검증할 수 없습니다. 자동 결제는 계속 차단됩니다.",
   "Sale time TBA": "티켓 오픈 일정 미정",
   "Scheduled opening reached · check the official site": "예정된 오픈 시각이에요 · 공식 사이트에서 확인하세요",
   "Tickets open in": "티켓 오픈까지",

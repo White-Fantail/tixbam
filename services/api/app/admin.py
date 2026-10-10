@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .db import get_db
-from .models import Artist, Event, Performance, Provider, Source, TicketSale, CrawlRun, now
+from .models import Artist, Event, Performance, Provider, Source, TicketSale, CrawlRun, PurchaseIntentLease, PurchaseGuard, now
 from .performances import ensure_initial_performance, update_legacy_performance, add_performance, edit_performance, assign_sale_performances
 from .schemas import ArtistInput, EventInput, PerformanceInput, SaleInput, AddonInput, SourceInput, CrawlRunInput
 from .security import admin_required
@@ -120,6 +120,9 @@ def delete_performance(performance_id: str, db: Db):
     item = db.get(Performance, performance_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Performance not found")
+    if db.scalar(select(PurchaseGuard.id).where(PurchaseGuard.performance_id == item.id)) or db.scalar(
+        select(PurchaseIntentLease.id).where(PurchaseIntentLease.performance_id == item.id)):
+        raise HTTPException(409, "Performance has purchase safety records; preserve its identity")
     if len(item.event.performances) <= 1:
         raise HTTPException(status_code=409, detail="An event must have at least one performance")
     if item.sale_links:

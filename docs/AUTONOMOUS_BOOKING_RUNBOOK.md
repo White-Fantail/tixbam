@@ -383,3 +383,13 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-15 Security/E2E Release Readiness — CI security hold gates, offline E2E, dependency checks, incident/rollback docs; live GO blocked
 
 **다음 명령:** "릴리스 게이트 A–D 증거 검증 및 macOS 패키지 QA 진행해." 운영 승인/실결제 활성화는 별도 심사 후 결정. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+
+
+## AB-15 follow-up — sale-independent purchase scope v2
+
+See [Purchase Scope v2](PURCHASE_SCOPE_V2.md). The previous sale/provider-specific
+scope allowed presale/general sale to create a second intent for the same show.
+Account/performance guard + atomic claim, v2 local HMAC, fsynced preclaim latch,
+legacy real-history quarantine and additive server backfill close this gap.
+Live payment stays OFF; old API workers must be drained before any future live
+release. No official receipt/unlock or catalog duplicate auto-merge is introduced.

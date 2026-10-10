@@ -50,10 +50,10 @@ class BookingRunner {
   stop() {
     this.clearSecret();
     this.payment?.invalidate?.();
-    if(this.cloudClaimAttempted && !this.submitted && !this.orchestrator.machine.terminal){
+    if((this.cloudClaimAttempted||this.paymentIntent?.claimOnly) && !this.submitted && !this.orchestrator.machine.terminal){
       return this.orchestrator.transition('CLOUD_CLAIM_UNKNOWN',
-        'A shared purchase claim may be recorded. Automatic retry is blocked; verify the provider order history.',
-        {}, {claimAttempted:true});
+        'Purchase safety review is required. Payment submission is not established; automatic retry is disabled.',
+        {claimOnly:true,safetyRecoveryRequired:true}, {claimAttempted:true});
     }
     if (this.paymentIntent && this.ledger) {
       try { this.ledger.markUnknown(this.paymentIntent); }
@@ -199,6 +199,13 @@ class BookingRunner {
             // Durable *server* claim precedes local fsync. A lost response,
             // expired lease, or ownership change permanently blocks retry.
             if(!this.sessionCoordinator)throw new Error('Shared purchase lease required.');
+            if(!this.ledger||typeof this.ledger.recordClaimRequested!=='function')
+              throw new Error('Durable purchase claim journal required.');
+            this.paymentIntent=this.ledger.recordClaimRequested({
+              runId:this.state.id,permit:this.purchasePermit,
+              order:fresh.order,rehearsal:false
+            });
+            if(!this.orchestrator.check(handle))return;
             this.cloudClaimAttempted=true; // before network; response may be lost
             await this.sessionCoordinator.claimBeforeCommit(
               this.state.id,this.state.windowId,this.state.eventKey);
@@ -209,7 +216,7 @@ class BookingRunner {
             // throws here, before any external payment side effect.
             this.paymentIntent = this.ledger.recordCommitIntent({
               runId:this.state.id,permit:this.purchasePermit,
-              order:this.expected,rehearsal:this.state.rehearsal,
+              order:fresh.order,rehearsal:this.state.rehearsal,
             });
           } else if (!this.state.rehearsal) {
             // AB-13 must supply both a verified executor and this ledger.
@@ -236,12 +243,12 @@ class BookingRunner {
       }
       this.orchestrator.transition('NEED_USER', 'This page needs your attention. Continue in the provider window, then resume.');
     } catch {
-      if(this.cloudClaimAttempted && !this.submitted &&
+      if((this.cloudClaimAttempted||this.paymentIntent?.claimOnly) && !this.submitted &&
          !this.orchestrator.machine.terminal &&
          this.orchestrator.machine.phase==='READY_TO_COMMIT'){
         this.orchestrator.transition('CLOUD_CLAIM_UNKNOWN',
-          'The shared purchase claim could have succeeded. Verify the official provider order; automatic retry is disabled.',
-          {}, {claimAttempted:true});
+          'Purchase safety review is required. Payment submission is not established; automatic retry is disabled.',
+          {claimOnly:true,safetyRecoveryRequired:true}, {claimAttempted:true});
       }
       if (this.paymentIntent && this.ledger) {
         try { this.ledger.markUnknown(this.paymentIntent); }

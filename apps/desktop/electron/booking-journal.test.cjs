@@ -70,8 +70,8 @@ test('restart after recorded intent blocks duplicate submission even if process 
     const matchingOrder={...order,quantity:p.quantity,priceTier:'800'};
     assert.throws(()=>commit(second,{p,o:matchingOrder}),/duplicate_purchase_intent/);
   }
-  const another={...permit,saleId:'sale-2',eventKey:'event-key-2'};
-  assert.doesNotThrow(()=>commit(second,{p:another,o:{...order,eventKey:'event-key-2'}}));
+  const another={...permit,saleId:'sale-2',eventKey:'event-key-2',performanceId:'other-performance'};
+  assert.doesNotThrow(()=>commit(second,{p:another,o:{...order,eventKey:'event-key-2',performance:'other-performance'}}));
   assert.equal(new PaymentAttemptLedger(dir).recovered().length,2);
 });
 

@@ -1,7 +1,7 @@
 'use strict';
 const crypto=require('node:crypto');
 
-/** AB-06: one execution owner per window and registered sale/performance.
+/** AB-06: one execution owner per window and account/canonical performance.
  * A lease is not merchant authorization, and has no raw browser/session data.
  * Rehearsals are local only. Real automation requires authenticated server.
  */
@@ -18,7 +18,7 @@ class SessionCoordinator {
   #scope({accountId,providerId,saleId,performanceId,eventKey}){
     if(![accountId,providerId,saleId,performanceId,eventKey].every(validateText))
       throw new SessionOwnershipError('unverified_purchase_scope');
-    return JSON.stringify([accountId,providerId,saleId,performanceId,eventKey]);
+    return JSON.stringify([accountId,performanceId]);
   }
   /** Reserve *before* async network requests, preventing timer/IPC race. */
   async acquire({runId,windowId,accountId,providerId,saleId,
@@ -85,7 +85,7 @@ class SessionCoordinator {
     return Object.freeze({runId:s.runId,windowId:s.windowId,
       leaseId:s.leaseId,fencingToken:s.fence,
       status:s.claimed?'claimed':s.phase,
-      expiresAtMs:s.expiresAtMs});
+      expiresAtMs:s.expiresAtMs,guardId:s.guardId||null,claimId:s.claimId||null});
   }
   #invalidate(s){
     s.invalidated=true;s.phase='invalid';
@@ -147,8 +147,11 @@ class SessionCoordinator {
       if(s.invalidated||this.#byRun.get(runId)!==s ||
          r?.status!=='claimed'||r.providerId!==s.providerId||
          r.saleId!==s.saleId||r.performanceId!==s.performanceId||
-         r.fencingToken!==s.fence||r.leaseId!==s.leaseId)
+         r.fencingToken!==s.fence||r.leaseId!==s.leaseId||
+         r.purchaseScopeVersion!==2||r.guardStatus!=='claimed'||
+         !UUID.test(r.guardId||'')||!UUID.test(r.claimId||''))
         throw new SessionOwnershipError('claim_not_verified');
+      s.guardId=r.guardId;s.claimId=r.claimId;
       s.claimed=true;s.phase='claimed';
       return this.#view(s);
     }catch {

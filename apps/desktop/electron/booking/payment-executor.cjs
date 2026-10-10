@@ -105,7 +105,7 @@ class GatedMockPaymentExecutor{
     const matching=records.find(e=>e.attemptId===intent.attemptId&&
       e.runId===run.id&&e.scopeDigest===intent.scopeDigest&&
       e.orderDigest===intent.orderDigest&&e.permitDigest===intent.permitDigest&&
-      e.rehearsal===true&&e.status==='payment_unknown'&&!e.returned);
+      e.rehearsal===true&&e.status==='payment_unknown'&&!e.claimOnly&&!e.returned);
     if(!matching)throw DENY('missing_fsynced_intent');
     this.#used=true;this.#pending=false;this.#prepared=null;this.#outcome='unknown';
     const abort=new AbortController();

@@ -28,6 +28,8 @@ function money(plan: BookingPlan): string {
   });
 }
 function summarizeRun(run: BookingRun): { heading: string; action: string; dangerous: boolean } {
+  if (run.safetyRecoveryRequired) return { heading: "Purchase safety review required",
+    action: "Payment submission is not established. Review purchase safety records before any new attempt.", dangerous: true };
   switch (run.status) {
     case "awaiting_user": return { heading: "Your action is required", action: "Complete the requested step in the provider window, then resume.", dangerous: false };
     case "review": return { heading: "Final order review", action: "Verify all ticket and payment conditions before authorizing a charge.", dangerous: true };

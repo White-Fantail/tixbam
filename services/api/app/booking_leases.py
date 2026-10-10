@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .accounts import CurrentUser, Db
 from .models import (PurchaseIntentLease, Performance, SalePerformance,
-                     TicketSale, UserBookingPlan, now)
+                     TicketSale, UserBookingPlan, PurchaseGuard, now)
 
 router = APIRouter(prefix="/v1/me/automation/leases", tags=["booking-coordination"])
 LEASE_SECONDS = 45
@@ -80,6 +80,27 @@ def bound_target(db: Session, user_id: str, body: Acquire):
         raise HTTPException(409, "This sale does not include the requested performance")
 
 
+def assert_purchase_open(db: Session, user_id: str, performance_id: str):
+    # Legacy claims are consulted on EVERY request, including before migration
+    # and when an older worker writes the old lease table during rollout.
+    guarded = db.scalar(select(PurchaseGuard.id).where(
+        PurchaseGuard.user_id == user_id,
+        PurchaseGuard.performance_id == performance_id))
+    legacy = db.scalar(select(PurchaseIntentLease.id).where(
+        PurchaseIntentLease.user_id == user_id,
+        PurchaseIntentLease.performance_id == performance_id,
+        PurchaseIntentLease.status == "claimed"))
+    if guarded or legacy:
+        raise HTTPException(409, "PURCHASE_TARGET_BLOCKED: this performance already has a purchase claim")
+    # Missing catalog targets cannot be silently discarded during migration.
+    orphan = db.scalar(select(PurchaseIntentLease.id).where(
+        PurchaseIntentLease.user_id == user_id,
+        PurchaseIntentLease.status == "claimed",
+        ~PurchaseIntentLease.performance_id.in_(select(Performance.id))))
+    if orphan:
+        raise HTTPException(409, "LEGACY_SCOPE_UNRESOLVED: purchase safety review required")
+
+
 def fetch_owned(db: Session, user_id: str, body: LeaseOperation) -> PurchaseIntentLease:
     row = db.get(PurchaseIntentLease, str(body.leaseId))
     if not row or row.user_id != user_id:
@@ -110,6 +131,7 @@ def update_owned(db: Session, user_id: str, body: LeaseOperation, values: dict):
 @router.post("/acquire")
 def acquire(body: Acquire, user: CurrentUser, db: Db):
     bound_target(db, user.id, body)
+    assert_purchase_open(db, user.id, str(body.performanceId))
     instant = now()
     token = secrets.token_hex(32)
     scope = {
@@ -190,10 +212,28 @@ def claim(body: LeaseOperation, user: CurrentUser, db: Db):
     # If a response is lost or the app crashes, the claim remains blocked:
     # it MUST NOT be taken over on timeout. A valid claim is not permission
     # to use any provider automation or payment executor.
-    row = update_owned(db, user.id, body, {
-        "status": "claimed", "claimed_at": now(),
-    })
-    return status_view(row)
+    row = fetch_owned(db, user.id, body)
+    assert_purchase_open(db, user.id, row.performance_id)
+    # Revalidate the current saved plan/catalog, not only an old acquired lease.
+    bound_target(db, user.id, Acquire(planId=row.plan_id,
+        providerId=row.provider_id, saleId=row.sale_id,
+        performanceId=row.performance_id, ownerId=body.ownerId))
+    guard = PurchaseGuard(user_id=user.id, performance_id=row.performance_id,
+        lease_id=row.id, fencing_token=body.fencingToken)
+    db.add(guard)
+    try:
+        # UNIQUE(user, performance) serializes competing sale/provider claims
+        # on PostgreSQL. Guard insertion and lease CAS share ONE transaction.
+        db.flush()
+        row = update_owned(db, user.id, body, {
+            "status": "claimed", "claimed_at": now(),
+        })
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "PURCHASE_TARGET_BLOCKED: competing purchase claim")
+    return {**status_view(row), "purchaseScopeVersion": 2,
+            "guardId": guard.id, "claimId": guard.claim_id,
+            "guardStatus": guard.status}
 
 
 @router.get("")
@@ -216,11 +256,19 @@ def reconciliation_status(lease_id: UUID, user: CurrentUser, db: Db):
     row = db.get(PurchaseIntentLease, str(lease_id))
     if row is None or row.user_id != user.id:
         raise HTTPException(404, "Lease not found")
+    guard = db.scalar(select(PurchaseGuard).where(
+        PurchaseGuard.user_id == user.id,
+        PurchaseGuard.performance_id == row.performance_id))
     return {
         **status_view(row),
+        "purchaseScopeVersion": 2,
+        "guardId": guard.id if guard else None,
+        "claimId": guard.claim_id if guard else None,
+        "guardStatus": guard.status if guard else None,
         "paymentOutcome": "unknown",
         "authoritativeMerchantReceipt": False,
         "replayAllowed": False,
-        "requiresManualReview": row.status == "claimed",
+        "requiresManualReview": guard is not None or row.status == "claimed",
+        "purchaseBlocked": guard is not None or row.status == "claimed",
         "readOnly": True,
     }

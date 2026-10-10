@@ -20,7 +20,7 @@ class PaymentReconciler{
     return Object.freeze({...entry,source:'durable_host_journal',
       merchantConfirmed:entry.status==='completed'&&!entry.requiresOfficialReceipt,
       // A matching synthetic receipt proves a test, not a real bank charge.
-      recommendedAction:entry.requiresOfficialReceipt?
+      recommendedAction:entry.claimOnly?'REVIEW_PURCHASE_SAFETY_CLAIM':entry.requiresOfficialReceipt?
         'CHECK_OFFICIAL_ORDER_HISTORY_MANUALLY':
         entry.status==='completed'?'MOCK_NO_CHARGE_CONFIRMED':'REVIEW_SYNTHETIC_RECEIPT',
       automaticCheckoutAllowed:false});
@@ -63,7 +63,7 @@ class PaymentReconciler{
     return Object.freeze({
       ...entry,leaseStatus:value.status,leaseFencingToken:value.fencingToken,
       // A lease claim cannot serve as proof the merchant charged or did not.
-      paymentStatus:'payment_unknown',merchantConfirmed:false,
+      paymentStatus:entry.claimOnly?'not_established':'payment_unknown',merchantConfirmed:false,
       purchaseBlocked:true,automaticCheckoutAllowed:false
     });
   }

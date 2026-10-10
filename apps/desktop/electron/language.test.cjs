@@ -44,6 +44,8 @@ test("key Desktop workflows have verified Korean translations", () => {
   const keys = koreanKeys();
   assert.ok(keys.size > 300, "Expected a substantive shared Korean catalogue, found " + keys.size);
   const critical = [
+    "Purchase safety review required",
+    "Payment submission is not established. Review purchase safety records before any new attempt.",
     "Dashboard","My Bookings","Discover","Saved","Sessions","Settings",
     "App language","Ticketing Control Room","Payment outcome unknown",
     "Maximum total incl. fees","Require adjacent seats","Open rehearsal window",

@@ -56,3 +56,50 @@ def migrate_schedule_columns(engine):
                     "(id, event_id, session_key, label, starts_at, timezone, status, created_at) "
                     "VALUES (:id, :event_id, 'default', '', :instant, :zone, 'scheduled', CURRENT_TIMESTAMP)"
                 ), {"id": uuid(), "event_id": event_id, "instant": instant, "zone": zone})
+
+
+def migrate_purchase_guards(engine):
+    """Idempotent additive backfill. Preserve all old lease rows and fences.
+
+    Live checkout remains OFF throughout rollout. Old API workers must be
+    drained before deploying a future live executor; old claim routes cannot
+    enforce a table they do not know. Request-time legacy checks remain enabled.
+    """
+    from sqlalchemy import select, update
+    from sqlalchemy.orm import Session
+    from sqlalchemy.exc import IntegrityError
+    from .models import PurchaseIntentLease, PurchaseGuard
+    with Session(engine) as db:
+        rows = db.scalars(select(PurchaseIntentLease).where(
+            PurchaseIntentLease.status == "claimed")).all()
+        scopes = {}
+        for row in rows:
+            scopes.setdefault((row.user_id, row.performance_id), []).append(row)
+        for (user_id, performance_id), group in scopes.items():
+            existing = db.scalar(select(PurchaseGuard).where(
+                PurchaseGuard.user_id == user_id,
+                PurchaseGuard.performance_id == performance_id))
+            if existing:
+                if len(group) > 1 and existing.status != "review_required":
+                    db.execute(update(PurchaseGuard).where(PurchaseGuard.id == existing.id)
+                        .values(status="review_required"))
+                    db.commit()
+                continue
+            first = sorted(group, key=lambda r: r.id)[0]
+            db.add(PurchaseGuard(user_id=user_id, performance_id=performance_id,
+                lease_id=first.id, fencing_token=first.fencing_token,
+                status="review_required" if len(group) > 1 else "claimed"))
+            try:
+                db.commit()
+            except IntegrityError:
+                # Another startup worker won the same unique scope. Retryable
+                # startup is safe; request-time checks still deny legacy claims.
+                db.rollback()
+                existing = db.scalar(select(PurchaseGuard).where(
+                    PurchaseGuard.user_id == user_id,
+                    PurchaseGuard.performance_id == performance_id))
+                if existing is None:
+                    raise
+                if len(group) > 1:
+                    existing.status = "review_required"
+                    db.commit()
