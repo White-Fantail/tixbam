@@ -585,8 +585,36 @@ function App() {
 
   function configurePlan(plan: BookingPlan) {
     const addon = addons.find(item => item.id === plan.providerId);
+    if (addon?.bookingAssistance?.mode === "manual") {
+      setSelectedPlanId(plan.id);
+      setSection("sessions");
+      return;
+    }
     if (!addon?.booking) { inform("Provider-specific booking options are not verified yet.", true); return; }
     setBookingEvent(toWatchEvent(plan));
+  }
+
+  async function prepareSavedLink(item: WatchEvent) {
+    const existing = plans.find(plan => plan.id === item.id ||
+      (plan.providerId === item.providerId && plan.bookingUrl === item.url &&
+        plan.artist === item.artist && plan.title === item.title));
+    if (existing) {
+      setSelectedPlanId(existing.id);
+      setSection("plans");
+      return;
+    }
+    const plan = makePlan({
+      artist: item.artist, title: item.title, city: item.city, providerId: item.providerId,
+      bookingUrl: item.url, saleAt: item.saleAt, performanceAt: item.performanceAt || "",
+      eventId: item.eventId || null, performanceId: item.performanceId || null
+    });
+    try {
+      await upsertPlan(plan);
+      setSelectedPlanId(plan.id);
+      setSection("plans");
+    } catch (err) {
+      inform(err instanceof Error ? err.message : "Could not prepare a booking plan.", true);
+    }
   }
 
   async function toggleFavorite(kind: "artists" | "events", id: string) {
@@ -812,7 +840,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-symbol"><span>✳</span></div>
-          <div className="brand-wordmark">TIX<span>BAM</span><small>PREPARE · PRACTICE · BOOK</small></div>
+          <div className="brand-wordmark">TIX<span>BAM</span><small>PREPARE · COPILOT · BOOK</small></div>
         </div>
 
         <div className="nav-label">BOOKING WORKSPACE</div>
@@ -1072,7 +1100,7 @@ function App() {
                     <div className="watch-details"><div><CalendarDays size={16} /><span>{formatSaleLocalTime(item.saleAt, timezone)}</span></div><div><Globe2 size={16} /><span>{item.city || "Location not specified"}</span></div></div>
                     <TicketSaleStatus saleAt={item.saleAt} timezone={timezone} now={now}
                       performanceStatus={remoteEvent ? eventPerformanceStatus(remoteEvent.performances, item.performanceId) : undefined} />
-                    {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" disabled={!installedIds.has(item.providerId)} onClick={()=>setBookingEvent(item)}><Settings2 size={15}/> Booking preferences & automation</button>}
+                    {addons.find(a=>a.id===item.providerId)?.booking && <button className="button button-outline booking-entry" onClick={() => void prepareSavedLink(item)}><Settings2 size={15}/> Prepare booking plan</button>}
                     <div className="watch-footer"><span className="provider-inline"><ProviderMark provider={provider} small />{provider.name}{linkProvider && linkProvider.id !== provider.id ? " · via " + linkProvider.name : ""}</span><button className="button button-primary" disabled={!!busy || !linkProvider} onClick={() => launchSaleLink(provider.id, item.url)}><ExternalLink size={15} /> {!linkProvider ? "Link unavailable" : !installedIds.has(linkProvider.id) ? "Install add-on" : linkProvider.id !== provider.id ? "Event page" : "Open site"}</button></div>
                   </article>
                 );
@@ -1091,7 +1119,7 @@ function App() {
             plans={plans} windows={windows} addons={addons} history={liveHistory}
             selectedPlanId={selectedPlanId} onSelectPlan={setSelectedPlanId}
             onBackToPlan={id => { setSelectedPlanId(id); setSection("plans"); }}
-            onAssist={configurePlan} onStart={openPlanBooking} onFocus={focusLiveWindow} onClose={closeLiveWindow}
+            onStart={openPlanBooking} onFocus={focusLiveWindow} onClose={closeLiveWindow}
             onPhase={setLiveStage} onDismissHistory={dismissLiveReminder}
             onTicketAgent={handoffToTicketAgent}/>}
           {section === "providers" && <>
@@ -1166,7 +1194,7 @@ function App() {
           </>}
         </main>
 
-        <footer className="footer"><div>© TIXBAM • PREPARE · PRACTICE · BOOK.</div><div><span className="tiny-green-dot" /> LOCAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
+        <footer className="footer"><div>© TIXBAM • PREPARE · COPILOT · BOOK.</div><div><span className="tiny-green-dot" /> LOCAL TICKETING WORKSPACE <span className="footer-separator">/</span> NO SUCCESS GUARANTEE</div></footer>
       </div>
 
       {eventModal && <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setEventModal(false); }}>

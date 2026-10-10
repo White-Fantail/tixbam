@@ -317,7 +317,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
     </div><div className="booking-detail-side">
       <div className="settings-panel">
         <h3><FlaskConical size={19}/> Provider briefing</h3>
-        <p>Review the expected ticketing steps and event-specific unknowns. Optional advanced offline practice remains available. No tickets are held in this window.</p>
+        <p>Review expected steps and unknowns. A short offline drill is optional; use Live Copilot for the real sale. No seats are held here.</p>
         {draft.lastRehearsalAt && <p className="settings-note">Offline drill completed: {localDate(draft.lastRehearsalAt)}</p>}
         <button className="button button-primary" disabled={saving} onClick={() => {
           void (async () => {
@@ -337,7 +337,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         <p>Open the official ticketing site and use the Live Copilot in Sessions for screen guidance and approved individual clicks.</p>
         <button className="button button-primary" onClick={() => onOpen(draft)} disabled={kind === "missing" || !addon?.installed}>
           <ExternalLink size={16}/> Start live booking</button>
-        {addon?.booking && <button className="button button-outline" onClick={() => onConfigure(draft)}
+        {addon?.booking && addon.bookingAssistance?.mode !== "manual" && <button className="button button-outline" onClick={() => onConfigure(draft)}
           disabled={!addon.installed || kind !== "direct"}>Provider options & automation</button>}
         <p className="settings-note">{addon?.booking ?
           "Real seat selection and payment are not yet verified. Unsupported steps pause for manual completion." :

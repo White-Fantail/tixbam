@@ -7,6 +7,7 @@ import { currencyFactor } from "./booking-plans";
 import { tx, tr, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
 import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
+import { ProviderLiveGuide } from "./booking/ProviderLiveGuide";
 import { formatSaleLocalTime } from "./ticket-sales";
 import type { LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
 
@@ -51,7 +52,6 @@ type Props = {
   selectedPlanId: string | null;
   onSelectPlan: (id: string) => void;
   onBackToPlan: (id: string) => void;
-  onAssist: (plan: BookingPlan) => void;
   onStart: (plan: BookingPlan) => Promise<void>;
   onFocus: (id: number) => Promise<void>;
   onClose: (id: number) => Promise<void>;
@@ -62,7 +62,7 @@ type Props = {
 
 export function LiveBookingWorkspace({
   plans, windows, addons, history, selectedPlanId, onSelectPlan, onBackToPlan,
-  onAssist, onStart, onFocus, onClose, onPhase, onDismissHistory, onTicketAgent
+  onStart, onFocus, onClose, onPhase, onDismissHistory, onTicketAgent
 }: Props) {
   const [runs, setRuns] = useState<BookingRun[]>([]);
   const [busy, setBusy] = useState("");
@@ -201,7 +201,7 @@ export function LiveBookingWorkspace({
           </div>
           <div className="live-actions">
             {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" &&
-              <button className="button button-outline" onClick={() => onAssist(plan)}>{tx("Manual booking assistance")}</button>}
+              <button className="button button-outline" onClick={() => onBackToPlan(plan.id)}>{tx("Edit booking conditions")}</button>}
             {selectedWindow ? <button className="button button-primary" disabled={busy !== ""}
                 onClick={() => void invoke("focus", () => onFocus(selectedWindow.id))}><ExternalLink size={16}/> Focus official site</button> :
               remainingPopup ? <button className="button button-primary" disabled={busy !== ""}
@@ -222,6 +222,11 @@ export function LiveBookingWorkspace({
           </div>}
         </div>
         <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}/>
+        {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" && (
+          <ProviderLiveGuide key={selectedWindow?.id ?? plan.id}
+            addon={addons.find(addon => addon.id === plan.providerId)!}
+            phase={selectedWindow?.phase || "preparing"}/>
+        )}
         <div className="live-automation-card">
           <div className="live-card-head"><ShieldAlert size={19}/><h3>Booking assistance</h3></div>
           <p>Automation is not guaranteed for this provider. It must not bypass CAPTCHA, the queue or bank verification.</p>
