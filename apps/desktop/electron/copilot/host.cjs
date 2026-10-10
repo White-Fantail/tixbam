@@ -1,8 +1,8 @@
 'use strict';
 const crypto = require('node:crypto');
 const path = require('node:path');
-const { BrowserWindow } = require('electron');
-const { screenAllowed,pixelPoint,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
+const { BrowserWindow, nativeImage } = require('electron');
+const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
 /** Host-only, opt-in local screenshot preview and human-directed pointer.
  * No website code injection, remote vision uploads, auto-click loops or payments.
@@ -78,8 +78,18 @@ class LiveCopilot {
     const current=await this.takeImage(entry);
     this.verify(windowId);
     check(preview,entry,token,entry.win.webContents.getURL());
-    if(crypto.createHash('sha256').update(current).digest('hex')!==preview.digest)
-      throw new Error('The visible screen changed. Take a new preview before clicking.');
+    // Check the exact proposed target neighbourhood, not unrelated moving
+    // countdowns, advertising or seat-availability animations elsewhere.
+    // Still fail closed if the click target itself changes in any way.
+    const observed=nativeImage.createFromBuffer(preview.bytes);
+    const live=nativeImage.createFromBuffer(current);
+    const observedSize=observed.getSize(),liveSize=live.getSize();
+    if(observed.isEmpty() || live.isEmpty() ||
+      observedSize.width!==liveSize.width || observedSize.height!==liveSize.height)
+      throw new Error('The browser image dimensions changed. Capture again.');
+    const region=targetRegion(point,observedSize.width,observedSize.height);
+    if(!observed.crop(region).toBitmap().equals(live.crop(region).toBitmap()))
+      throw new Error('The selected button or seat changed. Capture again before clicking.');
     return {entry,preview,target};
   }
   /** AI proposals remain advisory. A signed-in user must opt in for EACH
@@ -145,12 +155,15 @@ class LiveCopilot {
   /** One real click per FRESH screenshot, with a separate explicit user
    * confirmation in the dashboard. Deliberately no unattended call path. */
   async click(windowId,token,point) {
+    // Focus can trigger website overlays, layout changes or browser redraws.
+    // Always perform the final image comparison AFTER bringing it forward.
+    const live=this.verify(windowId);
+    if(live.win.isMinimized())live.win.restore();
+    live.win.show();live.win.focus();
     const {entry,preview,target}=await this.verifiedTarget(windowId,token,point);
     preview.consumed=true;
     this.snapshots.delete(windowId);
     this.clear(windowId);
-    if(entry.win.isMinimized())entry.win.restore();
-    entry.win.show();entry.win.focus();
     entry.win.webContents.sendInputEvent({type:'mouseDown',
       x:target.x,y:target.y,button:'left',clickCount:1});
     entry.win.webContents.sendInputEvent({type:'mouseUp',
