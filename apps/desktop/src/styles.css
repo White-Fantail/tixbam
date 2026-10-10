@@ -491,6 +491,10 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .copilot-panel{display:grid;gap:12px}
 .copilot-panel .live-card-head{align-items:center}
 .copilot-panel .booking-actions{display:flex;gap:9px;flex-wrap:wrap}
+.copilot-test-guide{padding:12px 14px;border:1px solid #454956;border-radius:10px;background:#242730;margin:12px 0}
+.copilot-test-guide strong{font-size:12px;color:#dbffc0}
+.copilot-test-guide p{margin:6px 0;font-size:12px;line-height:1.7;color:#d2d5e1}
+.copilot-test-guide small{font-size:11px;color:#aeb9cf;overflow-wrap:anywhere}
 .copilot-state{display:flex;gap:8px;align-items:center;color:#bce6d1!important;font-size:12px!important}
 .copilot-preview{display:grid;gap:12px;min-width:0}
 .copilot-preview-note,.copilot-disclaimer{font-size:12px!important;color:#b5b7c8!important;line-height:1.6}
