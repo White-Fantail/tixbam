@@ -1,4 +1,7 @@
 export const supplementalKo: Record<string,string> = {
+  "User payment in the provider window": "예매처 창에서 사용자 직접 결제",
+  "Automation stopped. The provider reservation or manual payment was not cancelled. Check the same provider window before starting another booking.": "자동화가 중지됐어요. 예매처의 예약이나 직접 진행 중인 결제는 취소되지 않았어요. 새 예매를 시작하기 전에 같은 예매처 창에서 확인하세요.",
+  "Complete payment in the same provider window. Automation is paused permanently for this run. Seat hold and payment completion are not verified.": "같은 예매처 창에서 직접 결제하세요. 이 실행의 자동화는 재개되지 않아요. 좌석 보류와 결제 완료는 아직 검증되지 않았어요.",
   "Service status": "서비스 상태", "Browse tickets": "티켓 둘러보기",
   "Event / presale providers publish official event pages and member sale links; ticketing providers handle seat selection and checkout. Level 1 is browser assistance, Level 2 seat / order assistance, and Level 3 authorized checkout. “Via agent” indicates that a different official ticket agent performs that step. Cityline currently has performance and price selection plus checkout rehearsal only.":
     "이벤트·선예매 서비스는 공식 공연 페이지와 회원 판매 링크를 제공하며, 실제 예매처는 좌석 선택과 결제를 처리해요. L1은 브라우저 지원, L2는 좌석·주문 지원, L3은 허가된 결제 자동화예요. '제휴 예매처'는 다른 공식 예매처가 해당 단계를 담당한다는 뜻이에요. Cityline은 현재 공연 회차·가격 선택과 결제 리허설까지만 지원해요.",

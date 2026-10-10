@@ -1,6 +1,6 @@
 const path = require('node:path');
 const { Notification } = require('electron');
-const { CardVault, RunSecret } = require('./vault.cjs');
+const { CardVault } = require('./vault.cjs');
 const { PreferenceStore, eventKey, validatePreferences } = require('./preferences.cjs');
 const { CitylineAdapter, schemaFor } = require('./cityline.cjs');
 const { RehearsalAdapter, rehearsalOptions } = require('./rehearsal.cjs');
@@ -103,8 +103,11 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   handle('start-booking', async ({ contextId, preferences: input, cardId, cvv, paymentConsent }) => {
     const ctx = contexts.get(contextId); if (!ctx) throw new Error('Read event options before starting.');
     const installed=requireInstalled(ctx.providerId);
-    if(!ctx.rehearsal&&checkoutReadiness(ctx.providerId,installed.version).blockers.some(x=>
-       ['provider_automation_restricted','unknown_or_upgraded_addon'].includes(x)))
+    const readiness=checkoutReadiness(ctx.providerId,installed.version);
+    // A level-3 payment restriction must not by itself disable permitted
+    // level-2 selection. Cityline's level-2 restriction still blocks it.
+    if(!ctx.rehearsal&&(readiness.selectionStatus==='restricted'||
+       readiness.blockers.includes('unknown_or_upgraded_addon')))
       throw new Error('Cityline prohibits automated interaction and transactions under its current terms. Use the official window manually; a separately authorized integration is required.');
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status) && (r.state.eventKey === ctx.eventKey || (!ctx.rehearsal && r.state.windowId === ctx.windowId)))) throw new Error('A booking is already active for this event or window.');
     // A context is not authority to use a window indefinitely. Revalidate
@@ -128,7 +131,7 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     preferences.set(ctx.eventKey, prefs, ctx.schema);
     let secret;
     if (ctx.rehearsal) secret = { use: fn => fn(null), clear() {} };
-    else if (cardId) secret = new RunSecret(vault.unlock(cardId), cvv);
+    // User payment must not unlock or receive a local card.
     else if (prefs.checkout === 'automatic') throw new Error('Choose a local card and enter its security code before starting automatic checkout.');
     const adapter = ctx.rehearsal ? new RehearsalAdapter(ctx.eventKey, prefs) : ctx.adapter;
     const onPageRead=ctx.rehearsal?null:(page,state)=>
@@ -188,6 +191,8 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   });
   handle('resume-booking', async (id, confirm = false) => {
     const runner = runs.get(id); if (!runner) throw new Error('Booking run not found.');
+    if(runner.state.phase==='MANUAL_PAYMENT')
+      throw new Error('Complete payment in the same provider window. This run cannot resume automation.');
     if (!['awaiting_user', 'review'].includes(runner.state.status) || runner.busy) throw new Error('This run cannot be resumed now.');
     if (runner.state.status === 'review' && confirm !== true) throw new Error('Confirm the displayed order before payment.');
     const reviewing = runner.state.status === 'review';

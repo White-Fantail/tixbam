@@ -77,12 +77,14 @@ export interface BookingRun {
   storageRecovered?: boolean; attemptId?: string;
   claimOnly?: boolean; legacyScopeUnresolved?: boolean; safetyRecoveryRequired?: boolean;
   providerId?: string; aiPageStage?: string;
+  paymentMode?: 'user' | 'automatic'; manualPayment?: boolean; reservationVerified?: boolean;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
 }
 export interface CheckoutReadiness {
   schemaVersion: 1; providerId: string; addonVersion: string; livePaymentEnabled: false;
   blockers: readonly string[]; missingCapabilities: readonly AutomationCapability[];
   sourceUrl: string | null; transactionProtocolAvailable: boolean;
+  paymentMode: 'user' | 'automatic'; selectionStatus: string; paymentStatus: string;
 }
 export interface CardSummary { id: string; label: string; last4: string; expiryMonth: number; expiryYear: number }
 export interface CardInput { label: string; name: string; number: string; expiryMonth: number; expiryYear: number }
@@ -146,7 +148,7 @@ export type BookingPhase =
   | 'CREATED' | 'WAITING_FOR_SESSION' | 'OBSERVING' | 'DECIDING'
   | 'VALIDATING_ACTION' | 'EXECUTING_ACTION' | 'OFFER_SELECTED'
   | 'ORDER_REVIEW' | 'READY_TO_COMMIT' | 'PAYMENT_COMMITTING'
-  | 'VERIFYING' | 'WAITING_FOR_USER' | 'CONFIRMED'
+  | 'VERIFYING' | 'WAITING_FOR_USER' | 'MANUAL_PAYMENT' | 'CONFIRMED'
   | 'PAYMENT_UNKNOWN' | 'STOPPED' | 'FAILED';
 
 

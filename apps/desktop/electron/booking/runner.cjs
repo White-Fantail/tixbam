@@ -48,6 +48,7 @@ class BookingRunner {
   }
 
   stop() {
+    const manual = this.state.phase === 'MANUAL_PAYMENT';
     this.clearSecret();
     this.payment?.invalidate?.();
     if((this.cloudClaimAttempted||this.paymentIntent?.claimOnly) && !this.submitted && !this.orchestrator.machine.terminal){
@@ -59,7 +60,9 @@ class BookingRunner {
       try { this.ledger.markUnknown(this.paymentIntent); }
       catch { /* The already-durable commit record remains unresolved. */ }
     }
-    return this.orchestrator.interrupt(STOP_PRE, STOP_POST);
+    return this.orchestrator.interrupt(manual
+      ? 'Automation stopped. The provider reservation or manual payment was not cancelled. Check the same provider window before starting another booking.'
+      : STOP_PRE, STOP_POST);
   }
 
   async step(confirm = false) {
@@ -158,7 +161,12 @@ class BookingRunner {
         if (!this.expected) this.expected = structuredClone(order);
         this.orchestrator.transition('REVIEW_ORDER', 'Checking the final order.', {order});
         if (!this.payment?.verified) {
-          this.orchestrator.transition('NEED_USER', 'This payment page has not been verified for automatic entry. Complete payment in the provider window.');
+          // Handoff is not evidence of held seats or a completed purchase.
+          // Keep window ownership; never re-enter the adapter after takeover.
+          this.clearSecret();
+          this.orchestrator.transition('HANDOFF_PAYMENT',
+            'Complete payment in the same provider window. Automation is paused permanently for this run. Seat hold and payment completion are not verified.',
+            {paymentMode:'user',manualPayment:true,reservationVerified:false,order});
           return;
         }
         if (this.preferences.checkout === 'review' && !confirm) {

@@ -15,6 +15,8 @@ function checkoutReadiness(providerId,addonVersion){
     'verified_provider_performance_mapping_missing','runner_transaction_bridge_missing',
     'provider_permission_workflow_missing','host_release_not_approved');
   return Object.freeze({schemaVersion:1,providerId,addonVersion,livePaymentEnabled:false,
+    paymentMode:'user',selectionStatus:addon?.automation?.level2?.status||'unsupported',
+    paymentStatus:addon?.automation?.level3?.status||'unsupported',
     blockers:Object.freeze(blockers),missingCapabilities:Object.freeze(missing),
     sourceUrl:addon?.automation?.level3?.sourceUrl||null,
     transactionProtocolAvailable:providerId==='cityline'});
