@@ -26,7 +26,8 @@ function makeSyntheticOffer(key,prefs,seed,kind){
   const qty=prefs.quantity,ticket=Math.max(1,Math.floor(prefs.maxTotalMinor/(3*qty)));
   const row=String.fromCharCode(65+deterministicNumber(seed,'row')%5);
   const start=1+deterministicNumber(seed,'seat')%10;
-  const seats=Array.from({length:qty},(_,i)=>kind==='standing'?'GA-'+(i+1):
+  // No fabricated numbered seats for a GA standing section.
+  const seats=kind==='standing'?[]:Array.from({length:qty},(_,i)=>
     row+'-'+(start+i*(kind==='adjacency'?2:1)));
   const serviceFeeMinor=qty*Math.max(1,Math.floor(ticket/10));
   const ticketSubtotalMinor=qty*ticket;

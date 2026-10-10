@@ -62,6 +62,9 @@ const fixedOffer = value => {
     'extras','totalVerified','availabilityVerified','identityVerified']){
     if(Object.hasOwn(safe.raw,k))copy[k]=structuredClone(safe.raw[k]);
   }
+  Object.freeze(copy.seats);
+  if(copy.feeBreakdown)Object.freeze(copy.feeBreakdown);
+  if(copy.extras){for(const e of copy.extras)Object.freeze(e);Object.freeze(copy.extras);}
   return Object.freeze(copy);
 };
 

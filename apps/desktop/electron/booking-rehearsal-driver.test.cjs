@@ -97,7 +97,7 @@ test('standing, automatic allocation and separate-seat policy remain validated',
     const d=lab(t);await d.start(kind,7);
     await toReview(d);
     assert.equal(d.state.status,'review');
-    assert.equal(d.state.order.seats.length,PLAN.quantity);
+    assert.equal(d.state.order.seats.length,kind==='standing'?0:PLAN.quantity);
   }
   const loose=lab(t,{requireTogether:false});
   await loose.start('adjacency',7);

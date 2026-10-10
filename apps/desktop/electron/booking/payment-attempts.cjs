@@ -9,6 +9,7 @@
  */
 const crypto=require('node:crypto');
 const {DurableBookingJournal,JournalUnavailable}=require('./journal.cjs');
+const {normalizedOffer,termsAllow}=require('./offer-policy.cjs');
 
 const ISO_CURRENCIES=new Set(Intl.supportedValuesOf('currency'));
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -18,7 +19,8 @@ const isRecord=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&
 const safeInt=v=>Number.isSafeInteger(v)&&v>0&&v<Number.MAX_SAFE_INTEGER;
 
 function canonicalPermit(permit){
-  if(!isRecord(permit)||!isString(permit.accountId)||!isString(permit.providerId)||
+  const terms=termsAllow(permit);
+  if(!terms||!isRecord(permit)||!isString(permit.accountId)||!isString(permit.providerId)||
      !isString(permit.saleId)||!isString(permit.performanceId)||
      !isString(permit.eventKey)||!isString(permit.planId)||
      !safeInt(permit.quantity)||!safeInt(permit.maxAllInMinor)||
@@ -32,29 +34,53 @@ function canonicalPermit(permit){
     eventKey:permit.eventKey,planId:permit.planId,
     quantity:permit.quantity,currency:permit.currency,maxAllInMinor:permit.maxAllInMinor,
     requireTogether:permit.requireTogether,allowFallback:permit.allowFallback,
-    checkout:permit.checkout,
+    checkout:permit.checkout,terms,
   });
 }
 function canonicalOrder(order,permit){
-  if(!isRecord(order)||!isString(order.id)||order.eventKey!==permit.eventKey||
+  const normalized=normalizedOffer({...order,available:true});
+  if(!normalized||!isString(order.id)||order.eventKey!==permit.eventKey||
      order.quantity!==permit.quantity||order.currency!==permit.currency||
      !safeInt(order.totalMinor)||order.totalMinor>permit.maxAllInMinor||
-     order.feesIncluded!==true||!Array.isArray(order.seats)||
-     order.seats.length>20||order.seats.some(x=>!isString(x))||
      !isString(order.performance)||order.performance!==permit.performanceId||
-     !isString(order.priceTier)||typeof order.adjacent!=='boolean'||
-     (permit.requireTogether&&order.adjacent!==true)||
-     typeof order.available!=='boolean'||order.available!==true)
+     !isString(order.priceTier)||order.feesIncluded!==true||
+     order.available!==true||
+     normalized.maxPerOrder!==null&&normalized.quantity>normalized.maxPerOrder)
     throw new JournalUnavailable('unverified_purchase_order');
+  // Standing GA has no numbered adjacency to prove. Automatic allocation
+  // cannot be committed with unknown final seat numbers or missing group proof.
+  if(normalized.seatMode==='assigned'){
+    if(typeof order.adjacent!=='boolean'||
+       permit.requireTogether&&order.quantity>1&&!normalized.adjacent)
+      throw new JournalUnavailable('unverified_purchase_order');
+  }else if(normalized.seatMode==='automatic'){
+    if(!normalized.verifiedAllocation||normalized.seats.length!==permit.quantity||
+       permit.requireTogether&&order.quantity>1&&!normalized.adjacent)
+      throw new JournalUnavailable('unverified_purchase_order');
+  }else if(!normalized.areaId){
+    throw new JournalUnavailable('unverified_purchase_order');
+  }
+  for(const [flag,approved] of [
+    ['restrictedView','allowRestrictedView'],
+    ['realNameRequired','allowRealName'],
+    ['ageRestricted','allowAgeRestricted'],
+    ['accessibilityRestricted','allowAccessibilityRestricted']
+  ])if(normalized.flags[flag]&&!permit.terms[approved])
+    throw new JournalUnavailable('unverified_purchase_order');
+  if(normalized.extras.some(x=>!permit.terms.allowedExtraIds.includes(x.id)))
+    throw new JournalUnavailable('unverified_purchase_order');
+  // Hash all financial and material restriction terms for v2. Existing v1
+  // journal entries remain append-only, and their stored hashes are not edited.
   return Object.freeze({
     id:order.id,eventKey:order.eventKey,performance:order.performance,
+    providerId:normalized.providerId,
     priceTier:order.priceTier,currency:order.currency,quantity:order.quantity,
-    totalMinor:order.totalMinor,feesIncluded:true,adjacent:order.adjacent,
-    seats:[...order.seats],
-    section:typeof order.section==='string'?order.section:null,
-    floor:typeof order.floor==='string'?order.floor:null,
-    seatMode:typeof order.seatMode==='string'?order.seatMode:null,
-    fulfillment:typeof order.fulfillment==='string'?order.fulfillment:null,
+    totalMinor:order.totalMinor,feesIncluded:true,adjacent:normalized.adjacent,
+    seats:[...normalized.seats],section:normalized.section,floor:normalized.floor,
+    seatMode:normalized.seatMode,areaId:normalized.areaId,
+    fulfillment:normalized.fulfillment,
+    feeBreakdown:normalized.feeBreakdown,extras:normalized.extras,
+    flags:normalized.flags,verifiedAllocation:normalized.verifiedAllocation,
   });
 }
 
