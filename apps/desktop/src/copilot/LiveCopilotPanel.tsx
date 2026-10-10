@@ -137,7 +137,6 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
           alt={ko?"공식 예매 창의 임시 로컬 캡처":"Temporary local snapshot of the official ticket browser"}/>
         {point && <span className="copilot-crosshair" style={{left:(point.x*100)+"%",top:(point.y*100)+"%"}} aria-hidden="true">+</span>}
       </div>
-      <>
       <div className="booking-actions">
         <button className="button button-outline" disabled={!!busy} onClick={()=>void analyze()}>
           {ko?"AI로 버튼 위치 찾기 (이미지 전송 동의)":"Find button with AI (opt-in upload)"}</button>
@@ -155,7 +154,6 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
         {snapshot.mode === "human_guidance" && <button className="button button-primary" disabled={!point||!!busy}
           onClick={()=>void action("click")}><MousePointerClick size={15}/>{ko?"확인 후 1회 클릭":"Approve one click"}</button>}
       </div>
-      </>}
       <small>{snapshot.mode === "diagnostic_preview"
         ? (ko?"공식 예매 창에서 버튼을 직접 눌러줘. 화면이 바뀌면 새로 가져와.": "Click the official site's button yourself. Capture again after navigation.")
         : (ko?"클릭 전 화면이 변경되었다면 화면을 다시 가져와.": "Capture again if the page changes before clicking.")}</small>
