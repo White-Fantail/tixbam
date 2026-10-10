@@ -125,7 +125,7 @@ export interface CopilotVisionResult {
 }
 export interface CopilotAdvanceInfo {
   windowId:number;planId?:string;providerId?:string;
-  requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized";
+  requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized"|"dev_single_click";
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
 }
@@ -191,6 +191,7 @@ export interface DesktopBridge {
   listLiveHistory: () => Promise<LiveHistory[]>;
   dismissLiveHistory: (planId: string) => Promise<LiveHistory[]>;
   openTicketAgent: (sourceWindowId: number, agentUrl: string) => Promise<{ id: number; providerId: string; url: string }>;
+  copilotDeveloperCapabilities: () => Promise<{singleClickTest:boolean;maxRealClicksPerSession:number;checkoutAllowed:false}>;
   copilotAdvanceArm: (id:number,conditions:{planId:string;quantity:number;currency:string;budgetMinor:number;locale:"ko"|"en"},consent:import("./copilot/advance-settings").AdvanceConsent) => Promise<CopilotAdvanceInfo>;
   copilotAdvanceStop: (id:number) => Promise<boolean>;
   copilotAdvanceStatus: (id:number) => Promise<CopilotAdvanceInfo>;
