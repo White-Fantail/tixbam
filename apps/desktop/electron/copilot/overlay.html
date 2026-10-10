@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;pointer-events:none}
+#mark{position:absolute;width:54px;height:54px;border:4px solid #30e1a1;box-shadow:0 0 0 5px #152e37bb,0 0 20px #30e1a1aa;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+#mark:after{content:'+';position:absolute;inset:0;display:grid;place-items:center;color:#00ffbf;font:700 28px system-ui}
+#tag{position:absolute;left:32px;top:32px;padding:8px 12px;color:white;background:#172d37ed;border:1px solid #30e1a1;border-radius:8px;font:600 13px system-ui}
+</style></head><body><div id="mark"></div><div id="tag">TIXBAM · Selected target (click-through)</div>
+<script>window.setCopilotHighlight=(p)=>{if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;const el=document.querySelector('#mark');el.style.left=p.x+'px';el.style.top=p.y+'px'};</script></body></html>
