@@ -39,7 +39,8 @@ function canonicalPermit(permit){
 }
 function canonicalOrder(order,permit){
   const normalized=normalizedOffer({...order,available:true});
-  if(!normalized||!isString(order.id)||order.eventKey!==permit.eventKey||
+  if(!normalized||normalized.providerId!==null&&normalized.providerId!==permit.providerId||
+     !isString(order.id)||order.eventKey!==permit.eventKey||
      order.quantity!==permit.quantity||order.currency!==permit.currency||
      !safeInt(order.totalMinor)||order.totalMinor>permit.maxAllInMinor||
      !isString(order.performance)||order.performance!==permit.performanceId||
