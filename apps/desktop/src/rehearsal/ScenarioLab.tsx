@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { RehearsalLabScenario, RehearsalLabState, RehearsalTarget } from "../types";
+import type { RehearsalLabScenario, RehearsalLabState, RehearsalTarget, RehearsalPlannerView } from "../types";
 import { tx, useLanguage } from "../i18n";
 
 
@@ -48,6 +48,8 @@ export function ScenarioLab({plan,onComplete}:{
   const [seed,setSeed]=useState(2027);
   const [state,setState]=useState<RehearsalLabState|null>(null);
   const [busy,setBusy]=useState(false);
+  const [planning,setPlanning]=useState(false);
+  const [proposal,setProposal]=useState<RehearsalPlannerView|null>(null);
   const [error,setError]=useState("");
   const [acknowledged,setAcknowledged]=useState(false);
   const [synced,setSynced]=useState(false);
@@ -60,11 +62,30 @@ export function ScenarioLab({plan,onComplete}:{
     return ()=>{live=false;};
   },[bridge]);
   async function action(task:()=>Promise<RehearsalLabState>){
-    setBusy(true);setError("");setSynced(false);
+    setBusy(true);setError("");setSynced(false);setProposal(null);
     try{setState(await task());setAcknowledged(false);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
   }
+
+  async function suggest(){
+    if(!bridge||busy||planning||!state?.active)return;
+    setPlanning(true);setProposal(null);setError("");
+    try{setProposal(await bridge.labPropose());}
+    catch{setProposal({action:"ASK_USER",rationaleCode:"MODEL_UNAVAILABLE",
+      advisoryOnly:true,source:"fallback"});}
+    finally{setPlanning(false);}
+  }
+  const actionLabels:Record<RehearsalPlannerView["action"],[string,string]>={
+    WAIT:["기다리기","Wait"],REOBSERVE:["페이지 재확인","Reobserve"],
+    ASK_USER:["사용자 확인","Ask the user"],STOP:["중단 고려","Consider stopping"],
+    SELECT_PERFORMANCE:["공연 회차 검토","Review performance"],
+    SELECT_PRICE_TIER:["가격대 검토","Review price tier"],
+    SELECT_APPROVED_OFFER:["조건에 맞는 좌석 검토","Review eligible offer"],
+    CHOOSE_VERIFIED_DELIVERY:["배송 방식 검토","Review verified delivery"],
+    RETURN_TO_VERIFIED_STEP:["이전 검증 단계 검토","Review prior verified step"]
+  };
+
   const scenario=scenarios.find(s=>s.id===selected);
   const terminal=!!state&&["completed","stopped","failed","payment_unknown"].includes(state.status);
   const labComplete=state?.status==="completed"||
@@ -146,6 +167,26 @@ export function ScenarioLab({plan,onComplete}:{
           {ko?"앱 재시작 상황 재현":"Simulate app restart"}
         </button>
       </div>
+      {state.active&&<div className="lab-ai-planner">
+        <button className="button button-outline" type="button" disabled={busy||planning}
+          onClick={()=>void suggest()}>
+          {planning?(ko?"AI 제안 확인 중…":"Requesting AI proposal…"):
+            (ko?"AI 다음 단계 제안 보기":"Suggest a next step with AI")}
+        </button>
+        <small>{ko?"선택한 경우에만 개인정보를 제거한 상태 정보가 TixBam API와 OpenRouter로 전송됩니다. AI는 클릭·선택·결제할 수 없습니다.":
+          "Only when clicked, a redacted observation is sent through the TixBam API to OpenRouter. AI cannot click, reserve or pay."}</small>
+        {proposal&&<div role="status" className="cl-drill-rules">
+          <strong>{proposal.source==="fallback"?
+            (ko?"안전한 수동 안내":"Safe manual fallback"):
+            (ko?"AI 제안 (실행되지 않음)":"AI proposal (NOT executed)")}</strong>
+          <span>{actionLabels[proposal.action][ko?0:1]}</span>
+          <small>{proposal.rationaleCode.replaceAll("_"," ")}
+            {proposal.model?" · "+proposal.model:""}</small>
+          <small>{ko?"이 제안은 정보를 보여주기만 합니다. 아래의 기존 리허설 버튼으로만 진행하세요.":
+            "This suggestion is read-only. Continue only with the existing rehearsal controls."}</small>
+        </div>}
+      </div>}
+
       {(state.events?.length ?? 0)>0&&<details className="lab-history"><summary>{ko?"FSM 실행 기록":"FSM execution trace"}</summary>
         <ol>{(state.events??[]).map((event,i)=><li key={i}>
           <strong>{event.phase}</strong> — {present(event.message)}

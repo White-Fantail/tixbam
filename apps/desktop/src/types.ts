@@ -67,7 +67,17 @@ export interface RehearsalLabState {
   order?:null|{quantity:number;totalMinor:number;currency:string;seats:string[]};
   events?:Array<{phase:string;status:string;message:string}>;
 }
+export interface RehearsalPlannerView {
+  action:"WAIT"|"REOBSERVE"|"ASK_USER"|"STOP"|
+    "SELECT_PERFORMANCE"|"SELECT_PRICE_TIER"|"SELECT_APPROVED_OFFER"|
+    "CHOOSE_VERIFIED_DELIVERY"|"RETURN_TO_VERIFIED_STEP";
+  rationaleCode:string;
+  advisoryOnly:true;
+  source:"openrouter"|"fallback";
+  model?:string;
+}
 export interface RehearsalBridge {
+  labPropose:()=>Promise<RehearsalPlannerView>;
   labScenarios:()=>Promise<RehearsalLabScenario[]>;
   labStatus:()=>Promise<RehearsalLabState>;
   labStart:(scenarioId:string,seed:number)=>Promise<RehearsalLabState>;

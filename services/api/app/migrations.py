@@ -9,6 +9,7 @@ from .models import uuid
 
 COLUMNS = {
     "events": {"timezone": "VARCHAR(100)"},
+    "ai_model_policies": {"structured_output_verified": "BOOLEAN NOT NULL DEFAULT FALSE"},
     "ticket_sales": {
         "city": "VARCHAR(160)",
         "country": "VARCHAR(8)",

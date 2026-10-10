@@ -4,7 +4,7 @@ import { saveAiPolicy } from "../actions";
 
 export const dynamic = "force-dynamic";
 type Policy = {task:string;label:string;description:string;model:string;enabled:boolean;
-  timeoutSeconds:number;maxOutputTokens:number;updatedAt:string|null};
+  timeoutSeconds:number;maxOutputTokens:number;structuredOutputVerified:boolean;updatedAt:string|null};
 type Response = {items: Policy[]; configured:boolean;provider:string};
 
 export default async function AIModelsPage({ searchParams }: {
@@ -54,7 +54,9 @@ export default async function AIModelsPage({ searchParams }: {
                 defaultValue={item.maxOutputTokens} required/></label>
             </div>
             <label className="inline"><input type="checkbox" name="enabled" defaultChecked={item.enabled}/>
-              Enable AI advice for this function</label>
+              Enable AI for this function</label>
+            {item.task === "planner_v1" && <label className="inline"><input type="checkbox" name="structured_output_verified" defaultChecked={item.structuredOutputVerified}/>
+              Verified model supports strict JSON Schema output (required for PlannerV1)</label>}
             <button type="submit">Save settings</button>
           </form>
           <p className="field-help">{item.updatedAt ? "Last updated: "+new Date(item.updatedAt).toLocaleString("en-NZ") : "Using initial defaults; disabled until enabled."}</p>

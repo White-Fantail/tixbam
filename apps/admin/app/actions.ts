@@ -133,13 +133,14 @@ export async function editAddon(f:FormData) {
 /** AI settings are written server-to-server; browser never sees OpenRouter credentials. */
 export async function saveAiPolicy(f: FormData) {
   const task = val(f, "task");
-  if (!["rehearsal_guidance", "page_recovery", "seat_review"].includes(task)) {
+  if (!["rehearsal_guidance", "page_recovery", "seat_review", "planner_v1"].includes(task)) {
     redirect("/ai?error=Unknown+AI+feature");
   }
   const payload = {
     model: val(f, "model"), enabled: bool(f, "enabled"),
     timeout_seconds: Number(val(f, "timeout_seconds")),
     max_output_tokens: Number(val(f, "max_output_tokens")),
+    structured_output_verified: task === "planner_v1" && bool(f, "structured_output_verified"),
   };
   const base = process.env.TIXBAM_API_URL;
   const token = process.env.TIXBAM_ADMIN_API_KEY;

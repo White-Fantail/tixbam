@@ -17,11 +17,13 @@ from .models import AIModelPolicy, AIUsageLog, Provider, now
 from .security import admin_required
 
 Db = Annotated[Session, Depends(get_db)]
-Task = Literal["rehearsal_guidance", "page_recovery", "seat_review"]
+Task = Literal["rehearsal_guidance", "page_recovery", "seat_review", "planner_v1"]
+AdviceTask = Literal["rehearsal_guidance", "page_recovery", "seat_review"]
 TASKS = {
     "rehearsal_guidance": ("Rehearsal guidance", "Explain practice steps and missing readiness checks."),
     "page_recovery": ("Page recovery", "Offer safe recovery guidance for an unexpected ticketing state."),
     "seat_review": ("Seat review", "Compare disclosed options against budget and seat requirements."),
+    "planner_v1": ("PlannerV1 · structured proposals", "Rehearsal-only typed next-action proposals. No actions are executed."),
 }
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
 MODEL_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,79}/[a-zA-Z0-9][a-zA-Z0-9._:+/-]{0,159}$"
@@ -36,6 +38,7 @@ class PolicyInput(BaseModel):
     enabled: bool = False
     timeout_seconds: int = Field(default=6, ge=2, le=12)
     max_output_tokens: int = Field(default=450, ge=128, le=1200)
+    structured_output_verified: bool = False
 
 
 def policy_data(task: str, policy: AIModelPolicy | None) -> dict:
@@ -46,6 +49,7 @@ def policy_data(task: str, policy: AIModelPolicy | None) -> dict:
         "enabled": policy.enabled if policy else False,
         "timeoutSeconds": policy.timeout_seconds if policy else 6,
         "maxOutputTokens": policy.max_output_tokens if policy else 450,
+        "structuredOutputVerified": policy.structured_output_verified if policy else False,
         "updatedAt": policy.updated_at.isoformat() if policy else None,
     }
 
@@ -67,6 +71,7 @@ def update_task(task: Task, body: PolicyInput, db: Db):
     item.enabled = body.enabled
     item.timeout_seconds = body.timeout_seconds
     item.max_output_tokens = body.max_output_tokens
+    item.structured_output_verified = body.structured_output_verified if task == "planner_v1" else False
     item.updated_at = now()
     db.commit()
     return policy_data(task, item)
@@ -107,7 +112,7 @@ class AdviceContext(BaseModel):
 
 class AdviceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    task: Task
+    task: AdviceTask
     provider_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,59}$")
     context: AdviceContext
 

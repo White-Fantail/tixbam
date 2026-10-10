@@ -262,3 +262,41 @@ export interface RehearsalLabObservationV1 {
   order?: null | {quantity: number; totalMinor: number; currency: string; seats: string[]};
   events?: ReadonlyArray<{phase: string;status: string;message: string}>;
 }
+
+
+/** AB-08: AI sees only the AB-04 redacted observation.
+ * runNonce/requestId/snapshotId stay with the TixBam API and are NOT sent
+ * to OpenRouter messages. No provider identity, page HTML, URLs or receipts.
+ */
+export interface AIPlannerRequestV1 {
+  requestId:string;
+  runNonce:string; // random, opaque per rehearsal run
+  snapshotId:string; // host-local snapshot binding only
+  pageGeneration:number;
+  providerId:string; // API registration check; omitted from model prompt
+  locale:'ko'|'en';rehearsal:true;
+  observation:AIObservationV1;
+}
+export interface AIPlannerSuggestionV1 {
+  schemaVersion:1;
+  requestId:string;
+  snapshotId:string;
+  expectedPageGeneration:number;
+  expectedStage:ProposedPageStage;
+  action:ProposedActionKind;
+  targetToken:string|null; // temporary AI token, never host targetRef
+  rationaleCode:string;
+  expiresAtMs:number;
+  advisoryOnly:true;
+  model:string;
+}
+/** Main process resolves targetToken and verifies AB-03 ProposalV1;
+ * renderer sees only this non-actionable result.
+ */
+export interface RehearsalPlannerViewV1 {
+  action:ProposedActionKind;
+  rationaleCode:string;
+  advisoryOnly:true;
+  source:'openrouter'|'fallback';
+  model?:string;
+}

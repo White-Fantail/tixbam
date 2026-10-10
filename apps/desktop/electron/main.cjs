@@ -9,6 +9,7 @@ const { registerBooking } = require("./booking/controller.cjs");
 const { registerAccount } = require("./account.cjs");
 const { rehearsalTarget, findRehearsalBySender } = require("./rehearsal-window.cjs");
 const { RehearsalDriver } = require("./booking/rehearsal-driver.cjs");
+const { RehearsalPlanner } = require("./booking/ai-planner.cjs");
 const { assertPlanId, assertPhase, publicLocation, readHistory, writeHistory,
   activeEntry, mergeHistory, isSensitivePhase, findExistingPlanSession } = require("./live-workspace-state.cjs");
 let booking;
@@ -71,12 +72,16 @@ function openRehearsalWindow(plan, accountId) {
   });
   // Never pass the protected lab object to the rehearsal renderer.
   const lab = new RehearsalDriver({rootDir:app.getPath("userData"),plan:target,ownerId});
-  rehearsalWindows.set(target.id, { win, target, ownerId, lab });
+  const labPlanner = new RehearsalPlanner();
+  rehearsalWindows.set(target.id, { win, target, ownerId, lab, labPlanner });
   win.webContents.on("will-navigate", event => event.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.on("closed", () => {
     const previous = rehearsalWindows.get(target.id);
-    if (previous?.win === win) rehearsalWindows.delete(target.id);
+    if (previous?.win === win) {
+      previous.labPlanner.invalidate();
+      rehearsalWindows.delete(target.id);
+    }
     rejectRehearsalWrites(target.id);
     if (dashboard && !dashboard.isDestroyed()) {
       dashboard.webContents.send("tixbam:rehearsal-closed", target.id);
@@ -296,7 +301,10 @@ app.whenReady().then(() => {
   recoveryFile = path.join(app.getPath("userData"), "tixbam-live-recovery.json");
   liveHistory = readHistory(recoveryFile);
   const account = registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell,
-    onSessionChanged: () => booking?.accountChanged?.()
+    onSessionChanged: () => {
+      booking?.accountChanged?.();
+      for(const entry of rehearsalWindows.values())entry.labPlanner.invalidate();
+    }
   });
   ipcMain.handle("tixbam:ai-advice", (event, payload) => {
     if (event.sender === dashboard?.webContents) dashboardOnly(event);
@@ -343,7 +351,15 @@ app.whenReady().then(() => {
     if(action==='confirm')return lab.next({confirm:true});
     throw new Error("Unsupported rehearsal action.");
   });
-  ipcMain.handle("tixbam:rehearsal-lab-stop", event =>
+  // A user-triggered read-only proposal, never an automatic task callback.
+  ipcMain.handle("tixbam:rehearsal-lab-propose", event => {
+    const entry=rehearsalEntry(event);
+    return entry.labPlanner.propose({
+      driver:entry.lab,providerId:entry.target.providerId,
+      locale:desktopLanguage,send:payload=>account.aiPlan(payload)
+    });
+  });
+    ipcMain.handle("tixbam:rehearsal-lab-stop", event =>
     rehearsalEntry(event).lab.stop());
   ipcMain.handle("tixbam:rehearsal-lab-restart", event =>
     rehearsalEntry(event).lab.simulateRestart());

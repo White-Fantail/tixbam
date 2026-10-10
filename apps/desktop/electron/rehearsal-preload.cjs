@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("tixbamRehearsal", {
   labStart: (scenarioId,seed) => ipcRenderer.invoke("tixbam:rehearsal-lab-start",scenarioId,seed),
   labNext: action => ipcRenderer.invoke("tixbam:rehearsal-lab-next",action),
   labStop: () => ipcRenderer.invoke("tixbam:rehearsal-lab-stop"),
+  labPropose: () => ipcRenderer.invoke("tixbam:rehearsal-lab-propose"),
   labRestart: () => ipcRenderer.invoke("tixbam:rehearsal-lab-restart"),
   aiAdvice: input => ipcRenderer.invoke("tixbam:ai-advice", input),
   complete: () => ipcRenderer.invoke("tixbam:rehearsal-complete"),

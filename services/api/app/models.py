@@ -201,6 +201,7 @@ class AIModelPolicy(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     timeout_seconds: Mapped[int] = mapped_column(Integer, default=6, nullable=False)
     max_output_tokens: Mapped[int] = mapped_column(Integer, default=450, nullable=False)
+    structured_output_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -280,3 +281,15 @@ class PurchaseIntentLease(Base):
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AIPlannerRequest(Base):
+    """Attempt reservation for dedupe and per-run quota; never stores model inputs or responses."""
+    __tablename__ = "ai_planner_requests"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    run_digest: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="requested")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)

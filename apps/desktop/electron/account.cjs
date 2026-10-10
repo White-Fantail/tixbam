@@ -225,6 +225,16 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell, onSe
       return request(active.apiUrl,'/v1/me/automation/leases/'+operation,
         'POST',body,active.token,6500);
     },
+    async aiPlan(payload) {
+      const active=load();
+      if(!active)throw new Error('Sign in to request PlannerV1 advice.');
+      const result=await request(active.apiUrl,'/v1/ai/plans','POST',
+        payload,active.token,16000);
+      // Sign-out or account switching while OpenRouter was responding must
+      // never return a suggestion into the original rehearsal session.
+      if(load()!==active)throw new Error('Planner session changed');
+      return result;
+    },
     async aiAdvice(payload) {
       const active = load();
       if (!active) throw new Error("Sign in to TIXBAM to use AI guidance.");

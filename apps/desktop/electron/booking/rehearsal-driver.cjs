@@ -47,6 +47,13 @@ class ScenarioAdapter{
         'Simulated CAPTCHA: a person must complete this challenge.';
     }
   }
+  peek(){
+    // Explicitly non-mutating observation: AI requests must never change
+    // the price-drift test or provider state.
+    return {eventKey:this.key,stage:this.stage,challenge:this.challenge,
+      challengeType:this.challengeType,offers:this.offers,order:this.order,
+      receipt:undefined};
+  }
   async read(){
     this.readCount++;
     const page={eventKey:this.key,stage:this.stage,challenge:this.challenge,
