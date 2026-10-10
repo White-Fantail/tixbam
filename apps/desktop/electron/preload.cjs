@@ -57,6 +57,14 @@ contextBridge.exposeInMainWorld("tixbam", {
   listLiveHistory: () => ipcRenderer.invoke("tixbam:list-live-history"),
   dismissLiveHistory: planId => ipcRenderer.invoke("tixbam:dismiss-live-history", planId),
   openTicketAgent: (sourceWindowId, agentUrl) => ipcRenderer.invoke("tixbam:open-ticket-agent", sourceWindowId, agentUrl),
+  copilotAdvanceArm: (id,conditions,consent) => ipcRenderer.invoke("tixbam:copilot-advance-arm", id,conditions,consent),
+  copilotAdvanceStop: id => ipcRenderer.invoke("tixbam:copilot-advance-stop", id),
+  copilotAdvanceStatus: id => ipcRenderer.invoke("tixbam:copilot-advance-status", id),
+  onCopilotAdvanceUpdate: listener => {
+    const handler=(_event, info) => listener(info);
+    ipcRenderer.on("tixbam:copilot-advance-update",handler);
+    return () => ipcRenderer.removeListener("tixbam:copilot-advance-update",handler);
+  },
   copilotCapture: id => ipcRenderer.invoke("tixbam:copilot-capture", id),
   copilotHighlight: (id, token, point) => ipcRenderer.invoke("tixbam:copilot-highlight", id, token, point),
   copilotClick: (id, token, point) => ipcRenderer.invoke("tixbam:copilot-click", id, token, point),
