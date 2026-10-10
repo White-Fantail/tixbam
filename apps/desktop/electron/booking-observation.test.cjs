@@ -228,3 +228,57 @@ test('host-only projection schema rejects arbitrary objects and no screenshots a
   assert.equal(typeof x.pipeline.projectForAI,'function');
   assert.equal('captureScreenshot' in x.pipeline,false);
 });
+
+
+test('Cityline DOM inspection remains bounded and challenge-aware without reading input values', () => {
+  const vm=require('node:vm');
+  const {inspectCityline}=require('./booking/cityline.cjs');
+  const element=(label,attributes={})=>({
+    textContent:label,disabled:false,getClientRects:()=>[1],
+    getAttribute:key=>attributes[key]
+  });
+  const date=element('Evening',{'data-perf-id':'date_1'});
+  const price=element('800');
+  function inspect(url,{performances=[date],prices=[price],captcha=false,password=false}={}){
+    const document={
+      title:'Cityline public event',
+      querySelectorAll:selector=>selector==='button.date-time-position[data-perf-id]'?performances:
+        selector==='button.price-btn'?prices:
+        selector==="input[type=password]"&&password?[element('')]:
+        selector==='#inputCaptcha,iframe[src*="captcha"],.g-recaptcha'&&captcha?[element('')]:[]
+    };
+    return vm.runInNewContext('('+inspectCityline.toString()+')("123")',{
+      document,location:{href:url},URL,
+      getComputedStyle:()=>({visibility:'visible'})
+    });
+  }
+  const event=inspect(URL_OK);
+  assert.equal(event.stage,'options');
+  assert.equal(event.challengeType,'none');
+  assert.equal(event.providerEventId,'123');
+  assert.equal(event.options.performance[0].id,'date_1');
+  assert.equal(event.options.priceTier[0].id,'800');
+  assert.equal(inspect(URL_OK,{performances:Array.from({length:31},()=>date)}).stage,'unknown');
+  assert.equal(inspect(URL_OK,{prices:Array.from({length:31},()=>price)}).stage,'unknown');
+  assert.equal(inspect(URL_OK,{captcha:true}).challengeType,'captcha');
+  assert.equal(inspect(URL_OK,{password:true}).challengeType,'login');
+  assert.equal(inspect('https://venue.cityline.com.hk/queue?event=123').challengeType,'queue');
+  assert.equal(inspect('https://venue.cityline.com.hk/login?event=123').challengeType,'login');
+  assert.equal(inspect('https://venue.cityline.com.hk/utsvInternet/internet/eventDetail?event=124').stage,'unknown');
+  assert.equal(inspect(URL_OK,{performances:[element(pii,{'data-perf-id':'bad<script>'})]}).stage,'unknown');
+});
+
+test('trusted login redirect is classified as manual handoff without issuing handles', () => {
+  const x=fixture();
+  const hostURL=x.wc.url;
+  x.wc.url='https://venue.cityline.com.hk/login';
+  const summary=x.pipeline.noteRead({
+    windowId:42,providerId:'cityline',runId:x.run.id,
+    page:{stage:'unknown',eventKey:null,providerEventId:null,
+      challengeType:'login',challenge:'Sign in'}
+  });
+  assert.equal(summary.stage,'login');
+  assert.equal(summary.challenge,'login');
+  x.wc.url=hostURL;
+  assert.equal(x.pipeline.noteRead({windowId:42,providerId:'cityline',page:testPage()}).stage,'options');
+});
