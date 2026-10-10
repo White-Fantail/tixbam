@@ -83,18 +83,18 @@ export function AdvanceSettingsEditor({planId,provider}:{
         <option value="manual">{ko?"수동 안내 (기본값)":"Manual guidance (default)"}</option>
         <option value="observe">{ko?"자동 화면 인식 및 버튼 안내":"Auto screen recognition and hints"}</option>
         <option value="authorized" disabled={!available}>{developerCanTest
-          ? (ko?"자동 클릭 테스트 (개발자 모드 · 최대 1회)":"Automatic click test (developer mode · once)")
+          ? (ko?"사전 승인 자동 실행 테스트 (개발자 모드)":"Preapproved multi-step automation test (developer mode)")
           : (ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it")}</option>
       </select>
     </label>
     {developerCanTest && effectiveMode==="authorized" && !hasDevClickKind &&
       <p className="settings-note" role="alert">{ko
-        ?"개발자 클릭 테스트에는 회차·가격 등급·매수·좌석 중 하나 이상을 선택해야 합니다. 예매 진입 버튼은 자동 클릭하지 않습니다."
-        :"Select at least one performance, price tier, quantity or seat action. Booking-entry buttons are not auto-clicked."}</p>}
+        ?"개발자 자동 실행에는 회차·가격 등급·매수·좌석 중 하나 이상을 선택해야 합니다. 예매 진입 버튼도 별도로 승인한 경우 자동 진행할 수 있습니다."
+        :"Select one or more non-payment selection actions. Booking-entry actions may also be explicitly approved."}</p>}
     <p className="settings-note" role="note">{provider && developerCanTest && !permission.allowed
       ? (ko
-          ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 실제 동작은 좌석 선택 단계의 AI 신뢰도 95% 이상 대상에 대해 최대 1회 클릭으로 제한됩니다."
-          : "Developer test only: this provider remains restricted. The local diagnostic permits at most one 95%+ confidence click in the ticket-selection stage.")
+          ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 개발자 테스트는 승인한 비결제 단계에서 최대 6회 클릭을 수행하며 사용자 개입 후 이어서 진행할 수 있습니다."
+          : "Developer test only: this provider remains restricted. The local diagnostic attempts up to six approved non-payment actions across booking pages.")
       : provider && !available
         ? (ko ? "자동 클릭 설정 비활성화: "+permission.reasonKo+" 화면 안내는 이용할 수 있습니다."
           : "Auto click disabled: "+permission.reasonEn+" Visual guidance remains available.")
@@ -125,16 +125,16 @@ export function AdvanceSettingsEditor({planId,provider}:{
             Boolean(value.developerClickTest && effectiveMode==="observe")}
           onChange={event=>change({developerClickTest:event.target.checked})}/>
           {ko
-            ?"좌석 선택 화면에서 자동 클릭 최대 1회 테스트 (자동 클릭 테스트 모드에서는 필수)"
-            :"Test at most one native click during ticket selection (required in auto-click test mode)"}
+            ?"사전 승인한 비결제 단계의 연속 자동 실행 테스트 (개발자 모드에서는 필수)"
+            :"Test the approved multi-step non-payment flow (required in developer mode)"}
         </label>
         <p>{ko
-          ?"이 테스트는 예매처 정책상의 자동화 허가를 뜻하지 않습니다. 클릭은 실제 사이트에 전달될 수 있습니다. 선택한 좌석 또는 매수가 바뀔 수 있으며 예매·결제는 수행하지 않습니다. 승인 후 첫 유효 후보가 나올 때까지 기다리며, 실행 후 자동으로 중지됩니다."
-          :"This does not grant permission under provider terms. One real native click may change ticket selections; it will never submit a purchase. The diagnostic stops after a single attempt."}</p>
+          ?"이 테스트는 예매처의 자동화 허가를 의미하지 않습니다. 승인한 예매 진입·회차·가격 등급·매수·좌석 선택을 가능한 범위에서 연속 진행하고, 필요한 사용자 조작이 있으면 일시 중지합니다. 최대 6회 입력, AI 분석 8회 후에는 재승인이 필요합니다. 좌석 확보 여부는 공식 예매처에서 확인해야 하며 결제는 자동 진행하지 않습니다."
+          :"This does not grant permission under provider terms. The agent attempts up to six approved non-payment steps across pages, pausing for manual intervention; maximum eight AI analyses. Clicks do not prove seat holds. No automatic checkout."}</p>
       </div>}
     <p className="settings-note">{ko
-      ?"로그인·대기열·CAPTCHA·결제 단계에서는 중단합니다. 세션은 최대 15분, AI 분석 최대 5회이며 사용자가 언제든 중지할 수 있습니다. 자동 결제는 불가합니다."
-      :"Stops at login, queue, CAPTCHA or checkout. Maximum 15 minutes / 5 automatic AI requests. Stop anytime; payment is never automatic."}</p>
+      ?"로그인·대기열·CAPTCHA·결제 단계에서는 일시 중지하고 사용자 조작 후 재개합니다. 최대 15분, AI 분석 8회, 클릭 6회까지 허용하며 결제는 자동 진행하지 않습니다."
+      :"Pauses at login, queue, CAPTCHA and checkout. Up to 15 minutes, eight AI analyses and six clicks; manual resume is supported. No automatic payment."}</p>
     <div className="booking-actions"><button className="button button-outline"
       disabled={Boolean(planId&&!override) ||
         (developerCanTest && effectiveMode==="authorized" && !hasDevClickKind) ||
