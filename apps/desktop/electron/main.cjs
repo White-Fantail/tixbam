@@ -166,10 +166,24 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   };
   ticketWindows.set(win.id, entry);
   wc.on("did-start-loading", () => { copilot.clear(win.id); entry.loadError = null; broadcast(); });
-  wc.on("did-stop-loading", () => {broadcast(); void copilot.observe(win.id);});
+  wc.on("did-stop-loading", () => {
+    if(popup)copilot.handoffPopup(win.id);
+    if(copilot.inferSelectionStage(win.id))entry.phase='selecting';
+    broadcast();
+    void copilot.observe(win.id);
+  });
   wc.on("page-title-updated", broadcast);
-  wc.on("did-navigate", () => { copilot.clear(win.id); broadcast(); void copilot.observe(win.id); });
-  wc.on("did-navigate-in-page", () => { copilot.clear(win.id); broadcast(); void copilot.observe(win.id); });
+  wc.on("did-navigate", () => {
+    copilot.clear(win.id);
+    if(popup)copilot.handoffPopup(win.id);
+    if(copilot.inferSelectionStage(win.id))entry.phase='selecting';
+    broadcast();void copilot.observe(win.id);
+  });
+  wc.on("did-navigate-in-page", () => {
+    copilot.clear(win.id);
+    if(copilot.inferSelectionStage(win.id))entry.phase='selecting';
+    broadcast();void copilot.observe(win.id);
+  });
   wc.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {
     if (isMainFrame && code !== -3) { entry.loadError = Number.isInteger(code) ? code : -1; broadcast(); }
   });
@@ -496,6 +510,10 @@ app.whenReady().then(() => {
     const info=copilot.arm(windowId,conditions,consent);
     void copilot.observe(windowId);
     return info;
+  });
+  ipcMain.handle("tixbam:copilot-advance-resume", (event, windowId) => {
+    dashboardOnly(event);
+    return copilot.resume(windowId);
   });
   ipcMain.handle("tixbam:copilot-advance-stop", (event, windowId) => {
     dashboardOnly(event);
