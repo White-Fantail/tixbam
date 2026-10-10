@@ -97,7 +97,7 @@ test('a valid rehearsal offer only passes with exact binding and purchase constr
     assert.equal(result.allowed,false,key);
   }
   const denied=setup({consentChange:{currency:'USD'}});
-  assert.equal(denied.validator.validate(denied.propose(),denied.scope).code,'UNKNOWN_PRICE');
+  assert.equal(denied.validator.validate(denied.propose(),denied.scope).code,'CONSENT_MISSING');
   for(const change of [
     {maxAllInMinor:10},{quantity:1},{permittedActions:[]},{runId:crypto.randomUUID()},
     {eventKey:'wrong-event'},{windowId:77},
