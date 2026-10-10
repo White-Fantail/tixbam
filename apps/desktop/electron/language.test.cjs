@@ -52,12 +52,23 @@ test("key Desktop workflows have verified Korean translations", () => {
     "Offline rehearsal finished","Choose a Cityline practice scenario",
     "Ticketing admission / waiting room","Shopping cart",
     "Simulated bank / payment verification","Transaction preview",
-    "Verify purchase","No live purchases","No success guarantee"
+    "Verify purchase","No live purchases","No success guarantee",
+    "Provider briefing", "Preview expected steps", "Live Copilot booking",
+    "Start live booking", "AI Booking Copilot", "Real seat selection and payment are not yet verified. Unsupported steps pause for manual completion.",
+    "This link may lead to an event or promoter page, not the actual ticket checkout. Verify the official ticket agent before live booking.",
+    "Browser windows: {count}", "{count} ticket(s)", "Practice step {step} of 5"
   ];
   for(const key of critical.filter(k=>k!=="No success guarantee")) {
     assert.equal(keys.has(key),true,"No Korean translation: "+key);
   }
   assert.equal(fs.existsSync(path.join(__dirname,"../i18n-vite.ts")),true);
+});
+
+test("the booking countdown includes explicit Korean units and responds to language changes", () => {
+  const booking = fs.readFileSync(path.join(src, "BookingWorkspace.tsx"), "utf8");
+  assert.match(booking, /const \{ language \} = useLanguage\(\)/);
+  assert.match(booking, /language === "ko"/);
+  assert.match(booking, /\$\{days\}일 \$\{hours\}시간 \$\{minutes\}분/);
 });
 
 test("translation resources are isolated from Admin and retain source phrases for English", () => {

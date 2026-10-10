@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { tx, localDate } from "./i18n";
+import { tx, tr, localDate, useLanguage } from "./i18n";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLink,
   FlaskConical, ListChecks, Plus, Settings2, ShieldAlert, TicketCheck, Trash2 } from "lucide-react";
 import type { TicketAddon, RehearsalTarget } from "./types";
@@ -30,6 +30,7 @@ function addonFor(addons: TicketAddon[], id: string) {
 
 export function SaleCountdown({ saleAt }: { saleAt: string }) {
   const [clock, setClock] = useState(Date.now);
+  const { language } = useLanguage();
   const opens = saleTimestamp(saleAt);
   const fast = opens !== null && opens > clock && opens - clock <= 24 * 60 * 60 * 1000;
   useEffect(() => {
@@ -48,8 +49,9 @@ export function SaleCountdown({ saleAt }: { saleAt: string }) {
   const minutes = Math.floor((remaining % 3600) / 60);
   const seconds = remaining % 60;
   const pad = (value: number) => String(value).padStart(2, "0");
-  const label = days > 0 ? days + "d " + hours + "h " + minutes + "m" :
-    pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+  const label = days > 0
+    ? language === "ko" ? `${days}일 ${hours}시간 ${minutes}분` : `${days}d ${hours}h ${minutes}m`
+    : pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
   return <span className={"plan-countdown" + (remaining <= 300 ? " plan-countdown-soon" : "")}>
     <CalendarClock size={16}/> Tickets open in <strong>{label}</strong>
   </span>;
@@ -87,7 +89,7 @@ function PlanCard({ plan, addons, now, onSelect, onPractice, onBook }: {
     </div><TicketCheck size={25} /></div>
     <TicketSaleStatus saleAt={plan.saleAt} timezone={plan.timezone} now={now} showDate />
     <SaleCountdown saleAt={plan.saleAt}/>
-    <div className="plan-progress"><span>{finished}/{checks.length} preparation checks</span>
+    <div className="plan-progress"><span>{finished}/{checks.length} {tx("preparation checks")}</span>
       <progress max={checks.length} value={finished} aria-label="Preparation checks complete" /></div>
     <div className="plan-actions">
       <button className="button button-outline" onClick={onSelect}><Settings2 size={15}/> Prepare</button>
@@ -125,7 +127,7 @@ export function RehearsalSimulator({ plan, onComplete, onClose }: {
     <div className="practice-header"><div><span className="eyebrow">GENERIC OFFLINE SIMULATION</span>
       <h3>Rehearse your booking</h3></div><button className="button button-outline" onClick={onClose}>Close</button></div>
     <p>This is a generic practice scenario, not the actual {plan.providerId} booking page. It does not verify inventory, enter a queue, reserve seats or charge a card.</p>
-    <div className="practice-steps">Practice step {Math.min(step + 1, 5)} of 5</div>
+    <div className="practice-steps">{tr("Practice step {step} of 5", { step: Math.min(step + 1, 5) })}</div>
     {step === 0 && <div className="practice-stage">
       <h4>1. Know your booking conditions</h4>
       <p>{plan.quantity} ticket(s) · {max ? amount(max) : "No budget set"} maximum total · {plan.requireTogether ? "Adjacent seats required" : "Separate seats allowed"}</p>
@@ -156,7 +158,7 @@ export function RehearsalSimulator({ plan, onComplete, onClose }: {
     {step === 4 && <div className="practice-stage"><h4>5. Bank challenge and confirmation</h4>
       <p>Imagine completing 3-D Secure on your phone. Confirm the ticket provider's final order receipt before treating a real booking as successful. No real payment occurs here.</p>
       <button className="button button-primary" disabled={busy} onClick={() => void finish()}>Finish offline rehearsal</button>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {error && <p className="form-error" role="alert">{tx(error)}</p>}
     </div>}
     {step === 5 && <div className="practice-stage"><CheckCircle2 size={26}/>
       <h4>Offline rehearsal finished</h4>
@@ -194,7 +196,7 @@ export function BookingDashboard({ plans, addons, now, onCreate, onDiscover, onS
     {featured ? <PlanCard plan={featured} addons={addons} now={now}
       onSelect={() => onSelect(featured.id)} onPractice={() => onPractice(featured.id)}
       onBook={() => onBook(featured)} /> : <button className="button button-outline" onClick={onDiscover}>Browse concert directory <ArrowRight size={15}/></button>}
-    {plans.length > 1 && <p className="booking-more-note">{plans.length - 1} other booking plan(s) in My Bookings.</p>}
+    {plans.length > 1 && <p className="booking-more-note">{tr("There are {count} more booking plans in My Bookings.", { count: plans.length - 1 })}</p>}
   </section>;
 }
 
@@ -310,7 +312,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
             onClick={() => { const next = { ...draft, preferencesReady: true }; setDraft(next); setSaving(true);
               void onSave(next).catch(e => setError(String(e))).finally(() => setSaving(false)); }}>Mark preferences ready</button>
         </div>
-        {error && <p role="alert" className="form-error">{error}</p>}
+        {error && <p role="alert" className="form-error">{tx(error)}</p>}
       </div>
     </div><div className="booking-detail-side">
       <div className="settings-panel">
@@ -347,7 +349,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
         <p className="settings-note">Provider receipt verification and durable booking history are not available in this release. An offline rehearsal is never proof of purchase.</p>
       </div>
       <button className="button button-outline plan-delete" disabled={saving} onClick={() => {
-        if (window.confirm("Delete this booking plan? Existing watchlist records are not deleted.")) {
+        if (window.confirm(tx("Delete this booking plan? Existing watchlist records are not deleted."))) {
           void onRemove(selected.id).then(() => { onSelect(null); }).catch(e => setError(String(e)));
         }
       }}><Trash2 size={15}/> Delete booking plan</button>

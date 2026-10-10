@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CircleHelp, Clock3,
 import type { BookingRun } from "../../../packages/addon-sdk";
 import type { BookingPlan } from "./booking-plans";
 import { currencyFactor } from "./booking-plans";
-import { tx, localDate } from "./i18n";
+import { tx, tr, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
 import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
 import { formatSaleLocalTime } from "./ticket-sales";
@@ -22,7 +22,7 @@ const riskStages = new Set<LivePhase>(["checkout", "verification"]);
 const terminal = new Set(["completed", "failed", "stopped", "payment_unknown"]);
 
 function money(plan: BookingPlan): string {
-  if (!plan.budgetMinor) return "No maximum budget set";
+  if (!plan.budgetMinor) return tx("No maximum budget set");
   const factor = currencyFactor(plan.currency);
   return plan.currency + " " + (plan.budgetMinor / factor).toLocaleString(undefined, {
     minimumFractionDigits: factor === 1 ? 0 : 2, maximumFractionDigits: factor === 1 ? 0 : 2
@@ -126,9 +126,9 @@ export function LiveBookingWorkspace({
         return;
       }
       const amount = (order.totalMinor / currencyFactor(order.currency)).toFixed(currencyFactor(order.currency) === 1 ? 0 : 2);
-      if (!window.confirm("Authorize the exact displayed order and submit payment once?\n" +
-        order.quantity + " ticket(s), " + order.currency + " " + amount +
-        " including fees.\nVerify the official provider page first.")) return;
+      if (!window.confirm(tx("Authorize the exact displayed order and submit payment once?") + "\n" +
+        tr("{count} ticket(s)", {count: order.quantity}) + ", " + order.currency + " " + amount +
+        " " + tx("including fees.") + "\n" + tx("Verify the official provider page first."))) return;
     }
     await invoke("run-" + run.id, async () => {
       const updated = action === "stop"
@@ -146,7 +146,7 @@ export function LiveBookingWorkspace({
         <h2>AI Booking Copilot</h2>
         <p>Prepare your targets, use the official browser and get local click guidance. Unverified automatic actions remain disabled.</p>
       </div>
-      <span className="counter-badge"><Monitor size={14}/>{windows.length} browser window(s)</span>
+      <span className="counter-badge"><Monitor size={14}/>{tr("Browser windows: {count}", { count: windows.length })}</span>
     </div>
     {error && <p role="alert" className="form-error">{tx(error)}</p>}
     {planHistory.length > 0 && <div className="live-recovery" role="alert">
@@ -158,7 +158,7 @@ export function LiveBookingWorkspace({
         const previous = plans.find(p => p.id === item.planId);
         return <div className="live-recovery-item" key={item.planId}>
           <span><b>{previous?.artist || "Booking plan"}</b> · {item.reason === "interrupted" ? "Session interrupted" : "Window closed"} · {localDate(item.updatedAt)}
-            {riskStages.has(item.phase) ? " · Checkout may need verification" : ""}</span>
+            {riskStages.has(item.phase) ? tx(" · Checkout may need verification") : ""}</span>
           <button className="button button-outline" disabled={busy !== ""} onClick={() => void invoke("dismiss-" + item.planId, () => onDismissHistory(item.planId))}>
             Dismiss reminder</button>
         </div>;
@@ -185,7 +185,7 @@ export function LiveBookingWorkspace({
           </div>
           <div className="live-sale-time">
             <SaleCountdown saleAt={plan.saleAt}/>
-            <span>{plan.saleAt ? "Scheduled sale: " + formatSaleLocalTime(plan.saleAt, plan.timezone || undefined) :
+            <span>{plan.saleAt ? tx("Scheduled sale:") + " " + formatSaleLocalTime(plan.saleAt, plan.timezone || undefined) :
               "Official sale date not yet published"}</span>
           </div>
           <div className="live-browser-status">
@@ -216,9 +216,9 @@ export function LiveBookingWorkspace({
                 onClick={() => void invoke("agent", () => onTicketAgent(selectedWindow.id))}>Open official ticket agent <ArrowRight size={15}/></button>}
           </div>
           {remainingPopup && <p className="live-warning">The main ticket window is closed, but a provider popup is still open. Check it before starting another booking attempt.</p>}
-          {extra.length > 0 && <div className="live-popups"><strong>Provider popups ({extra.length})</strong>
+          {extra.length > 0 && <div className="live-popups"><strong>{tx("Provider popups")} ({extra.length})</strong>
             <p>Login and payment verification can open additional windows. They are not extra queue positions.</p>
-            {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>Focus popup #{win.id} · {win.site || "loading"}</button>)}
+            {extra.map(win => <button key={win.id} className="button button-outline" onClick={() => void invoke("popup" + win.id, () => onFocus(win.id))}>{tx("Focus popup")} #{win.id} · {win.site || "loading"}</button>)}
           </div>}
         </div>
         <LiveCopilotPanel bookingWindow={selectedWindow} plan={plan}/>
@@ -229,7 +229,7 @@ export function LiveBookingWorkspace({
             const status = summarizeRun(run);
             return <div key={run.id} className={"live-run"+(status.dangerous ? " live-run-alert" : "")}>
               <strong>{tx(status.heading)}</strong><p>{run.message}</p><p>{tx(status.action)}</p>
-              {run.status === "review" && run.order && <p><b>Order:</b> {run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(", ")}</p>} 
+              {run.status === "review" && run.order && <p><b>Order:</b> {tr("{count} ticket(s)", { count: run.order.quantity })} · {run.order.currency} {(run.order.totalMinor / currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} {tx("including fees")} · {run.order.seats.join(", ")}</p>} 
               {run.status==="review"&&run.order&&<div className="booking-review-panel" role="group" aria-label={tx("Final order approval")}>
                 <strong>{tx("Final order approval")}</strong>
                 <p>{tx("Manually verify the official provider window; unknown fees, seats or restricted terms must not be approved.")}</p>
@@ -266,7 +266,7 @@ export function LiveBookingWorkspace({
       <aside className="live-assistant">
         <div className="live-assistant-card">
           <h3><Clock3 size={18}/> Your booking conditions</h3>
-          <p><b>{plan.quantity} ticket(s)</b> · {money(plan)} including fees</p>
+          <p><b>{tr("{count} ticket(s)", { count: plan.quantity })}</b> · {money(plan)} {tx("including fees")}</p>
           <p>{plan.requireTogether ? "Adjacent seats required" : "Separate seats allowed"}
             · {plan.allowFallback ? "Ranked alternatives allowed" : "No unranked alternatives"}</p>
           <div className="live-seat-summary" role="note">

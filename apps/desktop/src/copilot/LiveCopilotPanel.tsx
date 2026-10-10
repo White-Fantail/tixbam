@@ -99,7 +99,7 @@ export function LiveCopilotPanel({ bookingWindow, plan }: {
         {ko?"AI 자동 진행 (미지원)":"AI auto (unavailable)"}</button>
     </div>
     {!eligible && <p className="live-warning">{ko
-      ?"공식 예매 창을 열고 실제 좌석 선택 단계에 들어가면 'Current step'에서 Selecting tickets를 선택해. 대기열·로그인·결제 단계에서는 캡처와 클릭을 막아."
+      ?"공식 예매 창을 열고 실제 좌석 선택 단계에 들어가면 '현재 단계'에서 '티켓 선택 중'을 선택해. 대기열·로그인·결제 단계에서는 캡처와 클릭을 막아."
       :"Open a plan-linked browser and select 'Selecting tickets' at the actual seat step. Queue, login and payment steps are excluded."}</p>}
     {snapshot && <div className="copilot-preview">
       <p className="copilot-preview-note">{ko?"이미지를 눌러 대상 위치 지정 · 일회성 캡처 · 서버 전송 없음":
