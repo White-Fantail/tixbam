@@ -177,11 +177,16 @@ class ActionValidator {
       if(!isRecord(permit) || !matches(permit.runId,s.runId) ||
          !matches(permit.accountId,s.accountId) || !matches(permit.planId,s.planId) ||
          !matches(permit.providerId,s.providerId) || !matches(permit.country,s.country) ||
-         !matches(permit.addonVersion,s.addonVersion) || permit.expiresAtMs<=now ||
+         !matches(permit.addonVersion,s.addonVersion) ||
+         permit.eventKey!==s.eventKey || (permit.windowId??null)!==s.windowId ||
+         permit.expiresAtMs<=now ||
          !Array.isArray(permit.permittedActions) || !permit.permittedActions.includes(capability) ||
          !isInt(permit.maxAllInMinor) || !isInt(permit.quantity) ||
          !/^[A-Z]{3}$/.test(permit.currency||'') ||
-         permit.policyRevision!==scope.policyRevision)
+         permit.policyRevision!==scope.policyRevision ||
+         !scope.preferences || scope.preferences.quantity!==permit.quantity ||
+         scope.preferences.currency!==permit.currency ||
+         scope.preferences.maxTotalMinor!==permit.maxAllInMinor)
         return {decision:decision('CONSENT_MISSING',now),target:null};
       // AB-03 only dispatches fake rehearsal actions; normal live actions
       // require AB-01 authorization, still intentionally disabled.
