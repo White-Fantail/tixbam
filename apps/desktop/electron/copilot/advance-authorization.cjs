@@ -19,7 +19,7 @@ function normalizeConsent(input){
   if(!Array.isArray(input.actions) || input.actions.length>5 ||
      !input.actions.every(x=>KINDS.includes(x)) || new Set(input.actions).size!==input.actions.length)
     throw new Error('Invalid advance-approved Copilot actions.');
-  return Object.freeze({mode:input.mode,shareScreenshots:true,
+  return Object.freeze({mode:input.mode,confirmed:true,shareScreenshots:true,
     actions:Object.freeze([...input.actions]),
     // A renderer-provided flag alone grants NOTHING; Electron's main process
     // must separately verify the unbundled, opt-in developer runtime.
