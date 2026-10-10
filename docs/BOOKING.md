@@ -33,6 +33,14 @@ CVV is never persisted. It is entered once when preparing a run and kept with th
 
 Actual card details are unnecessary for rehearsal. This release's live Cityline payment service is unavailable, even if a card has been prepared.
 
+## AB-05 Durable Booking Journal and purchase safety
+
+The Electron main process owns `booking/journal.cjs` and `booking/payment-attempts.cjs`, creating an append-only v1 Journal under the application's local userData `booking-safety/` directory. Every real payment attempt is required to write an exclusive, fsynced `COMMIT_INTENT_RECORDED` before a payment executor is called. The journal stores a sequential integrity hash chain and HMAC digests of allowed purchase data; no payment card, CVV, OTP, raw personal information, seat/order links or provider cookies are written. On POSIX systems the local journal uses 0700 directory / 0600 files.
+
+The host blocks any repeated attempt for the same account, provider, actual sale/event and performance, including attempts with a different plan, ticket quantity or budget. A commit may have preceded a crash without a payment request actually reaching the merchant, but it must still be treated as **payment_unknown**, not automatically retried. Submission-returned does not prove success. A restarted Desktop exposes unresolved attempts through the normal read-only Booking Runs list; corrupt or unavailable Journal state is surfaced as a payment safety warning, not interpreted as empty history. Synthetic rehearsals remain charge-free.
+
+A Journal lock left behind after a crash is deliberately not silently removed; fsync failures, torn files, wrong permissions, key/log deletion or exhausted bounded storage refuse new auto-submissions. Do not manually delete the journal or lock merely to retry. First verify the official ticket agent's order and payment history and follow a separately reviewed reconciliation procedure. **This only covers one local Desktop storage instance**; multi-device coordination is AB-06 and independent official receipt verification is AB-14. Neither live auto-payment nor provider consent has been enabled.
+
 ## AB-04 Observation Pipeline — read-only
 
 Electron's trusted main process owns `booking/observation.cjs` and `observation-redaction.cjs`. They normalize verified provider pages into bounded `HostObservationV1`, including the current event/window/run binding, stage and challenge enum, short-lived opaque handles and provenance. Host snapshots never authorize payments. The separately generated `AIObservationV1` contains only stage, challenge, confidence, option counts and task-local random tokens; there are no personal details, booking IDs, browser identifiers, vendor event IDs, URLs, form values, raw DOM, order receipts or screenshots.

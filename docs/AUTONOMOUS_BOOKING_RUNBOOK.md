@@ -139,6 +139,17 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** crash at every step via fault injection, duplicate attempt, corrupted/truncated journal, disk full/fsync failure.
 **Do not:** real card/order URLs or CVV/OTP persist.
 
+
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/journal.cjs`: 호스트 전용 v1 JSONL append-only Journal, monotonic seq + SHA-256 hash chain, 전용 0700 폴더 / 0600 파일, 랜덤 256-bit 로컬 HMAC fingerprint key, 배치 기록 후 파일 fsync 및 디렉터리 fsync. 위험한 symlink/권한·키 또는 로그 누락, tail 절단/변조, 저장 한도 초과, 남겨진 exclusive lock을 자동 수리하지 않고 결제 차단.
+- `payment-attempts.cjs`: `RUN_CREATED → OFFER_LOCKED → COMMIT_INTENT_RECORDED` 원자적 기록; 계정+실제 업체+sale+event+performance HMAC 범위의 1회 제출 예약. 별도 plan/예산/수량으로 우회하여 동일 공연에 다시 자동 결제 시도하는 것도 거부. 확인되지 않은 제출/종료/복구는 `PAYMENT_UNKNOWN`. 실결제 영수증 자동 확정은 금지하고 리허설 합성 영수증만 별도 검증.
+- `runner.cjs`: 실제 결제 동작 전에 synchronous `recordCommitIntent`가 fsync 성공해야만 `COMMIT_STARTED` 전이. Journal 없거나 실패하면 실결제 호출하지 않음. 제출 후 오류·Stop 시 안전한 UNKNOWN으로 잠금. 기존 합성 리허설은 결제 없이 유지.
+- `controller.cjs`: 계정/카드/주문 실데이터를 Journal에 기록하지 않음. 앱 재시작 시 unresolved intent를 `list-bookings`의 읽기 전용 `payment_unknown`으로 표시. 손상된 Journal을 빈 상태로 취급하지 않고 안전성 경고 표시; 자동 제출은 차단. 사용자가 공식 주문 내역을 직접 확인해야 함.
+- `packages/addon-sdk/index.d.ts`: recovered attempt와 payment intent 타입 추가; renderer가 Journal이나 결제 제출 함수를 호출할 수 없음.
+- 테스트: 중단 시점(fsync 이전/이후), partial write, 복구 중 중복 시도, 두 프로세스 충돌, 파일 손상·삭제·권한·symlink, 총액·수수료 미확인, 자동 결제 전/후 Stop, 합성 리허설, Desktop 재시작 후 경고. CI [GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38010430610) **SUCCESS**, Desktop 128/128, API/MCP 29/29, Crawler 3/3, Desktop/Admin 빌드 통과.
+- **범위와 안전 한계:** 한 기기/한 로컬 저장소 내의 자동 제출만 보호. 다른 기기와 동기화하지 않음(AB-06). 공식 제공업체 조회로 실제 청구 여부를 판정하는 Reconciliation은 AB-14. lock 잔여/손상 기록은 운영자 검증 없이 자동 제거 금지. 전체 기록이 가득 차면 삭제 대신 새 결제 제출을 차단. 사용자가 직접 업체 웹사이트에서 수동 결제하는 것까지 차단할 수는 없음. AB-01 정책에 따라 라이브 무인 자동 결제는 여전히 비활성.
+
+
 ## AB-06 — 동시 실행 및 멀티 윈도우 소유권
 
 **명령:** "AB-06 구현해. 사용자/공연/회차 별 중복 구매를 차단하도록 Run Lock과 소유권을 구현해."
@@ -251,13 +262,13 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-04 완료 (dev) · AB-05 다음 단계**. AI 명령의 실사이트 실행과 실제 라이브 자율 결제는 비활성.
+- 현 단계: **AB-01~AB-05 완료 (dev) · AB-06 다음 단계**. 라이브 자율 결제는 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
   - [x] AB-03 Action Validator — `9a0563b` (strict proposals/host registry, rehearsal mock & regression verified)
   - [x] AB-04 Observation — `9c531b8` (redacted, navigation-aware host snapshots; CI verified)
-  - [ ] AB-05 Journal
+  - [x] AB-05 Journal — `53086d9` (durable write-ahead ledger, restart recovery, CI verified)
   - [ ] AB-06 Session Coordinator
   - [ ] AB-07 Offline Rehearsal
   - [ ] AB-08 AI Planner
@@ -269,4 +280,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-05 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-06 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

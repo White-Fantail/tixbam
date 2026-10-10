@@ -205,6 +205,11 @@ export interface VerifiedPaymentExecutor {
 }
 ~~~
 
+
+**AB-05 implemented journal boundary (2026-10-10):** Host local `DurableBookingJournal` stores versioned, append-only JSONL entries in a 0700 directory and 0600 files (on POSIX), with a SHA-256 integrity chain, sequence and durable fsync of the file/directory. The persistent key permits HMAC digests of normalized purchase scope/permit/order without writing raw account, event, URL, seat, CVV or card numbers to disk. `PaymentAttemptLedger.recordCommitIntent` records RUN_CREATED, OFFER_LOCKED and COMMIT_INTENT_RECORDED in a single exclusive transaction, fsynced before any provider payment effect. A separate attempt under the same account/provider/sale/event/performance scope is refused even after a different plan or quantity, and even if the earlier attempt was confirmed. Submission return does not mean payment was successful. Unresolved attempts are shown as payment_unknown on restart; no automatic retries.
+
+Failure modes are intentionally fail-closed: invalid schema/sequence/hash, torn tail, disk-full, fsync error, permissions/symlinks, orphaned local exclusive lock and missing HMAC key/journal block payment submissions. A stale lock is **not automatically reclaimed**; reconcile the merchant state, inspect the data and involve a human operator. Currently only a synthetic rehearsal receipt can close a journal attempt; official vendor receipt verification belongs to AB-14. There is no real live payment executor in AB-05, and desktop-only storage cannot prevent charges made manually on websites or from another device (AB-06 coordinates multiple devices).
+
 The payment implementation must not infer card details from the model. Favor official token, wallet or hosted checkout. Existing CardVault/RunSecret and PCI scope require separate security review before a live implementation. Client side JavaScript memory clearing is not secure deletion.
 
 ## E. State transitions and invariants
