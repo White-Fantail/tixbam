@@ -40,5 +40,6 @@ export function advanceConsent(value:AdvanceSettings):AdvanceConsent|null {
     ? {...normalized,confirmed:true,
         // Never treat stored settings as runtime proof; Electron independently
         // checks an explicit local CLI flag and app.isPackaged.
-        developmentOverride:normalized.mode==="observe" && normalized.developerClickTest===true} : null;
+        developmentOverride:(normalized.mode==="observe" || normalized.mode==="authorized") &&
+          normalized.developerClickTest===true} : null;
 }
