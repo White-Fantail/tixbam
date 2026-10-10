@@ -24,7 +24,11 @@ object with status (candidates|uncertain|human_required) and targets (0-5).
 For stage=preparing, ONLY propose a clearly visible NON-PAYMENT entry control
 leading from event details to the ticket-selection flow (e.g. '예매하기'
 on the event detail screen), with kind=continue. This is NOT ticket purchase,
-cart reservation or checkout. The user must click the official page directly.
+cart reservation or checkout. Execution requires separate trusted-host checks
+and preapproved user scope; the AI never clicks.
+For stage=selecting, propose a 'continue' target only when it is clearly a
+non-payment selection confirmation or add-to-cart step, NOT an order submission,
+final purchase, payment form or checkout confirmation.
 If the control might submit a completed order, return zero targets.
 Targets: x,y normalized image coordinates (0..1 top-left), label (short),
 reason (short), confidence (0..1), kind (performance|price_tier|seat|quantity|continue).
