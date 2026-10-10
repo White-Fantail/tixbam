@@ -4,12 +4,13 @@ const path = require('node:path');
 const { BrowserWindow, nativeImage } = require('electron');
 const { screenAllowed,pixelPoint,targetRegion,validSnapshot,validObservation,SNAPSHOT_TTL_MS } = require('./core.cjs');
 const MAX_JPEG_BYTES = 1500000;
-const {normalizeConsent,providerAutomationStatus,developerClickAllowed,canRun,
+const {normalizeConsent,providerAutomationStatus,canRun,
   DEV_CLICK_KINDS,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
   =require('./advance-authorization.cjs');
-/** Host-only, opt-in local screenshot preview and human-directed pointer.
- * No website code injection, remote vision uploads, auto-click loops or payments.
- * Live unattended actions require a SEPARATE verified provider executor.
+const {MAX_AUTO_STEPS,actionPermission,chooseStep}=require('./auto-flow.cjs');
+/** Host-owned, bounded opt-in visual execution.
+ * Remote pages receive no privileged preload or scripts. Real purchase, payment
+ * and official seat holds must be verified by independent provider evidence.
  */
 class LiveCopilot {
   constructor({ticketWindows,requireInstalled,developerClickTestEnabled=()=>false}) {
@@ -21,7 +22,8 @@ class LiveCopilot {
   }
   developerCapabilities() {
     return {singleClickTest:this.developerClickTestEnabled()===true,
-      maxRealClicksPerSession:1,checkoutAllowed:false};
+      multiStepTest:this.developerClickTestEnabled()===true,
+      maxRealClicksPerSession:MAX_AUTO_STEPS,checkoutAllowed:false};
   }
   setVisionProvider(provider) {
     if(typeof provider!=='function')throw new TypeError('Trusted Vision service required');
@@ -83,17 +85,18 @@ class LiveCopilot {
        !consent.actions.some(kind=>DEV_CLICK_KINDS.includes(kind))))
       throw new Error('Developer click test requires the local development runtime, a ticketing provider and an approved selection action.');
     const permission=providerAutomationStatus(addon,'seat');
-    const mode=developerTest ? 'dev_single_click' :
+    const mode=developerTest ? 'dev_flow' :
       consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
     const session={windowId,planId:entry.planId,providerId:entry.providerId,
       consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
-      count:0,lastAttemptAt:0,stopped:false,automaticClicks:0};
+      count:0,lastAttemptAt:0,stopped:false,automaticClicks:0,
+      lastActionKey:null,lastActionDigest:null,lastAction:null};
     this.autoSessions.set(windowId,session);
     return this.autoInfo(session,'armed',developerTest
-      ? 'Developer test armed for ONE verified selection click; never login, queue or checkout.'
+      ? 'Developer multi-step test armed. Official login, queue, CAPTCHA and checkout are user-owned.'
       : mode==='observe'&&consent.mode==='authorized'
         ? 'Provider automation unavailable: '+permission.reason+' Visual guidance only.'
-        : 'Advance-approved visual guidance armed. Login, queues and checkout are manual.');
+        : 'Advance-approved assistance armed. Unsafe steps pause for user control.');
   }
   disarm(windowId,{completed=false}={}) {
     const pendingTimer=this.autoTimers.get(windowId);
@@ -130,13 +133,27 @@ class LiveCopilot {
           timer.unref?.();
           this.autoTimers.set(windowId,timer);
         }
-      } else this.autoInfo(session,'paused',check.reason);
+      } else {
+        // The official checkout/cart may represent a candidate hold, but never
+        // assert reservation success from a route or screenshot alone.
+        const url=entry?.win?.webContents?.getURL?.()||'';
+        const atCheckout=/\/(?:checkout|cart|payment|pay)(?:[\/?#]|$)/i.test(url);
+        this.autoInfo(session,atCheckout?'hold_unverified':'awaiting_user',
+          atCheckout
+            ? 'Checkout/cart reached. Verify the official seat hold and total; no automatic payment.'
+            : check.reason);
+      }
       return;
     }
     // Screen restrictions are rechecked before EVERY capture and after AI latency.
     try {this.verify(windowId,{localPreview:true});}
     catch(error){
-      this.autoInfo(session,'paused',error.message);
+      const url=entry?.win?.webContents?.getURL?.()||'';
+      const atCheckout=/\/(?:checkout|cart|payment|pay)(?:[\/?#]|$)/i.test(url);
+      this.autoInfo(session,atCheckout?'hold_unverified':'awaiting_user',
+        atCheckout
+          ? 'Checkout/cart reached. Verify the official seat hold and total; no automatic payment.'
+          : error.message);
       return;
     }
     session.lastAttemptAt=Date.now();
@@ -149,33 +166,65 @@ class LiveCopilot {
       const response=await this.analyze(windowId,shot.token,session.preferences);
       if(session.stopped || this.autoSessions.get(windowId)!==session)return;
       const candidates=response.targets.filter(t=>session.consent.actions.includes(t.kind));
-      const devCandidate=session.mode==='dev_single_click'
-        ? candidates.find(t=>developerClickAllowed(
-            this.developerClickTestEnabled(),session,entry,t).allowed) : null;
-      if(devCandidate){
-        // This is a SINGLE synthetic/native input diagnostic in an explicitly
-        // enabled developer build, NOT a provider-authorized booking executor.
-        // click() rechecks the screenshot target after focusing the live window.
+      const addon=this.requireInstalled(entry.providerId);
+      const decision=chooseStep({session,entry,addon,
+        developerEnabled:this.developerClickTestEnabled()},candidates);
+      // Every mutation gets a new image, host-level permission check, and
+      // a duplicate-target guard. The AI response is merely a proposal.
+      if(decision.target) {
+        if(session.lastActionDigest && this.snapshots.get(windowId)?.digest===session.lastActionDigest){
+          this.autoInfo(session,'awaiting_user',
+            'The official page has not changed since the previous click. Check progress manually.',
+            {targets:candidates});
+          return;
+        }
         const result=await this.click(windowId,shot.token,
-          {x:devCandidate.x,y:devCandidate.y},{developerSession:session,developerTarget:devCandidate});
+          {x:decision.target.x,y:decision.target.y},
+          {autoSession:session,autoTarget:decision.target});
         session.automaticClicks+=1;
-        this.disarm(windowId,{completed:true});
-        this.autoInfo(session,'clicked','Developer test: one native input pair delivered; no seat hold verified.',
-          {targets:[devCandidate],clickResult:result});
+        session.lastActionKey=decision.key;
+        session.lastActionDigest=crypto.createHash('sha256').update(shot.image).digest('hex');
+        session.lastAction=decision.target.kind;
+        this.autoInfo(session,'progress',
+          'Step '+session.automaticClicks+' input sent ('+decision.target.kind+'). Verifying next screen.',
+          {targets:[decision.target],clickResult:result});
+        if(session.automaticClicks>=MAX_AUTO_STEPS){
+          this.autoInfo(session,'awaiting_user',
+            'Maximum step budget reached. Review the official page before starting another approved session.');
+          return;
+        }
+        // A click can update a page without navigation (SPA). Schedule a
+        // bounded re-observation rather than waiting for a new URL.
+        this.scheduleNext(windowId,session,MIN_ANALYSIS_GAP_MS+100);
         return;
       }
       if(candidates.length) {
         await this.highlight(windowId,shot.token,{x:candidates[0].x,y:candidates[0].y});
       }
-      const reason=session.mode==='dev_single_click'
-        ? 'No safe high-confidence selection target. Developer auto click NOT performed.'
-        : candidates.length ? 'Candidate highlighted; inspect the official site.'
-          : 'No confident approved action found. Continue manually.';
-      this.autoInfo(session,'guiding',reason,{targets:candidates});
+      this.autoInfo(session,candidates.length?'awaiting_user':'awaiting_user',
+        decision.reason+' Make any necessary user action, then resume.',
+        {targets:candidates});
     }catch(error){
       if(!session.stopped && this.autoSessions.get(windowId)===session)
         this.autoInfo(session,'paused',error instanceof Error?error.message:String(error));
     }finally {this.autoPending.delete(windowId);}
+  }
+  scheduleNext(windowId,session,delay=MIN_ANALYSIS_GAP_MS+100) {
+    if(this.autoTimers.has(windowId))clearTimeout(this.autoTimers.get(windowId));
+    const timer=setTimeout(()=>{
+      this.autoTimers.delete(windowId);
+      if(!session.stopped && this.autoSessions.get(windowId)===session)
+        void this.observe(windowId);
+    },delay);
+    timer.unref?.();
+    this.autoTimers.set(windowId,timer);
+  }
+  resume(windowId) {
+    const session=this.autoSessions.get(windowId);
+    if(!session || session.stopped)throw new Error('No active Copilot session to resume.');
+    if(Date.now()>=session.expiresAt)throw new Error('Copilot approval expired. Reapprove your plan.');
+    this.scheduleNext(windowId,session,25);
+    return this.autoInfo(session,'resuming','Checking the official site after your manual action.');
   }
   async takeImage(entry) {
     const image=await entry.win.webContents.capturePage();
@@ -209,10 +258,10 @@ class LiveCopilot {
       width:bounds.width,height:bounds.height,
       mode,automaticClickAvailable:false};
   }
-  async verifiedTarget(windowId,token,point,{readOnly=false}={}) {
-    const options=readOnly ? {localPreview:true} : {};
+  async verifiedTarget(windowId,token,point,{readOnly=false,autoPreparing=false}={}) {
+    const options=readOnly || autoPreparing ? {localPreview:true} : {};
     const entry=this.verify(windowId,options),preview=this.snapshots.get(windowId);
-    const check=readOnly ? validObservation : validSnapshot;
+    const check=readOnly || autoPreparing ? validObservation : validSnapshot;
     check(preview,entry,token,entry.win.webContents.getURL());
     const bounds=entry.win.getContentBounds();
     if(bounds.width!==preview.width || bounds.height!==preview.height)
@@ -312,16 +361,20 @@ class LiveCopilot {
   async click(windowId,token,point,options={}) {
     // Focus can trigger website overlays, layout changes or browser redraws.
     // Always perform the final image comparison AFTER bringing it forward.
-    const live=this.verify(windowId);
+    const autoSession=options.autoSession;
+    const live=this.verify(windowId,autoSession?.lastAction==='continue' ||
+      (autoSession && this.ticketWindows.get(windowId)?.phase==='preparing')
+        ? {localPreview:true} : {});
     if(live.win.isMinimized())live.win.restore();
     live.win.show();live.win.focus();
-    const {entry,preview,target}=await this.verifiedTarget(windowId,token,point);
-    if(options.developerSession){
-      const session=options.developerSession;
-      if(this.autoSessions.get(windowId)!==session ||
-        !developerClickAllowed(this.developerClickTestEnabled(),session,entry,
-          options.developerTarget).allowed)
-        throw new Error('Developer click session revoked or selected target is no longer eligible.');
+    const {entry,preview,target}=await this.verifiedTarget(windowId,token,point,
+      {autoPreparing:Boolean(autoSession && live.phase==='preparing')});
+    if(autoSession){
+      if(this.autoSessions.get(windowId)!==autoSession ||
+         !actionPermission({session:autoSession,entry,
+           addon:this.requireInstalled(entry.providerId),target:options.autoTarget,
+           developerEnabled:this.developerClickTestEnabled()}).allowed)
+        throw new Error('Approved automatic action expired or provider/plan policy changed.');
     }
     preview.consumed=true;
     this.snapshots.delete(windowId);
@@ -330,8 +383,8 @@ class LiveCopilot {
       x:target.x,y:target.y,button:'left',clickCount:1});
     entry.win.webContents.sendInputEvent({type:'mouseUp',
       x:target.x,y:target.y,button:'left',clickCount:1});
-    return {clicked:true,verifiedPurchase:false,
-      automatic:Boolean(options.developerSession),developerTest:Boolean(options.developerSession)};
+    return {clicked:true,verifiedPurchase:false,automatic:Boolean(autoSession),
+      developerTest:!!autoSession && autoSession.mode==='dev_flow'};
   }
 }
 module.exports={LiveCopilot};
