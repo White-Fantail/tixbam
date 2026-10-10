@@ -10,6 +10,9 @@ import { LANGUAGES, useLanguage, tx, localDate } from "./i18n";
 import { BookingDashboard, BookingPlansWorkspace } from "./BookingWorkspace";
 import { type BookingPlan, currencyForProvider, loadGuestPlans, saveGuestPlans, makePlan, toCloudPayload, toWatchEvent } from "./booking-plans";
 import { LiveBookingWorkspace } from "./LiveBookingWorkspace";
+import { AdvanceSettingsEditor } from "./copilot/AdvanceSettingsEditor";
+import { effectiveAdvanceSettings, advanceConsent } from "./copilot/advance-settings";
+import { providerAutoClickEligibility } from "./copilot/provider-auto-click";
 import { CardVaultPanel } from "./booking/CardVaultPanel";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { eventPerformanceStatus, formatSaleLocalTime, matchesSaleFilter, pickNextSale, type SaleFilter } from "./ticket-sales";
@@ -551,10 +554,34 @@ function App() {
       setSection("providers"); return;
     }
     if (!window.tixbam) { inform("Live booking requires the desktop app.", true); return; }
+    const saved=effectiveAdvanceSettings(plan.id);
+    const policy=providerAutoClickEligibility(addons.find(x=>x.id===target.id));
+    const settings=saved.mode==="authorized" && !policy.allowed
+      ? {...saved,mode:"observe" as const} : saved;
+    const consent=advanceConsent(settings);
+    if(settings.mode!=="manual" && !consent) {
+      inform("Enable screenshot sharing in the advance authorization settings first.",true);
+      setSelectedPlanId(plan.id);setSection("plans");return;
+    }
+    if(consent) {
+      const message=language==="ko"
+        ? "이번 예매에서 사전 승인한 AI 화면 분석을 자동 실행할까요?\\n"
+          +"대상: "+plan.title+"\\n"
+          +"모드: "+(consent.mode==="authorized"?"예매처 허용 작업 자동 진행":"화면 분석 및 위치 안내")+"\\n"
+          +"허용 항목: "+consent.actions.join(", ")+"\\n"
+          +"최대 15분, AI 분석 5회. 로그인·대기열·결제는 제외되며 이미지가 외부 AI에 전송됩니다. 중지할 수 있습니다."
+        : "Start your advance-approved AI guidance for "+plan.title+"?\\n"
+          +"Mode: "+consent.mode+"; allowed kinds: "+consent.actions.join(", ")+"\\n"
+          +"Up to 15 minutes and 5 AI uploads. Login, queue and checkout excluded. Stop anytime.";
+      if(!window.confirm(message))return;
+    }
     setBusy("plan-" + plan.id);
     try {
       const opened = await window.tixbam.openPlanWindow({
-        planId: plan.id, providerId: plan.providerId, url: plan.bookingUrl
+        planId: plan.id, providerId: plan.providerId, url: plan.bookingUrl,
+        ...(consent ? {copilotConsent:consent,copilotConditions:{
+          planId:plan.id,quantity:plan.quantity,currency:plan.currency,
+          budgetMinor:plan.budgetMinor,locale:language}} : {})
       });
       setSelectedPlanId(plan.id);
       setSection("sessions");
@@ -1160,6 +1187,7 @@ function App() {
                      onClick={() => changeLanguage(option.code)}>{option.nativeName}</button>)}
                  </div>
                </div>
+               <AdvanceSettingsEditor />
                <div className="settings-panel account-panel">
                  <div className="settings-panel-title"><UserRound size={20}/><div><h3>TIXBAM account</h3><p>{account ? "Your artist favorites, event favorites and watchlist sync to the cloud." : "Sign in to save favorites and events to your account."}</p></div></div>
                  {account ? <>
