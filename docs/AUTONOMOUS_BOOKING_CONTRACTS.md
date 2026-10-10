@@ -319,3 +319,16 @@ The trusted Electron host loads only a **bundled** `provider-profiles.json` matc
 The Admin record `ProviderCapabilityVerification` is keyed by provider+country+capability, revisioned with optimistic locking and append-only audit. States are `pending`, `fixture_verified` (offline fixture claim only), and `revoked`. The server stores test SHA/evidence/reviewer/version/expiry; **the Admin API does not independently execute or attest the submitted test artifact**. An Admin claim cannot grant official vendor authorization. Protected vendors, promoter handoffs, version changes, expiry and revocation fail closed.
 
 A future live integration must independently demonstrate authorized vendor terms, signed/reviewed host bundle, up-to-date verified route and seat/checkout support, purchase consent, transaction ledger and explicit release approval. None is enabled by AB-12.
+
+## AB-13 host-only GatedMockPaymentExecutor
+
+The payment boundary uses three separate host-side operations (there is **no** model/renderer/provider callable payment API):
+
+- `approveReview` issues an ephemeral, one-use (15-second) opaque authorization after human confirmation at `READY_TO_COMMIT`, bound to the exact normalized AB-10 order fingerprint, run ID, local lease ID and positive fencing token. No stored card/CVV, automatic real vendor checkout or inferred consent.
+- `prepare` rechecks run/phase/lease/fencing, explicit `checkout='review'`, rehearsal-only provider, full ticket/fee/seat constraints and the very same order. It *consumes* the approval before any irreversible journal record.
+- The existing BookingRunner performs **fsync-first** `recordCommitIntent`, then latches its FSM `PAYMENT_COMMITTING`. `submitOnce` independently rereads AB-05's integrity-checked journal and requires the exact run/attempt, scope/permit/order digests, an as-yet-unreturned intent, a valid AB-06 host lease/fencing token and an unused executor. It then invokes only the offline `ScenarioAdapter.pay({signal})`. Timeout or unclear reply is forever ambiguous, never retryable, even after process restart.
+- `verify` checks the synthetic no-charge receipt and AB-10 final order. Bank/3DS challenges still require manual handoff; real merchant reconciliation and verified receipts remain AB-14.
+
+Offline lease/fencing tokens are minted by trusted Electron per simulated run. They are not a server lease, do not imply shared real merchant idempotency, and cannot be exchanged for live authorizations. Live payment implementation is absent and AB-01/12 policy and release gates remain locked.
+
+Any future real PaymentExecutor requires official provider permission, signed verified implementation and version, anti-double-charge reconciliation, appropriate payment tokenization/hosted flow, PCI/DSS security validation and independent release approval. No live merchant payment will run as part of AB-13 CI.

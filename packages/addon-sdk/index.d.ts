@@ -393,3 +393,17 @@ export interface ProviderFixtureVerificationResponseV1 {
   verifications:ProviderFixtureVerificationV1[];
   liveExecutionAvailable:false;
 }
+
+/** AB-13: internal host-only mock payment contracts for documentation/testing.
+ * This describes the immutable result, NOT a renderer/add-on or model RPC.
+ */
+export interface MockPaymentFenceV1 {
+  runId:string;windowId:number;leaseId:string;fencingToken:number;
+  expiresAtMs:number;status:'leased';
+}
+export type GatedMockPaymentOutcomeV1='not_started'|'submitted'|'unknown';
+export interface MockPurchaseApprovalV1 {
+  /** Opaque host memory only. Not returned to any renderer or AI. */
+  runId:string;leaseId:string;fencingToken:number;
+  approvedOrderDigest:string;expiresAtMs:number;oneUse:true;
+}

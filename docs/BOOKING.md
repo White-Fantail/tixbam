@@ -146,3 +146,9 @@ The booking review screen and the live control room show the *current* order con
 Admin → Automation Policy → Provider exposes a separate offline fixture verification form per capability and country. Reviewers can record test evidence (suite ID, digest, HTTPS report, reviewer note, expiry), mark it pending or revoked, and inspect its revision and audit trail. **A recorded fixture pass is not live-seat or live-payment permission.** Technical and provider legal/contractual permissions are separately evaluated.
 
 The Desktop host uses `booking/provider-profiles.json` for independently bundled, version-pinned provider capability profiles. Cityline 1.1.0 only has reviewed observation/performance/price options; seats, order and payment remain pending/disabled. A wrong host, unsafe URL, unexpected event/redirect, profile update, forbidden provider, global kill switch or revoked permission blocks future autonomy. The system never runs unreviewed downloaded provider code. See [Provider onboarding](PROVIDER_ONBOARDING.md).
+
+## AB-13 Offline Gated Payment Executor
+
+The provider-neutral Stress Lab now exercises a trusted host **mock-only** PaymentExecutor instead of a raw adapter payment callback. The host requires manual final-order confirmation (bound to a 15-second opaque local approval), rechecks total including fees and seats, verifies local SessionCoordinator lease/fencing, records the durable write-ahead Journal intent and rereads it before one simulated submission. An unknown/late mock reply, lost lease, missing journal intent or a restarted process cannot automatically retry.
+
+The actual Desktop Cityline payment adapter remains **unverified and disabled**. The public model/renderer/add-on contracts do not expose a payment method or execution token. This is strictly a synthetic no-charge rehearsal implementation.

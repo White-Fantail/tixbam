@@ -14,7 +14,7 @@ const ALLOWED_MS=15_000;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 class GatedMockPaymentExecutor{
   #adapter;#ledger;#coordinator;#clock;#timeout;#bound;#approvals=new Map();
-  #used=false;#invalid=false;#pending=false;#outcome='not_started';
+  #used=false;#invalid=false;#pending=false;#prepared=null;#outcome='not_started';
   constructor({adapter,ledger,coordinator,binding,clock=Date.now,timeoutMs=2000}={}){
     // Validate the actual class, not a fake "verified:true" field from an add-on.
     const {ScenarioAdapter}=require('./rehearsal-driver.cjs');
@@ -82,14 +82,15 @@ class GatedMockPaymentExecutor{
        auth.fence!==this.#bound.fencingToken)throw DENY('approval_expired_or_changed');
     this.#approvals.delete(approval);
     this.#pending=true;
-    return Object.freeze({runId:run.id,signature:auth.signature,
+    this.#prepared=Object.freeze({runId:run.id,signature:auth.signature,
       approvalId:approval,leaseId:auth.leaseId,fence:auth.fence});
+    return this.#prepared;
   }
   /** Durable intent must already be fsynced before this method can run.
    * A failed/timed-out submit is UNKNOWN, NEVER retryable.
    */
   async submitOnce({run,order,intent,prepared}={}){
-    if(!this.#pending||this.#used||this.#invalid||!prepared||
+    if(!this.#pending||this.#used||this.#invalid||!prepared||prepared!==this.#prepared||
        prepared.runId!==run?.id||run?.phase!=='PAYMENT_COMMITTING'||
        prepared.signature!==canonicalOrderSignature(order)||
        prepared.leaseId!==this.#bound.leaseId||
@@ -106,7 +107,7 @@ class GatedMockPaymentExecutor{
       e.orderDigest===intent.orderDigest&&e.permitDigest===intent.permitDigest&&
       e.rehearsal===true&&e.status==='payment_unknown'&&!e.returned);
     if(!matching)throw DENY('missing_fsynced_intent');
-    this.#used=true;this.#pending=false;this.#outcome='unknown';
+    this.#used=true;this.#pending=false;this.#prepared=null;this.#outcome='unknown';
     const abort=new AbortController();
     let timer;
     // Only the trusted synthetic adapter is reachable.
@@ -140,7 +141,7 @@ class GatedMockPaymentExecutor{
       return verifyFinalOrder(order,preferences,expected,{eventKey:run.eventKey}).ok;
     }catch{return false;}
   }
-  invalidate(){this.#invalid=true;this.#approvals.clear();}
+  invalidate(){this.#invalid=true;this.#prepared=null;this.#approvals.clear();}
   get outcome(){return this.#outcome;}
 }
 module.exports={GatedMockPaymentExecutor};

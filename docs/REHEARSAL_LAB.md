@@ -83,3 +83,9 @@ Consent for risky visibility, identity/age/accessibility requirements and option
 In the separate Safety Stress Lab window, the final synthetic order review now requires an unchecked confirmation of ticket quantity and all-in amount. The **Approve reviewed MOCK order** button remains disabled until the user marks this checkbox. Advancing or restarting a drill resets the approval state.
 
 The main Desktop Booking Plan also supports optional per-seat priorities (price tier, section, floor), designated standing/assigned/automatic allocation modes, and **unchecked** restricted-view/real-name/age/accessibility and extras consents. Those values are stored for later verified booking contexts, not inferred from model output. The Stress Lab still uses isolated synthetic seller/fee fixtures; its results are not provider seat availability or proof of payment.
+
+## AB-13 Gated mock checkout and failure cases
+
+An explicit final order checkbox in the separate lab window remains required. The host then issues a one-use short-lived purchase approval for the **exact** current order, local lease and fencing token. Before the simulator performs its single no-charge `pay` call, it validates quantity, total fees, seat mode and extras, writes and fsyncs the AB-05 intent, and rereads the immutable entry. No actual credit card or ticket website is involved.
+
+Use `standard` for an offline confirmed receipt, `payment_timeout` or `unknown_charge` for irrevocably ambiguous mock submission, `restart` for post-commit recovery, and `bank_3ds` for a manual challenge. After an uncertain attempt, **do not start another payment for the same purchase intent**: inspect the synthetic journal and resolve it manually. The system does not treat a late reply as proof that nothing was charged. Only the exact synthetic receipt is accepted as completion.

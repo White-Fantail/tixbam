@@ -88,6 +88,11 @@ test('missing fsynced intent / forged attempt identity / replay cannot submit',a
   const prepared=ex.prepare({run,order:d.adapter.order,expected:d.adapter.order,
     preferences:d.runner.preferences,permit:d.runner.purchasePermit,approval});
   const committing={...run,phase:'PAYMENT_COMMITTING'};
+  await assert.rejects(ex.submitOnce({
+    run:committing,order:d.adapter.order,
+    prepared:{...prepared},intent:{runId:run.id,rehearsal:true,
+      attemptId:crypto.randomUUID(),scopeDigest:'f'.repeat(64)}
+  }),/blocked/);
   await assert.rejects(ex.submitOnce({run:committing,order:d.adapter.order,prepared,intent:{
     runId:run.id,rehearsal:true,attemptId:crypto.randomUUID(),
     scopeDigest:'f'.repeat(64),orderDigest:'e'.repeat(64),permitDigest:'d'.repeat(64)
@@ -178,4 +183,39 @@ test('mock timeout cannot re-submit even if provider reply arrives late',async t
   assert.equal(d.adapter.payments,0);
   assert.equal(d.runner.ledger.recovered().length,1);
   await assert.rejects(d.next({confirm:true}),/No active rehearsal step/);
+});
+
+test('simulated crash after durable intent but BEFORE submit is an unretryable unknown',async t=>{
+  const {d}=setup(t);await review(d);
+  const ex=d.runner.payment,run={...d.runner.state,phase:'READY_TO_COMMIT'};
+  const approval=ex.approveReview({run,order:d.adapter.order,confirmed:true});
+  ex.prepare({run,order:d.adapter.order,expected:d.adapter.order,
+    preferences:d.runner.preferences,permit:d.runner.purchasePermit,approval});
+  const intent=d.runner.ledger.recordCommitIntent({
+    runId:run.id,permit:d.runner.purchasePermit,order:d.adapter.order,rehearsal:true
+  });
+  assert.equal(d.adapter.payments,0);
+  assert.equal(d.runner.ledger.recovered()[0].attemptId,intent.attemptId);
+  await d.simulateRestart();
+  assert.equal(d.state.status,'payment_unknown');
+  assert.equal(d.state.recovered,true);
+  assert.equal(d.state.active,false);
+  assert.equal(d.runner,null);
+  const sameDir=path.join(d.folder,'runs');
+  const actual=fs.readdirSync(sameDir)[0];
+  const rebootLedger=new PaymentAttemptLedger(path.join(sameDir,actual));
+  assert.equal(rebootLedger.recovered().length,1);
+  assert.throws(()=>rebootLedger.recordCommitIntent({
+    runId:crypto.randomUUID(),permit:{
+      accountId:'offline-rehearsal',providerId:'rehearsal',saleId:'mock-'+actual,
+      performanceId:'practice-performance',planId:plan.id,eventKey:run.eventKey,
+      quantity:2,currency:'HKD',maxAllInMinor:plan.budgetMinor,
+      requireTogether:true,allowFallback:true,checkout:'review'
+    },order:d.adapter?.order??{
+      id:'another-offer',eventKey:run.eventKey,quantity:2,currency:'HKD',
+      totalMinor:1000,feesIncluded:true,available:true,adjacent:true,
+      performance:'practice-performance',priceTier:'practice-standard',
+      seats:['A1','A2']
+    },rehearsal:true
+  }),/duplicate_purchase_intent/);
 });

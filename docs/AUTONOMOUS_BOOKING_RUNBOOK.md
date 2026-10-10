@@ -310,6 +310,17 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** expired consent, payment order changed, two simultaneous submit, crash-before/after commit intent, bank challenge, disabled mode.
 **Do not:** implement live Cityline payment guesses or enable payment from an admin checkbox.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/payment-executor.cjs`: `GatedMockPaymentExecutor`는 반드시 **로컬 `ScenarioAdapter` 객체, 실제 `PaymentAttemptLedger`, 호스트 `SessionCoordinator`** 및 검증된 모의 fencing lease를 요구. 실제 예매처/네트워크/다운로드 애드온/payment 카드와는 연결되지 않음. 생성부터 실제 어댑터 타입 검사를 통과할 수 없음.
+- `approveReview`: 실제 Runner ORDER_REVIEW에서 사용자가 `confirm=true`로 확인한 뒤 호스트가 READY_TO_COMMIT 단계에서 단기(15초) 난수 승인을 발급. Run/정확한 v2 주문 지문/lease ID/fencing token/TTL 바인딩. 모델·제공업체·렌더러는 토큰을 직접 만들거나 전달할 수 없음.
+- `prepare`: AB-10 `verifyFinalOrder`로 최종 구매 조건·총액·수수료·좌석·회차를 재검증하고, 모의 provider와 `checkout=review`, 수량·통화·예산 및 lease를 재확인. 승인 토큰은 **한 번만 소비**, 이후 원래 값 재사용 불가.
+- `submitOnce`: AB-05의 실제 fsync 기록 `COMMIT_INTENT_RECORDED`가 존재하는지 Journal 재읽기·해시/순서검사, intent 속 run/scope/order/permit digest 일치, 아직 반환 기록이 없는지 확인. 방금 확인한 SessionCoordinator lease/fence와 호스트 FSM PAYMENT_COMMITTING를 검사한 다음 **단 한 번만** 모의 `ScenarioAdapter.pay({signal})` 호출. 타임아웃/송신 예외/늦게 도착한 응답은 결과 불명 `PAYMENT_UNKNOWN`, 비동기 재시도 없음.
+- `verify`: `REHEARSAL-NO-CHARGE` 고정 모의 영수증과 주문 재검증, 미해결 CAPTCHA/3DS 도전과제 차단. 실제 영수증 검증은 AB-14 예정. Stop/재시작 시 승인을 무효화하고 lease를 해제하며 journal 기록에 따르면 자동 재구매 거부.
+- `BookingRunner`와 AB-07 독립 Stress Lab에 모의 Executor 적용, AB-06 리허설 lease가 실행별 UUID 및 `fencingToken=1`을 발급하도록 연동. 실제 서버 lease는 서버 발급 token/monotonic fence 방식 그대로 유지. 실제 라이브 Runner는 Controller에서 검증된 PaymentExecutor가 **연결되지 않으며**, Cityline 실제 결제·카드 자동 입력은 비활성.
+- 보안 테스트: 승인 누락·만료·주문/수수료 변경·사기성 프로바이더/가짜 어댑터·분실한 fsync intent/위조 attempt ID·lease/fencing 철회·동시 중복 클릭·모의 제출 타임아웃/결과 불명·재시작 후 재시도 차단·3DS 수동 처리·개인정보 로그 미저장·기존 17개 리허설 회귀.
+- **실결제 배포 및 PCI 범위:** 이 커밋은 신용카드 PAN/CVV 입력·저장 기능을 확대하지 않는다. 공식 provider 승인과 별도 결제 프로필/SDK, hosted/tokenized checkout, PCI·3DS 및 운영 보안 감사가 충족되기 전까지 라이브 실행은 계속 차단.
+
+
 ## AB-14 — 공식 구매 결과 검증과 Reconciliation
 
 **명령:** "AB-14 구현해. UNKNOWN 결제 상태와 주문 조회/사용자 확인 절차를 구현해. 자동 재결제는 금지해."
@@ -334,7 +345,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-12 완료 (dev) · AB-13 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-13 완료 (dev) · AB-14 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -348,8 +359,8 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-10 Seat/Offer Policy — strict all-in fee normalization, deterministic seat ranking, v1 compatibility and 17 offline drills (CI verified)
   - [x] AB-11 Desktop UX — Korean/English seat/consent, plan sync, one-shot final review, offline mock consent (CI verified)
   - [x] AB-12 Provider Onboarding — evidence-backed offline fixtures, profile/version/origin binding, Admin audit, revocation and fail-closed host gate (CI verified)
-  - [ ] AB-13 Gated Payment Executor (mock)
+  - [x] AB-13 Gated Payment Executor (mock) — expiring host approval, AB-10 order fingerprint, AB-05 fsync intent, AB-06 fencing, one-shot offline pay (CI verified)
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-13 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-14 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
