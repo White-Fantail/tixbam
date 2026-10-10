@@ -66,6 +66,16 @@ def test_admin_model_settings_and_authenticated_ai(monkeypatch):
             assert client.put(path, json=settings, headers={"X-Admin-Key":"ai-tests-only"}).status_code == 200
             got = client.get("/v1/admin/ai/tasks", headers={"X-Admin-Key":"ai-tests-only"}).json()
             assert got["configured"] and got["items"][0]["enabled"]
+            # Every task listed by the API must be directly configurable, including Vision.
+            vision_path = "/v1/admin/ai/tasks/copilot_vision"
+            vision_response = client.put(vision_path, json=settings,
+                                         headers={"X-Admin-Key": "ai-tests-only"})
+            assert vision_response.status_code == 200, vision_response.text
+            assert vision_response.json()["enabled"] is True
+            refreshed = client.get("/v1/admin/ai/tasks",
+                                   headers={"X-Admin-Key": "ai-tests-only"}).json()
+            assert next(item for item in refreshed["items"]
+                        if item["task"] == "copilot_vision")["enabled"] is True
             assert client.put("/v1/admin/ai/tasks/unknown", json=settings,
                               headers={"X-Admin-Key":"ai-tests-only"}).status_code == 422
             request = {"task":"rehearsal_guidance","provider_id":"cityline",

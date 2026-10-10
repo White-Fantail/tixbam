@@ -133,8 +133,9 @@ export async function editAddon(f:FormData) {
 /** AI settings are written server-to-server; browser never sees OpenRouter credentials. */
 export async function saveAiPolicy(f: FormData) {
   const task = val(f, "task");
-  if (!["rehearsal_guidance", "page_recovery", "seat_review", "planner_v1"].includes(task)) {
-    redirect("/ai?error=Unknown+AI+feature");
+  // The API task registry owns which capabilities exist; avoid a stale Admin allowlist.
+  if (!/^[a-z][a-z0-9_]{0,63}$/.test(task)) {
+    redirect("/ai?error=Invalid+AI+feature");
   }
   const payload = {
     model: val(f, "model"), enabled: bool(f, "enabled"),
@@ -148,7 +149,7 @@ export async function saveAiPolicy(f: FormData) {
   if (!base || !token) error = "Admin API is not configured";
   else {
     try {
-      const response = await fetch((base.endsWith("/") ? base.slice(0, -1) : base) + "/v1/admin/ai/tasks/" + task, {
+      const response = await fetch((base.endsWith("/") ? base.slice(0, -1) : base) + "/v1/admin/ai/tasks/" + encodeURIComponent(task), {
         method: "PUT", cache: "no-store",
         headers: { "Content-Type": "application/json", "X-Admin-Key": token },
         body: JSON.stringify(payload),
