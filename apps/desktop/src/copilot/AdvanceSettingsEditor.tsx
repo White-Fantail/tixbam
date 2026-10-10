@@ -6,6 +6,7 @@ import {
   savePlanAdvanceSettings
 } from "./advance-settings";
 import {useLanguage} from "../i18n";
+import {providerAutoClickEligibility} from "./provider-auto-click";
 
 const choices: Array<{kind:AdvanceKind;ko:string;en:string}>=[
   {kind:"continue",ko:"다음 단계 / 예매 진입",en:"Continue / enter booking"},
@@ -28,10 +29,9 @@ export function AdvanceSettingsEditor({planId,provider}:{
     setValue(planId?planAdvanceSettings(planId)||globalAdvanceSettings():globalAdvanceSettings());
     setSaved(false);
   },[planId]);
-  const available=provider?.kind==="ticketing" &&
-    provider.automation.level2.status==="available" &&
-    provider.booking?.implementation.seats==="verified" &&
-    (provider.automation as unknown as {verifiedNativeExecutor?:string}).verifiedNativeExecutor==="host-reviewed-v1";
+  const permission=providerAutoClickEligibility(provider);
+  const available=provider ? permission.allowed : true;
+  const effectiveMode=value.mode==="authorized" && !available ? "observe" : value.mode;
   function change(patch:Partial<AdvanceSettings>){
     setValue(v=>({...v,...patch}));setSaved(false);
     if(planId)setOverride(true);
@@ -40,8 +40,10 @@ export function AdvanceSettingsEditor({planId,provider}:{
     if(value.mode!=="manual" && !value.shareScreenshots){
       setSaved(false);return;
     }
-    if(planId)savePlanAdvanceSettings(planId,value);
-    else saveGlobalAdvanceSettings(value);
+    const safe={...value,mode:effectiveMode};
+    if(planId)savePlanAdvanceSettings(planId,safe);
+    else saveGlobalAdvanceSettings(safe);
+    setValue(safe);
     setSaved(true);
   }
   return <div className="settings-panel">
@@ -55,18 +57,18 @@ export function AdvanceSettingsEditor({planId,provider}:{
         else{setOverride(true);setSaved(false);}
       }}/>{ko?"이 공연만 별도 설정":"Override defaults for this booking"}</label></div>}
     <label>{ko?"진행 방식":"Assistance mode"}
-      <select value={value.mode} onChange={event=>change({mode:event.target.value as AdvanceMode})}
+      <select value={effectiveMode} onChange={event=>change({mode:event.target.value as AdvanceMode})}
         disabled={Boolean(planId&&!override)}>
         <option value="manual">{ko?"수동 안내 (기본값)":"Manual guidance (default)"}</option>
         <option value="observe">{ko?"자동 화면 인식 및 버튼 안내":"Auto screen recognition and hints"}</option>
-        <option value="authorized">{ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it"}</option>
+        <option value="authorized" disabled={!available}>{ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it"}</option>
       </select>
     </label>
-    <p className="settings-note">{value.mode==="authorized" && !available
-      ? (ko
-        ?"이 예매처에는 검증된 자동 클릭 실행기가 없습니다. 설정을 저장해도 실제 클릭은 실행되지 않으며 화면 안내만 활성화됩니다."
-        :"This provider has no verified auto-click executor. Only visual guidance will run.")
-      : (ko?"자동 클릭은 검증된 예매처별 실행기와 정책을 통과한 경우에만 가능합니다.":"Clicks require an authorized, verified provider-specific executor.")}</p>
+    <p className="settings-note" role="note">{provider && !available
+      ? (ko ? "자동 클릭 설정 비활성화: "+permission.reasonKo+" 화면 안내는 이용할 수 있습니다."
+        : "Auto click disabled: "+permission.reasonEn+" Visual guidance remains available.")
+      : (ko?"자동 클릭은 검증된 예매처별 실행기와 정책을 통과한 경우에만 가능합니다."
+        :"Clicks require an authorized, verified provider-specific executor.")}</p>
     <div className="plan-options">
       {choices.map(c=><label key={c.kind}><input type="checkbox"
         checked={value.actions.includes(c.kind)}
@@ -87,7 +89,7 @@ export function AdvanceSettingsEditor({planId,provider}:{
       ?"로그인·대기열·CAPTCHA·결제 단계에서는 중단합니다. 세션은 최대 15분, AI 분석 최대 5회이며 사용자가 언제든 중지할 수 있습니다. 자동 결제는 불가합니다."
       :"Stops at login, queue, CAPTCHA or checkout. Maximum 15 minutes / 5 automatic AI requests. Stop anytime; payment is never automatic."}</p>
     <div className="booking-actions"><button className="button button-outline"
-      disabled={Boolean(planId&&!override) || (value.mode!=="manual" &&
+      disabled={Boolean(planId&&!override) || (effectiveMode!=="manual" &&
         (!value.shareScreenshots || value.actions.length===0))}
       onClick={save}>{ko?"사전 승인 설정 저장":"Save advance settings"}</button></div>
     {saved&&<p role="status" className="copilot-note">{ko?"이 기기에 설정을 저장했습니다. 실제 실행 전에는 별도 동의를 받습니다.":"Saved on this device. Session consent is requested before launch."}</p>}
