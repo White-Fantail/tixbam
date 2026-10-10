@@ -114,6 +114,35 @@ class LiveCopilot {
     return s ? this.autoInfo(s,'armed','Active until stopped or expired.')
       : {windowId,mode:'manual',status:'off',reason:'Not armed.',targets:[]};
   }
+  /** Move one live approval to a new, actually linked official provider popup.
+   * NEVER copy it to another provider or create a second active executor.
+   * Login and checkout popups remain subject to the normal screen blocklist. */
+  handoffPopup(childId) {
+    const child=this.ticketWindows.get(childId);
+    const parent=child?.popup && this.ticketWindows.get(child.parentId);
+    const session=parent && this.autoSessions.get(parent.win.id);
+    if(!session || session.stopped || !child || !parent ||
+       child.planId!==session.planId || child.providerId!==session.providerId ||
+       parent.planId!==session.planId || parent.providerId!==session.providerId ||
+       Date.now()>=session.expiresAt)return false;
+    try {
+      const {isHostAllowed,isSafeWebUrl}=require('../security.cjs');
+      const url=child.win.webContents.getURL();
+      const hosts=this.requireInstalled(child.providerId)?.allowedHosts;
+      if(!isSafeWebUrl(url) || !Array.isArray(hosts) ||
+         !isHostAllowed(new URL(url).hostname,hosts))return false;
+    }catch{return false;}
+    const pending=this.autoTimers.get(parent.win.id);
+    if(pending)clearTimeout(pending);
+    this.autoTimers.delete(parent.win.id);
+    this.autoSessions.delete(parent.win.id);
+    this.clear(parent.win.id);
+    session.windowId=childId;
+    this.autoSessions.set(childId,session);
+    this.autoInfo(session,'armed','Continuing on the linked official provider popup. Sensitive stages remain manual.');
+    void this.observe(childId);
+    return true;
+  }
   async observe(windowId) {
     const session=this.autoSessions.get(windowId);
     if(!session || this.autoPending.has(windowId))return;
