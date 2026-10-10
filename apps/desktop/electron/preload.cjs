@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("tixbam", {
   saveCard: input => ipcRenderer.invoke("tixbam:save-card", input),
   removeCard: id => ipcRenderer.invoke("tixbam:remove-card", id),
   bookingContext: input => ipcRenderer.invoke("tixbam:booking-context", input),
+  bookingReadiness: input => ipcRenderer.invoke("tixbam:booking-readiness", input),
   saveBookingPreferences: (id, input) => ipcRenderer.invoke("tixbam:save-booking-preferences", id, input),
   startBooking: input => ipcRenderer.invoke("tixbam:start-booking", input),
   listBookings: () => ipcRenderer.invoke("tixbam:list-bookings"),

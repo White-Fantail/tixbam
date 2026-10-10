@@ -10,7 +10,7 @@ Run \`npm run release:check\` from repository root to produce a machine-readable
 
 | Scope | Offline verification / authority | Production booking decision |
 | --- | --- | --- |
-| Cityline HK | Local 1.1.0 observation/option fixtures; seat and checkout/payment profiles pending | **NO live autonomous seat selection/payment**. Require official written capability-specific agreement, version-pinned official adapter, legal/security review |
+| Cityline HK | Current terms §21 prohibit automated access/interaction/transactions; option fixtures are offline only | **RESTRICTED**. Separate authorized integration and verified checkout/receipt required |
 | Ticketmaster | Existing restricted-provider policy | **BLOCKED** |
 | NOL World | Existing restricted-provider policy | **BLOCKED** |
 | AXS | Existing restricted-provider policy | **BLOCKED** |
@@ -20,6 +20,8 @@ Run \`npm run release:check\` from repository root to produce a machine-readable
 Admin's \`fixture_verified\` records only attest *claimed offline testing*; they do not grant production permissions. Validate signed provider documentation, actual vendor identity and authorized domains/countries/versions out of band. Maintain read-only evidence with expiry, reviewer, checksums and withdrawal. The host release switch is hardcoded **off** and a server policy cannot turn it on.
 
 ## B. Payments, account/session and durable idempotency — HOLD
+
+See [Cityline live checkout](CITYLINE_LIVE_CHECKOUT.md) for the restored identity v2 contract, one-shot host transaction and typed receipt proof. These are not a live provider integration: permission, verified mapping, actual driver and runner bridge remain missing.
 
 **Automated offline evidence** (CI): authenticated lease owner and server-side fencing tests, account-bound login and API origin allowlist, sandboxed Electron windows, AB-10 canonical offer and fee checks, AB-05 append-only fsynced Journal, AB-13 one-shot \`GatedMockPaymentExecutor\`, AB-14 synthetic reconciliation and restart recovery. Duplicate intent/failed fsync/timeout/crash after commit intent **must never automatically retry**. Live official receipt lookup is deliberately unimplemented; claimed server lease is never merchant proof.
 

@@ -7,6 +7,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
+const {checkoutReadiness}=require('../apps/desktop/electron/booking/checkout-readiness.cjs');
 function read(name){return fs.readFileSync(path.join(root,name),'utf8');}
 const definitions=[
   {
@@ -130,6 +131,7 @@ function evaluate({source=read}={}){
   return {
     schemaVersion:1,project:'TixBam',stage:'AB-15',environment:'CI / offline fixtures',
     status:'HOLD',automaticCheckoutAvailable:false,livePaymentEnabled:false,
+    citylineCheckout:checkoutReadiness('cityline','1.1.0'),
     staticChecksPassed:failures.length===0,failedChecks:failures,checks,gates,
     policy:'Passing tests verifies the OFF state; it never authorizes any live purchase.'
   };

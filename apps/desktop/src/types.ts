@@ -141,6 +141,7 @@ export interface DesktopBridge {
   saveCard: (input: CardInput) => Promise<CardSummary[]>;
   removeCard: (id: string) => Promise<CardSummary[]>;
   bookingContext: (input: { providerId: string; eventUrl: string; windowId?: number; planId?: string; rehearsal?: boolean }) => Promise<BookingContext>;
+  bookingReadiness: (input: { providerId: string }) => Promise<import('../../../packages/addon-sdk').CheckoutReadiness>;
   saveBookingPreferences: (id: string, input: BookingPreferences) => Promise<BookingPreferences>;
   startBooking: (input: { contextId: string; preferences: BookingPreferences; cardId?: string; cvv?: string; paymentConsent: boolean }) => Promise<BookingRun>;
   listBookings: () => Promise<BookingRun[]>;

@@ -83,6 +83,8 @@ class SessionCoordinator {
   }
   #view(s){
     return Object.freeze({runId:s.runId,windowId:s.windowId,
+      accountId:s.accountId,providerId:s.providerId,saleId:s.saleId,
+      performanceId:s.performanceId,planId:s.planId,eventKey:s.eventKey,
       leaseId:s.leaseId,fencingToken:s.fence,
       status:s.claimed?'claimed':s.phase,
       expiresAtMs:s.expiresAtMs,guardId:s.guardId||null,claimId:s.claimId||null});

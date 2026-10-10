@@ -28,8 +28,16 @@ function canonicalPermit(permit){
      typeof permit.requireTogether!=='boolean'||typeof permit.allowFallback!=='boolean'||
      !['review','automatic'].includes(permit.checkout))
     throw new JournalUnavailable('invalid_purchase_intent');
+  let identity={};
+  if(permit.identityVersion!==undefined){
+    if(permit.identityVersion!==2||!isString(permit.providerEventId)||!isString(permit.providerPerformanceId))
+      throw new JournalUnavailable('invalid_provider_identity');
+    identity={identityVersion:2,providerEventId:permit.providerEventId,providerPerformanceId:permit.providerPerformanceId};
+  }else if(permit.providerEventId!==undefined||permit.providerPerformanceId!==undefined){
+    throw new JournalUnavailable('invalid_provider_identity');
+  }
   return Object.freeze({
-    accountId:permit.accountId,providerId:permit.providerId,
+    ...identity,accountId:permit.accountId,providerId:permit.providerId,
     saleId:permit.saleId,performanceId:permit.performanceId,
     eventKey:permit.eventKey,planId:permit.planId,
     quantity:permit.quantity,currency:permit.currency,maxAllInMinor:permit.maxAllInMinor,
@@ -39,11 +47,16 @@ function canonicalPermit(permit){
 }
 function canonicalOrder(order,permit){
   const normalized=normalizedOffer({...order,available:true});
+  const identityMatches=permit.identityVersion===2
+    ? order.schemaVersion===2&&order.providerId===permit.providerId&&
+      order.providerEventId===permit.providerEventId&&order.canonicalPerformanceId===permit.performanceId&&
+      order.performance===permit.providerPerformanceId
+    : order.performance===permit.performanceId;
   if(!normalized||normalized.providerId!==null&&normalized.providerId!==permit.providerId||
      !isString(order.id)||order.eventKey!==permit.eventKey||
      order.quantity!==permit.quantity||order.currency!==permit.currency||
      !safeInt(order.totalMinor)||order.totalMinor>permit.maxAllInMinor||
-     !isString(order.performance)||order.performance!==permit.performanceId||
+     !isString(order.performance)||!identityMatches||
      !isString(order.priceTier)||order.feesIncluded!==true||
      order.available!==true||
      normalized.maxPerOrder!==null&&normalized.quantity>normalized.maxPerOrder)
@@ -73,6 +86,8 @@ function canonicalOrder(order,permit){
   // Hash all financial and material restriction terms for v2. Existing v1
   // journal entries remain append-only, and their stored hashes are not edited.
   return Object.freeze({
+    ...(permit.identityVersion===2?{identityVersion:2,providerEventId:order.providerEventId,
+      canonicalPerformanceId:order.canonicalPerformanceId}:{}),
     id:order.id,eventKey:order.eventKey,performance:order.performance,
     providerId:normalized.providerId,
     priceTier:order.priceTier,currency:order.currency,quantity:order.quantity,
@@ -248,6 +263,24 @@ class PaymentAttemptLedger{
       throw new JournalUnavailable('receipt_not_verified');
     this.#event(intent,'PURCHASE_CONFIRMED',{
       receiptDigest:this.journal.digest(['rehearsal-receipt-v1',receipt,intent.attemptId]),
+    });
+  }
+  /** Typed host evidence closes a committed attempt, not a release grant.
+   * Production still requires an independently qualified provider observer.
+   */
+  confirmOfficial(intent,proof){
+    const {consumeReceiptProof}=require('./receipt-contract.cjs');
+    const evidence=consumeReceiptProof(proof),p=canonicalPermit(evidence.permit);
+    const o=canonicalOrder(evidence.order,p);
+    const attempt=this.#events().attempts.find(a=>a.attemptId===intent?.attemptId);
+    if(!attempt||attempt.rehearsal||attempt.claimOnly||attempt.runId!==intent.runId||
+       attempt.scopeDigest!==this.scopeDigest(p)||
+       attempt.permitDigest!==this.journal.digest(['permit-v1',p])||
+       attempt.orderDigest!==this.journal.digest(['order-v1',o]))
+      throw new JournalUnavailable('receipt_not_verified');
+    this.#event(intent,'PURCHASE_CONFIRMED',{
+      receiptDigest:this.journal.digest(['official-receipt-contract-v1',evidence.transactionId,
+        attempt.attemptId,attempt.orderDigest]),
     });
   }
   /** AB-14: human can record that they checked official order history.

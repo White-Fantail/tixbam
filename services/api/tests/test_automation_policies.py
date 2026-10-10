@@ -69,14 +69,14 @@ def test_policy_registry_http_fail_closed(monkeypatch):
             assert len(all_admin.json()["items"]) == 8  # includes unpublished
             assert all_admin.json()["globalKillSwitch"] is True
 
-            for vendor in ("ticketmaster", "nol", "axs"):
+            for vendor in ("cityline", "ticketmaster", "nol", "axs"):
                 restricted = client.get(f"/v1/automation/capabilities?provider_id={vendor}").json()["items"][0]
                 assert all(p["permissionState"] == "restricted" for p in restricted["policies"])
             delegated = client.get("/v1/automation/capabilities?provider_id=livenation").json()["items"][0]
             assert delegated["ticketAgentRequired"] is True
             assert all(p["permissionState"] == "unverified" for p in delegated["policies"])
 
-            path = "/v1/admin/automation/providers/cityline/policies"
+            path = "/v1/admin/automation/providers/yes24/policies"
             payload = {"country": "HK", "capability": "SELECT_OFFER", "state": "restricted",
                        "reason": "No verified authorization", "reviewer": "QA note",
                        "evidence_url": "https://example.org/terms", "expected_revision": 0}
@@ -147,7 +147,7 @@ def test_policy_registry_http_fail_closed(monkeypatch):
             assert len(audit) >= 4 and audit[0]["revision"] > 0
             with Session(engine) as db:
                 assert db.scalar(select(ProviderAutomationPolicy).where(
-                    ProviderAutomationPolicy.provider_id == "cityline",
+                    ProviderAutomationPolicy.provider_id == "yes24",
                     ProviderAutomationPolicy.country == "HK",
                     ProviderAutomationPolicy.capability == "SELECT_OFFER")).state == "revoked"
                 assert db.scalar(select(AutomationSafetySetting)).revision == 2
@@ -160,7 +160,7 @@ def test_policy_registry_http_fail_closed(monkeypatch):
 def test_expired_and_unsafe_metadata_never_upgrades_permission():
     from app.automation_policies import policy_state
     from app.models import Provider, ProviderAutomationPolicy
-    provider = Provider(id="cityline", name="Cityline", automation={})
+    provider = Provider(id="yes24", name="Yes24", automation={})
     expired = ProviderAutomationPolicy(provider_id="cityline", country="HK",
                                         capability="OBSERVE", state="restricted",
                                         expires_at=datetime.now(timezone.utc)-timedelta(days=1),
@@ -172,3 +172,14 @@ def test_expired_and_unsafe_metadata_never_upgrades_permission():
     assert policy_state(provider, spoofed, "HK")[0] == "unverified"
     restricted = Provider(id="axs", name="AXS", automation={})
     assert policy_state(restricted, spoofed, "HK")[0] == "restricted"
+
+
+def test_cityline_terms_override_stale_metadata_and_forged_permission():
+    from app.automation_policies import policy_state, RESTRICTED
+    from app.models import Provider, ProviderAutomationPolicy
+    assert RESTRICTED["cityline"] == "https://www.cityline.com/en_US/ReleaseNotes.html#termsconditions"
+    provider = Provider(id="cityline", name="Cityline", automation={"level2": {"status": "unverified"}})
+    for state in ("permitted", "unverified", "restricted", "revoked"):
+        row = ProviderAutomationPolicy(provider_id="cityline", country="HK", capability="PAYMENT_EXECUTOR", state=state)
+        assert policy_state(provider, row, "HK")[0] == "restricted"
+        assert policy_state(provider, row, "TW")[0] == "restricted"

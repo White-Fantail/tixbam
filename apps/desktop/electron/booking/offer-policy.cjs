@@ -28,6 +28,9 @@ function normalizedOffer(o){
      o.feesIncluded!==true||o.available!==true)return null;
   if(o.performance!==undefined&&!name(o.performance))return null;
   if(o.priceTier!==undefined&&!name(o.priceTier))return null;
+  for(const key of ['providerEventId','canonicalPerformanceId']){
+    if(o[key]!==undefined&&!name(o[key]))return null;
+  }
   for(const key of ['providerId','section','floor','fulfillment','areaId']){
     if(o[key]!==undefined&&!name(o[key]))return null;
   }
@@ -87,6 +90,7 @@ function normalizedOffer(o){
      o.identityVerified!==true))return null;
   return Object.freeze({
     raw:o,id:o.id,eventKey:o.eventKey,providerId:o.providerId??null,
+    providerEventId:o.providerEventId??null,canonicalPerformanceId:o.canonicalPerformanceId??null,
     performance:o.performance??null,priceTier:o.priceTier??null,
     section:o.section??null,floor:o.floor??null,
     seatMode:mode,areaId:o.areaId??o.section??null,
@@ -193,6 +197,8 @@ function canonicalOrderSignature(offer){
   const c=normalizedOffer({...offer,available:true});
   if(!c)return null;
   return JSON.stringify({
+    ...(c.providerEventId!==null||c.canonicalPerformanceId!==null?{
+      providerEventId:c.providerEventId,canonicalPerformanceId:c.canonicalPerformanceId}:{}),
     id:c.id,eventKey:c.eventKey,providerId:c.providerId,
     performance:c.performance,priceTier:c.priceTier,
     section:c.section,floor:c.floor,seatMode:c.seatMode,

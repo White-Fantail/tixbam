@@ -51,6 +51,8 @@ export interface BookingPreferences {
   terms?: SeatRestrictionConsentV2;
 }
 export interface BookingOrder {
+  /** Merchant performance ID is distinct from the server canonical UUID. */
+  providerEventId?: string; canonicalPerformanceId?: string;
   id: string; eventKey: string; quantity: number; totalMinor: number; currency: string;
   feesIncluded: boolean; adjacent?: boolean; seats: string[];
   performance: string; priceTier: string; section?: string; floor?: string; seatMode?: string; fulfillment?: string;
@@ -61,6 +63,7 @@ export interface BookingOrder {
   extras?:SelectedOptionalExtraV2[];
 }
 export interface BookingContext {
+  checkoutReadiness?: CheckoutReadiness;
   contextId: string; eventKey: string; schema: BookingSchema;
   preferences: BookingPreferences | null; rehearsal: boolean; providerEventId?: string; providerTitle?: string;
 }
@@ -75,6 +78,11 @@ export interface BookingRun {
   claimOnly?: boolean; legacyScopeUnresolved?: boolean; safetyRecoveryRequired?: boolean;
   providerId?: string; aiPageStage?: string;
   aiContext?: Pick<AIAdvisoryContext, 'quantity' | 'currency' | 'budget_minor' | 'require_together' | 'allow_fallback'>;
+}
+export interface CheckoutReadiness {
+  schemaVersion: 1; providerId: string; addonVersion: string; livePaymentEnabled: false;
+  blockers: readonly string[]; missingCapabilities: readonly AutomationCapability[];
+  sourceUrl: string | null; transactionProtocolAvailable: boolean;
 }
 export interface CardSummary { id: string; label: string; last4: string; expiryMonth: number; expiryYear: number }
 export interface CardInput { label: string; name: string; number: string; expiryMonth: number; expiryYear: number }

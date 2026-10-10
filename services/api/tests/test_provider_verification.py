@@ -15,7 +15,7 @@ def test_technical_verification_isolated_cas_and_revoked(monkeypatch):
     assert "provider_capability_verifications" in inspect(engine).get_table_names()
     with Session(engine) as db:
         for pid,country,automation,version in [
-            ("cityline","HK",{},"1.1.0"),
+            ("yes24","HK",{},"1.1.0"),
             ("nol","KR",{"level2":{"status":"restricted"}},"1.0.1"),
             ("livenation","HK",{"level2":{"status":"delegated"}},"1.0.0"),
             ("axs","NZ",{},"1.0.0"),
@@ -29,12 +29,12 @@ def test_technical_verification_isolated_cas_and_revoked(monkeypatch):
     monkeypatch.setenv("TIXBAM_ADMIN_API_KEY","ab12-test-key")
     app.dependency_overrides[get_db]=fixture_db
     headers={"X-Admin-Key":"ab12-test-key"}
-    uri="/v1/admin/automation/providers/cityline/verifications"
+    uri="/v1/admin/automation/providers/yes24/verifications"
     future=(datetime.now(timezone.utc)+timedelta(days=7)).isoformat()
     digest="a"*64
     sample={
         "country":"HK","capability":"SELECT_PERFORMANCE","state":"pending",
-        "addon_version":"1.1.0","profile_id":"cityline-event-detail-v1",
+        "addon_version":"1.1.0","profile_id":"yes24-event-detail-v1",
         "fixture_suite":"options-v1","fixture_sha256":digest,
         "evidence_url":None,"reviewer":"qa reviewer",
         "reason":"Awaiting offline QA","expires_at":None,"expected_revision":0
@@ -61,17 +61,17 @@ def test_technical_verification_isolated_cas_and_revoked(monkeypatch):
             ok=client.put(uri,json=accepted,headers=headers)
             assert ok.status_code==200,ok.text
             assert next(x for x in ok.json()["verifications"] if x["capability"]=="SELECT_PERFORMANCE")["state"]=="fixture_verified"
-            assert client.get("/v1/automation/capabilities?provider_id=cityline").json()["items"][0]["policies"][1]["permitted"] is False
+            assert client.get("/v1/automation/capabilities?provider_id=yes24").json()["items"][0]["policies"][1]["permitted"] is False
             # Another vendor, country and version may not borrow this row.
             assert all(x["state"]=="unverified" for x in client.get(uri+"?country=TW",headers=headers).json()["verifications"])
             with Session(engine) as db:
-                db.get(Provider,"cityline").version="1.2.0"
+                db.get(Provider,"yes24").version="1.2.0"
                 db.commit()
             row=next(x for x in client.get(uri,headers=headers).json()["verifications"] if x["capability"]=="SELECT_PERFORMANCE")
             assert row["state"]=="unverified" and "version" in row["reason"].lower()
             assert client.put(uri,json={**accepted,"expected_revision":2},headers=headers).status_code==409
             with Session(engine) as db:
-                db.get(Provider,"cityline").version="1.1.0";db.commit()
+                db.get(Provider,"yes24").version="1.1.0";db.commit()
             revoke={**sample,"state":"revoked","expected_revision":2,"reason":"Vendor disputed fixture",
                     "evidence_url":"https://example.org/revocation"}
             revoked=client.put(uri,json=revoke,headers=headers)
@@ -84,7 +84,7 @@ def test_technical_verification_isolated_cas_and_revoked(monkeypatch):
                 row=db.scalars(select(ProviderCapabilityVerification)).one()
                 assert row.revision==3 and row.state=="revoked"
             # A malicious external change cannot produce permitted flag in public registry.
-            public=client.get("/v1/automation/capabilities?provider_id=cityline").json()
+            public=client.get("/v1/automation/capabilities?provider_id=yes24").json()
             assert public["autonomousExecutionAvailable"] is False
             assert all(not x["permitted"] for x in public["items"][0]["policies"])
     finally:
@@ -99,7 +99,7 @@ def test_invalid_evidence_restricted_vendor_and_unsupported_suite(monkeypatch):
                          poolclass=StaticPool)
     Base.metadata.create_all(engine)
     with Session(engine) as db:
-        for pid,auto in [("cityline",{}),("ticketmaster",{"level2":{"status":"restricted"}}),
+        for pid,auto in [("yes24",{}),("ticketmaster",{"level2":{"status":"restricted"}}),("cityline",{}),
                          ("livenation",{"level2":{"status":"delegated"}})]:
             db.add(Provider(id=pid,name=pid,country="HK",version="1.1.0",
                 url="https://example.org",published=True,automation=auto))
@@ -112,13 +112,13 @@ def test_invalid_evidence_restricted_vendor_and_unsupported_suite(monkeypatch):
     future=(datetime.now(timezone.utc)+timedelta(days=2)).isoformat()
     payload={"country":"HK","capability":"PAYMENT_EXECUTOR",
         "state":"fixture_verified","addon_version":"1.1.0",
-        "profile_id":"cityline-event-detail-v1","fixture_suite":"payment-mock-v1",
+        "profile_id":"yes24-event-detail-v1","fixture_suite":"payment-mock-v1",
         "fixture_sha256":"b"*64,"evidence_url":"https://example.org/results",
         "reviewer":"independent reviewer","reason":"synthetic mock suite evidence",
         "expires_at":future,"expected_revision":0}
     try:
         with TestClient(app) as client:
-            path="/v1/admin/automation/providers/cityline/verifications"
+            path="/v1/admin/automation/providers/yes24/verifications"
             assert client.put(path,json=payload,headers=headers).status_code==200
             # Payment fixture recording is deliberately NOT payment verification.
             row=client.get(path,headers=headers).json()
@@ -137,7 +137,7 @@ def test_invalid_evidence_restricted_vendor_and_unsupported_suite(monkeypatch):
                 {"profile_id":"bad<profile>"},
             ]:
                 assert client.put(path,json={**payload,**changed},headers=headers).status_code==422,changed
-            for vendor in ("ticketmaster","livenation"):
+            for vendor in ("cityline","ticketmaster","livenation"):
                 assert client.put(f"/v1/admin/automation/providers/{vendor}/verifications",
                                   json={**payload,"capability":"OBSERVE",
                                   "fixture_suite":"observe-v1"},headers=headers).status_code==409

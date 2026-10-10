@@ -25,6 +25,8 @@ export const supplementalKo: Record<string,string> = {
   "Start queue walkthrough": "대기열 연습 시작", "Dismiss reminder": "알림 닫기",
   "Quantity, adjacency and total budget are required conditions. Ranked alternatives are used only when you allow them.":
     "티켓 수량·연석·총예산은 필수 조건이에요. 우선순위가 정해진 대안은 허용했을 때만 사용해요.",
+  "Cityline terms prohibit automated interaction and purchases. A separately authorized integration and verified checkout are required. Purchase tickets manually in the official window.":
+    "Cityline 약관은 자동화된 상호작용과 구매를 금지합니다. 별도로 허용된 연동과 결제 검증이 필요합니다. 공식 창에서 직접 티켓을 구매하세요.",
   "Cityline live options require its actual event booking form. Seat selection and payment pages are not yet verified; real automatic checkout is disabled and payment remains manual.":
     "Cityline 실전 설정은 실제 공연 예매 화면에서만 사용할 수 있어요. 좌석 선택과 결제 화면은 아직 검증되지 않아 실전 자동 결제는 비활성화되어 있어요.",
   "The saved link is an event/promoter page, not a Cityline booking URL. Live options are unavailable until the direct official Cityline event link is saved. You can still try the offline demo below.":

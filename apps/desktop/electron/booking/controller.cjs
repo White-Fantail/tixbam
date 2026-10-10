@@ -10,6 +10,7 @@ const { SessionCoordinator } = require('./session-coordinator.cjs');
 const { resolveOfficialSaleUrl } = require('../security.cjs');
 const { assertBookingWindow } = require('./window-binding.cjs');
 const { ObservationPipeline } = require('./observation.cjs');
+const { checkoutReadiness } = require('./checkout-readiness.cjs');
 function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindows, requireInstalled, resolveAddonUrl, send,
   bookingTarget=null, bookingLease=null }) {
   const vault = new CardVault(path.join(app.getPath('userData'), 'cards.enc'), safeStorage);
@@ -87,7 +88,12 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
     contexts.set(contextId, ctx);
     let saved = null;
     try { saved = preferences.get(key, schema); } catch { /* Changed event options require fresh choices. */ }
-    return { contextId, eventKey: key, schema, preferences: saved, rehearsal, providerEventId: page.providerEventId, providerTitle: page.providerTitle };
+    return { contextId, eventKey: key, schema, preferences: saved, rehearsal,
+      checkoutReadiness:checkoutReadiness(providerId,addon.version),
+      providerEventId: page.providerEventId, providerTitle: page.providerTitle };
+  });
+  handle('booking-readiness', ({providerId}={}) => {
+    const addon=requireInstalled(providerId);return checkoutReadiness(providerId,addon.version);
   });
   handle('save-booking-preferences', (contextId, input) => {
     const ctx = contexts.get(contextId); if (!ctx) throw new Error('Read the event options first.');
@@ -96,7 +102,10 @@ function registerBooking({ app, safeStorage, ipcMain, dashboardOnly, ticketWindo
   });
   handle('start-booking', async ({ contextId, preferences: input, cardId, cvv, paymentConsent }) => {
     const ctx = contexts.get(contextId); if (!ctx) throw new Error('Read event options before starting.');
-    requireInstalled(ctx.providerId);
+    const installed=requireInstalled(ctx.providerId);
+    if(!ctx.rehearsal&&checkoutReadiness(ctx.providerId,installed.version).blockers.some(x=>
+       ['provider_automation_restricted','unknown_or_upgraded_addon'].includes(x)))
+      throw new Error('Cityline prohibits automated interaction and transactions under its current terms. Use the official window manually; a separately authorized integration is required.');
     if ([...runs.values()].some(r => !TERMINAL.has(r.state.status) && (r.state.eventKey === ctx.eventKey || (!ctx.rehearsal && r.state.windowId === ctx.windowId)))) throw new Error('A booking is already active for this event or window.');
     // A context is not authority to use a window indefinitely. Revalidate
     // its exact browser and plan before starting, then before every step.

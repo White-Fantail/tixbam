@@ -32,6 +32,7 @@ Country = Annotated[str, Field(pattern=r"^[A-Z]{2}$", min_length=2, max_length=2
 # Existing bundled add-on metadata explicitly lists these vendors as restricted.
 # A DB row/ordinary admin toggle is NEVER permitted to weaken this baseline.
 RESTRICTED = {
+    "cityline": "https://www.cityline.com/en_US/ReleaseNotes.html#termsconditions",
     "nol": "https://world.nol.com/en/pages/tos.html",
     "ticketmaster": "https://www.ticketmaster.co.nz/h/purchase.html",
     "axs": "https://www.axs.com/nz/about-terms-of-use_NZ_v1.html",
