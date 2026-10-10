@@ -234,6 +234,8 @@ Rules:
 - Manual completion of CAPTCHA/queue/3DS is separate user action; AI must not solve/bypass it.
 - Failure to prove who owns the window, which event is displayed, or whether policy permits the operation => manual mode.
 
+**AB-07 implemented (2026-10-10):** A host-controlled, provider-neutral mock adapter runs the existing AB-02 BookingRunner/FSM and AB-03 deterministic action preconditions against bounded, seeded synthetic inventory. The independent rehearsal-only AB-05 journal records a synthetic commit before a mock one-shot payment; timeouts/crashes remain `payment_unknown` across process restart. A deliberately minimal `tixbamRehearsal` IPC exposes only scenario selection, step, manual handoff, mock order confirmation, Stop and simulated restart to the isolated rehearsal window. Scenarios are a hardcoded allowlist, not downloaded provider code. No network requests, real cards or real payment execution are performed, and no official receipt verification is claimed.
+
 ## F. Test matrix / no-release conditions
 
 | Invariant | Synthetic regression |

@@ -235,3 +235,30 @@ export interface BookingLeaseStatusV1 {
 export interface BookingLeaseAcquireV1 extends BookingLeaseStatusV1 {
   leaseToken:string;leaseSeconds:number;
 }
+
+
+/** AB-07: offline scenario metadata only. No provider session or execution
+ * capability is supplied by this data-only SDK contract.
+ */
+export type RehearsalScenarioIdV1 =
+  | 'standard' | 'queue' | 'sold_out' | 'price_change' | 'fees_change'
+  | 'captcha' | 'bank_3ds' | 'payment_timeout' | 'unknown_charge'
+  | 'restart' | 'standing' | 'automatic' | 'adjacency' | 'stale';
+export interface RehearsalScenarioInfoV1 {
+  id: RehearsalScenarioIdV1;
+  title: string; ko: string; hint: string; hintKo: string;
+}
+export interface RehearsalLabObservationV1 {
+  active: boolean;
+  scenarioId: RehearsalScenarioIdV1 | null;
+  status: 'idle' | 'running' | 'review' | 'awaiting_user'
+    | 'submitting' | 'completed' | 'payment_unknown' | 'stopped' | 'failed';
+  phase?: string;
+  seed?: number; message: string;
+  recovered: boolean;
+  challenge?: 'none' | 'queue' | 'captcha' | '3ds';
+  paymentAttempts?: number;
+  /** Entirely synthetic mock-order summary, never real merchant data. */
+  order?: null | {quantity: number; totalMinor: number; currency: string; seats: string[]};
+  events?: ReadonlyArray<{phase: string;status: string;message: string}>;
+}

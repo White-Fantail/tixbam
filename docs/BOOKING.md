@@ -33,6 +33,15 @@ CVV is never persisted. It is entered once when preparing a run and kept with th
 
 Actual card details are unnecessary for rehearsal. This release's live Cityline payment service is unavailable, even if a card has been prepared.
 
+## AB-07 — Provider-neutral Offline Safety Stress Lab
+
+Use **Booking Plan → Rehearse** to open the isolated rehearsal window. Choose **Safety Stress Lab** to practise scenarios with a deterministic seed, or keep the existing **Cityline walkthrough** to rehearse a more detailed mock user journey. The Stress Lab is available regardless of provider; it does not claim real provider capability.
+
+The common host-only `RehearsalDriver` runs the existing `BookingRunner` and finite state machine over synthetic options, seat offers, all-in prices, a one-shot mock payment and a separately scoped mock AB-05 Journal. Available drills include queues, sold-out tickets, fees/price drift, CAPTCHA, bank 3-D Secure, timeout, unverified charge, process restart, standing tickets, automatic allocation, nonadjacent seats and stale inventory. User intervention for CAPTCHA, queues and 3DS is a separate button, not an AI bypass.
+
+The rehearsal window receives a strict, sender-verified IPC for approved mock actions only; no browser URL, network fetch, card, provider cookies, JavaScript or real payment operation is exposed. Live AI advice is not offered inside the Stress Lab. Synthetic journals and the small last-run snapshot live under Electron `userData/rehearsal-lab/`, entirely isolated from live payment safety history. Snapshots are versioned and fsynced; after a restart **no old runner or payment execution authority is restored**. A synthetic unresolved commit is reported as `payment_unknown` and cannot be resumed. Beginning a new fictional practice run does not authorize replay of any real purchase.
+
+Once a synthetic receipt is confirmed, or after explicitly acknowledging an unknown outcome in the practice UI, the user can record the rehearsal through the existing Booking Plan completion workflow. Results are exercises and must not be interpreted as provider ticket issuance, real seat availability or an actual card charge. See [Rehearsal Lab guide](REHEARSAL_LAB.md).
 ## AB-06 Multi-window and multi-device coordination
 
 Live automated selection requires a host-owned window, current signed-in account, registered Booking Plan, verified sale/performance and an authenticated server lease. The host reserves local execution ownership before asynchronous acquisition, prevents other windows from using the same run target, and periodically renews a 45-second lease. Invalid identity, remote outage, stale fencing, failure to renew, and changed browser ownership abort automation without closing the official queue/login browser window. Rehearsals remain offline.

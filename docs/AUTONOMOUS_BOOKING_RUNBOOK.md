@@ -181,6 +181,16 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** deterministic seeded scenarios, quantity, budget, seat constraints, unknown charge, UI completion persistence.
 **Do not:** production ticket provider를 rehearsal test target으로 이용.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/rehearsal-fixtures.cjs`: 모든 provider에 공통으로 제공되는 고정 14개 오프라인 시나리오(정상, 대기열, 매진, 가격/수수료 변경, CAPTCHA, 3DS, 타임아웃, 미확인 결제, 재시작, 스탠딩, 자동 배정, 비인접 좌석, 선택 중 재고 변경). seed 기반 가상 좌석과 수수료 포함 가상 견적.
+- `rehearsal-driver.cjs`: 실제 AB-02 BookingRunner/FSM과 AB-03 deterministic host action guard, AB-05 Ledger를 사용하는 synthetic adapter/driver. 실예매처 요청/실카드/실결제 경로 없음. 각 run은 userData 하위 별도 `rehearsal-lab` 디렉터리에서 가상 Journal을 기록하며 운영 `booking-safety`와 혼용하지 않음.
+- 재시작 복구: versioned 마지막 가상 상태 파일을 atomic rename/fsync로 보관. 앱이 다시 시작돼도 실행 중이던 Runner/결제 실행 권한은 복구하지 않고, 실제 가상 Journal에 미확인 commit이 있으면 `payment_unknown`으로 고정. 사용자는 기존 실행을 다시 submit할 수 없음; 다른 시드로 새 mock 연습은 가능.
+- `main.cjs`/`rehearsal-preload.cjs`: 기존 별도 리허설 BrowserWindow의 main-frame sender를 검증한 좁은 IPC만 공개. 정적 시나리오 선택/step/사용자 인증 재개/모의 주문 확인/Stop/재시작만 가능. 원격 URL/셀렉터/JS/카드 데이터/클라우드 토큰/결제 실행 IPC 없음.
+- `src/rehearsal/ScenarioLab.tsx`/`RehearsalApp.tsx`: Cityline 기존 화면형 리허설과 공통 Stress Lab 모드 전환, 14개 시나리오 선택·seed·단계/주문/안전 경고/실행 기록, 한국어 기본/영어 선택, 모의 완료 기록의 기존 Booking Plan 저장 흐름 연계. Stress Lab에서는 기존 OpenRouter AI Advisor를 숨겨 외부 전송 없음.
+- `booking-rehearsal-driver.test.cjs` 회귀: fake inventory/assigned/standing/automatic, quantity/예산/연석 제한, 가격/수수료 drift, queue/CAPTCHA/3DS 인간 인증, timeout/unknown outcome 단일 제출, 실행 중 Stop, 가상 크래시 후 복구, PII 누출 금지, 네트워크 호출 0. 기존 Cityline 리허설도 계속 동작.
+- **범위 제한:** Cityline 실제 사이트나 타 제공업체의 정확한 좌석 맵을 복제하는 기능이 아님. 연습 결과는 공식 구매·결제 성공 증거가 아니다. 제공업체 자동화 허가, AI 플래너, 라이브 결제는 활성화하지 않음. 다음 AB-08 단계에서 AI 명령 제안을 별도 검증하되 실행은 그대로 차단.
+- 검증된 구현 CI: [GitHub Actions](https://github.com/White-Fantail/tixbam/actions/runs/38015384097) Desktop 154/154, API/MCP 30/30, crawler 3/3, Desktop/Admin 빌드 성공. 이후 한국어 안내 보강과 문서 추가 포함 최종 CI 재확인.
+
 ## AB-08 — OpenRouter PlannerV1
 
 **명령:** "AB-08 구현해. Admin 기능별 모델 설정을 이용해 AI가 ActionProposal만 반환하는 PlannerV1을 추가해."
@@ -271,7 +281,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-06 완료 (dev) · AB-07 다음 단계**. 라이브 자율 결제는 비활성.
+- 현 단계: **AB-01~AB-07 완료 (dev) · AB-08 다음 단계**. 라이브 자율 결제는 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -279,7 +289,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-04 Observation — `9c531b8` (redacted, navigation-aware host snapshots; CI verified)
   - [x] AB-05 Journal — `53086d9` (durable write-ahead ledger, restart recovery, CI verified)
   - [x] AB-06 Session Coordinator — server leases, fencing and host window ownership
-  - [ ] AB-07 Offline Rehearsal
+  - [x] AB-07 Offline Rehearsal — common 14-scenario simulator, isolated mock Ledger and restart-safe UI (CI verified)
   - [ ] AB-08 AI Planner
   - [ ] AB-09 Recovery Engine
   - [ ] AB-10 Seat/Offer Policy
@@ -289,4 +299,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-07 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-08 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
