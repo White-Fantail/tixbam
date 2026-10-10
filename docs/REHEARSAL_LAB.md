@@ -52,3 +52,15 @@ Within an **active** Safety Stress Lab drill, click **AI 다음 단계 제안 �
 The model gets only a privacy-restricted observation (stage, challenge type, confidence, option counts and temporary anonymous target tokens). A human-readable booking page, email, account/Run ID, seats, prices and card/3DS fields are not transmitted. The suggestion is shown as a **read-only recommendation**, not a click or payment. Follow only the original simulator buttons to advance.
 
 For blocked/malformed/unsupported models, failed authentication, timeout, stale snapshots, sign-out or changed Admin policy, the UI displays a non-executing **ASK_USER** fallback. Each call consumes planner quota even if the model fails: at most 8 per synthetic run and 20 per user hourly, plus the shared AI hourly limit. The feature stays disabled until intentionally configured. Real-provider observations cannot invoke this planner endpoint.
+
+## AB-09 One-step recovery execution
+
+With **Safety Stress Lab** running and Admin-enabled PlannerV1 configured, click **Suggest a next step with AI** as before. If the model suggests `REOBSERVE` or `SELECT_APPROVED_OFFER`, you will see a **second approval button** to execute **ONE approved mock recovery step**. This never authorizes the model to issue further commands by itself. Approving it does not approve payment.
+
+- `REOBSERVE` reads the in-memory synthetic page state without navigation, remote requests or provider reload.
+- `SELECT_APPROVED_OFFER` is implemented exclusively by AB-07 `ScenarioAdapter`, with an AB-03 host-issued target ref, fresh observed inventory and price, quantity/currency/adjacency/budget checks, and a verified synthetic postcondition. A successful offer selection only reaches the mock order review. **Mock payment still needs a separate human confirmation.**
+- `WAIT`, `ASK_USER`, `STOP` remain recommendations; neither STOP nor a site queue is automatically manipulated. No handler exists for `RETURN_TO_VERIFIED_STEP`, arbitrary navigation, scripts, checkout, login, CAPTCHA or 3DS.
+- A snapshot/run change, expired token, different account/window, interrupted rehearsal, mutated inventory, unsupported provider or failed postcondition causes the host to refuse the action and show manual takeover. The one-use proposal cannot be replayed.
+- At most 3 attempted one-step approvals, 2 failures, and 1 synthetic offer mutation per rehearsal run; identical steps are blocked. Each step has a 2s deadline and cooperative cancellation in the simulator. A timeout or postcondition failure locks further AI recovery for that run.
+
+The host's approval action is exposed only by a sender-verified Electron main-process IPC. No action callback, arbitrary URL, JavaScript or selector becomes accessible to downloaded add-ons or AI. This exercise offers no guarantee about live-site capability, ticket inventory or payment success.

@@ -224,6 +224,17 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 **테스트:** page button text changes, seat sold out, stale snapshot, queue, virtual session expired, injected malicious instructions.
 **Do not:** turn AI recommendation into unrestricted executor.
 
+**완료 기록 (2026-10-10):**
+- `apps/desktop/electron/booking/recovery.cjs`: 호스트 전용 `RecoveryEngine`. AB-08의 `takeRecoveryContext()`가 검증된 제안을 1회만 꺼내고, AB-03 `ActionValidator.inspect` 및 `claim`을 정상 실행 직전 다시 호출한다. 원본 Run ID·Snapshot ID·계정·창·Plan·업체·정책 revision·페이지 generation·유효시간을 확인한다.
+- 자동 연속 실행이나 백그라운드 티켓 구매는 구현하지 않음. 리허설 창에서 사용자가 **별도의 두 번째 버튼으로 승인**한 경우에 한해 `REOBSERVE`(모의 read-only 상태 재관찰) 또는 `SELECT_APPROVED_OFFER`(AB-07 `ScenarioAdapter`에서 검증된 가상 좌석 선택) 최대 한 단계 실행. 승인 정보는 host가 생성하며 모델/렌더러가 권한, URL, 셀렉터를 지정할 수 없음.
+- 기존 AB-03 `executeReviewedProposal`을 재사용하여 실행 직전 실제 가상 화면을 재조회하고, 요청한 offer의 금액·수수료 포함 여부·수량·좌석·회차·가격대·행동 가능 상태 일치를 재검사. 실행 후 예상 주문·페이지 전이 postcondition도 확인. 운영 프로바이더 어댑터는 타입 제한으로 실행 불가.
+- `WAIT`, `ASK_USER`, `STOP`은 권고로만 남기며 실제 Runner를 멈추거나 웹사이트를 갱신하지 않는다. `RETURN_TO_VERIFIED_STEP`, 메뉴/배송/임의 선택/실사이트 이동은 사용 중인 공통 리허설에 실행 handler를 제공하지 않고 거부한다. Queue/CAPTCHA/login/3DS/checkout/영수증 상태에서는 AI 자동 동작 불가.
+- 단일 Run 최대 3 승인 시도, 최대 2 실패, 가상 좌석 선택 최대 1회. 동일 단계·동일 대상·동일 페이지 반복 시도 차단. 실행당 2초 deadline; abort signal로 비동기 가상 선택을 취소하며, timeout 및 postcondition 실패 시 회복 실행 잠금·수동 전환. 리허설 실행/중단/재시작과 직렬화하여 경쟁 조건 차단.
+- `main.cjs`, `rehearsal-preload.cjs`, `ScenarioLab.tsx`: 기존 Planner 표시와 별도로 `labRecover()` 고정 IPC 및 수동 승인 UI 연결. Electron main의 검증된 리허설 창 발신자만 호출 가능하며 무제한 명령 실행 API나 실제 브라우저/결제 API는 노출하지 않음. 로그인 전환·창 종료 시 Planner/Recovery 상태 모두 무효화.
+- 테스트: 정상 시뮬레이터 좌석·재관찰, 동시 승인·재사용 거부, 반복/루프·timeout·손상된 화면 postcondition, 매진/금액 drift, Snapshot 만료·정상 Runner 단계 이동, 사용자 Stop/로그아웃, queue/CAPTCHA/3DS, 악성 버튼/프롬프트 주입, 실제 결제 경로 차단, 기존 BookingRunner/리허설 회귀. Mock OpenRouter만 사용, 실구매 없음.
+- **라이브 AI 자동 복구는 AB-09에서 활성화하지 않음**. AB-10의 검증된 offer/fee 정책과 AB-12의 제공업체 허가 없이 실사이트 셀렉션·방향 전환·결제 실행 금지. 이 구현은 순수 가상 리허설 장치다.
+
+
 ## AB-10 — 좌석 선택 및 Offer Ranking
 
 **명령:** "AB-10 구현해. 가격·수수료·좌석 타입을 포함한 범용 Offer/Seat Policy와 자동 선택 규칙을 추가해."
@@ -292,7 +303,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
 
 ## 진도 확인 및 다음 단계 찾기
 
-- 현 단계: **AB-01~AB-08 완료 (dev) · AB-09 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
+- 현 단계: **AB-01~AB-09 완료 (dev) · AB-10 다음 단계**. 라이브 자율 결제와 실사이트 AI 행동 실행은 비활성.
 - 진행 체크리스트 (작업 완료 후 근거와 커밋을 기록할 것):
   - [x] AB-01 Provider Policy — `a5cf93d` (API/DB/Admin/SDK/host baseline, CI verified)
   - [x] AB-02 State Machine — `b8c090d` (FSM/Orchestrator, runner & rehearsal integration, CI verified)
@@ -302,7 +313,7 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [x] AB-06 Session Coordinator — server leases, fencing and host window ownership
   - [x] AB-07 Offline Rehearsal — common 14-scenario simulator, isolated mock Ledger and restart-safe UI (CI verified)
   - [x] AB-08 AI Planner — strict OpenRouter proposal-only pipeline, privacy and quota, rehearsal manual trigger (CI verified)
-  - [ ] AB-09 Recovery Engine
+  - [x] AB-09 Recovery Engine — explicit rehearsal approval, fresh host validation, one-shot synthetic selection/reobserve, deadline & loop guard (CI verified)
   - [ ] AB-10 Seat/Offer Policy
   - [ ] AB-11 Desktop UX
   - [ ] AB-12 Provider Onboarding
@@ -310,4 +321,4 @@ AB-01–AB-11은 실제 구매/제공업체 접근 없이 개발 및 오프라�
   - [ ] AB-14 Reconciliation
   - [ ] AB-15 Security/E2E Release Readiness
 
-**다음 명령:** "AB-09 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.
+**다음 명령:** "AB-10 구현해." 이후 Runbook 순서대로 진행. 필요하면 "AB-05 진행 상황 확인해." / "AB-09 테스트 강화해." / "AB-01~AB-05 설계와 구현 비교 검토해."도 가능하다.

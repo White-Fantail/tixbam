@@ -300,3 +300,17 @@ export interface RehearsalPlannerViewV1 {
   source:'openrouter'|'fallback';
   model?:string;
 }
+
+
+/** AB-09: read-only status reported by the offline recovery IPC.
+ * This is NOT an add-on action or a live booking permission. It never
+ * contains raw host ProposalV1 references, user credentials or seat identities.
+ */
+export interface RehearsalRecoveryResultV1 {
+  executed:boolean;
+  code:string;
+  manualTakeover:boolean;
+  action?:ProposedActionKind;
+  attempts?:number;
+  remaining?:number;
+}

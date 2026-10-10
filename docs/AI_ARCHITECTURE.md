@@ -35,3 +35,11 @@ The common host runner includes only a recognized booking stage and sanitized pr
 - Invalid responses, provider timeouts, Admin revocation and session changes give a safe manual `ASK_USER` fallback. Recovered/terminal rehearsals cannot request a proposal.
 
 For setup and test scenarios see [Offline rehearsal guide](REHEARSAL_LAB.md) and [AB-08 runbook](AUTONOMOUS_BOOKING_RUNBOOK.md).
+
+## AB-09 bounded AI Recovery Engine (rehearsal only)
+
+AB-09 enables a **separate user-approved one-step execution** within the offline Stress Lab. Only the typed, previously validated AB-08 proposal can be consumed, once, inside Electron's main process; `RecoveryEngine` independently re-checks the AB-03 owner/policy/action scope, AB-04 current observation/TTL, and all deterministic price and seat constraints. The existing AB-03 dispatcher executes only a revalidated **synthetic** offer; `REOBSERVE` performs an in-memory fixture read without website reload. Host-only postcondition verification is mandatory.
+
+Non-mutating `WAIT/ASK_USER/STOP` stay informational. CAPTCHA, queue, 3DS, real provider navigation, checkout and receipts are never automated. Maximum 3 approved attempts, 2 failures and 1 synthetic seat reservation per run; duplicate loops, stale snapshots and exceeded deadlines fail closed. No model can invoke `labRecover` through its API response, and the renderer gets no targetRefs, card details, arbitrary commands or provider sessions.
+
+**Production AI navigation, provider-specific automation, and any unattended real payment remain disabled.** The executor is restricted to the verified offline `ScenarioAdapter`; provider authorization/seat models are work for AB-10/12 and payment for AB-13/14.
