@@ -102,7 +102,14 @@ async def visual_targets(body: VisionRequest, db: Db, user: CurrentUser):
         AIUsageLog.user_id == user.id,
         AIUsageLog.task == "copilot_vision",
         AIUsageLog.created_at >= cutoff)) or 0
-    if used >= 8:
+    # Multi-step Copilot runs require multiple bounded image analyses.
+    # Operators can lower the default limit without a code deployment.
+    try:
+        hourly_limit = int(os.getenv("COPILOT_VISION_HOURLY_LIMIT", "24"))
+    except ValueError:
+        hourly_limit = 8
+    hourly_limit = max(1, min(hourly_limit, 24))
+    if used >= hourly_limit:
         raise HTTPException(429, "Copilot Vision hourly limit reached")
     attempt = AIUsageLog(user_id=user.id, task="copilot_vision",
                          model=policy.model, status="requested")
