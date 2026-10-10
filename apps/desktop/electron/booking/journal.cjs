@@ -115,7 +115,8 @@ class DurableBookingJournal {
     }finally{fs.closeSync(fd);}
   }
   digest(value){
-    if(!this.secret||this.#poisoned)throw new JournalUnavailable('not_ready');
+    if(this.#poisoned)throw new JournalUnavailable('poisoned');
+    if(!this.secret)throw new JournalUnavailable('not_ready');
     return crypto.createHmac('sha256',this.secret).update(sortedJson(value)).digest('hex');
   }
   #parse(raw){
