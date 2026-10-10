@@ -48,6 +48,7 @@ export function ScenarioLab({plan,onComplete}:{
   const [seed,setSeed]=useState(2027);
   const [state,setState]=useState<RehearsalLabState|null>(null);
   const [busy,setBusy]=useState(false);
+  const [reviewChecked,setReviewChecked]=useState(false);
   const [planning,setPlanning]=useState(false);
   const [recovering,setRecovering]=useState(false);
   const [recovery,setRecovery]=useState<RehearsalRecoveryResult|null>(null);
@@ -64,7 +65,7 @@ export function ScenarioLab({plan,onComplete}:{
     return ()=>{live=false;};
   },[bridge]);
   async function action(task:()=>Promise<RehearsalLabState>){
-    setBusy(true);setError("");setSynced(false);setProposal(null);setRecovery(null);
+    setBusy(true);setError("");setSynced(false);setProposal(null);setRecovery(null);setReviewChecked(false);
     try{setState(await task());setAcknowledged(false);}
     catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy(false);}
@@ -173,9 +174,18 @@ export function ScenarioLab({plan,onComplete}:{
         {state.status==="awaiting_user"&&state.challenge!=="none"&&<button className="button button-primary"
           disabled={busy} onClick={()=>bridge&&void action(()=>bridge.labNext("manual"))}>
           {ko?"모의 사용자 인증 완료 후 재개":"Complete manual challenge & resume"}</button>}
-        {state.status==="review"&&<button className="button button-primary" disabled={busy}
-          onClick={()=>bridge&&void action(()=>bridge.labNext("confirm"))}>
-          {ko?"모의 주문 확인 · 결제":"Confirm MOCK checkout"}</button>}
+        {state.status==="review"&&<div className="lab-review-check">
+          <label className="cl-drill-check">
+            <input type="checkbox" checked={reviewChecked}
+              onChange={e=>setReviewChecked(e.target.checked)}/>
+            {ko?"표시된 가상 주문, 티켓 수량, 수수료 포함 총액을 직접 확인했습니다.":
+              "I personally checked the synthetic order, ticket quantity and all-in amount."}
+          </label>
+          <button className="button button-primary" disabled={busy||!reviewChecked}
+            onClick={()=>bridge&&void action(()=>bridge.labNext("confirm"))}>
+            {ko?"검토한 모의 주문만 승인":"Approve reviewed MOCK order"}
+          </button>
+        </div>}
         {state.active&&<button className="button button-outline" disabled={busy}
           onClick={()=>bridge&&void action(()=>bridge.labStop())}>{ko?"중단":"Stop"}</button>}
         <button className="button button-outline" disabled={busy||state.recovered}

@@ -1201,7 +1201,16 @@ function App() {
           const plan = plans.find(p => p.id === bookingEvent.id);
           if (plan) await upsertPlan({ ...plan, quantity: prefs.quantity, budgetMinor: prefs.maxTotalMinor,
             currency: prefs.currency, requireTogether: prefs.requireTogether,
-            allowFallback: prefs.allowFallback, preferencesReady: true });
+            allowFallback: prefs.allowFallback,
+            seatPreferences: {
+              priceTier: Array.isArray(prefs.options.priceTier)?prefs.options.priceTier:[],
+              section: Array.isArray(prefs.options.section)?prefs.options.section:[],
+              floor: Array.isArray(prefs.options.floor)?prefs.options.floor:[],
+              seatMode: (typeof prefs.options.seatMode==='string'?prefs.options.seatMode:'') as
+                ''|'assigned'|'standing'|'automatic',
+              fulfillment: typeof prefs.options.fulfillment==='string'?prefs.options.fulfillment:''
+            },
+            terms: prefs.terms || {}, preferencesReady: true });
         }}
         onClose={() => setBookingEvent(null)}/>}
       {toast && <div className={"toast" + (toast.error ? " toast-error" : "")} role="status">{toast.error ? <Bell size={19} /> : <Check size={19} />}<span>{tx(toast.message)}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={15} /></button></div>}

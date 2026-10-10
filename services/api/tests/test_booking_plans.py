@@ -108,3 +108,42 @@ def test_legacy_watchlist_backfill_is_repeatable(monkeypatch):
         assert len(client.get("/v1/me", headers=a).json()["bookingPlans"]) == 1
         assert len(client.get("/v1/me", headers=a).json()["watchlist"]) == 1
     engine.dispose()
+
+
+def test_ab11_seat_preferences_and_explicit_consents_are_cloud_synced(monkeypatch):
+    client, _, engine, _, (a, b) = setup_api(monkeypatch)
+    basic = {"artist": "Safe Plan", "title": "Seat test",
+             "providerId": "cityline", "currency": "HKD", "quantity": 2,
+             "budgetMinor": 123400, "requireTogether": True, "allowFallback": False}
+    seat = {"priceTier":["VIP","A"], "section":["Front","Balcony"],
+            "floor":["Lower"], "seatMode":"assigned", "fulfillment":"eticket"}
+    terms = {"allowRestrictedView":False, "allowRealName":False,
+             "allowAgeRestricted":False,"allowAccessibilityRestricted":False,
+             "allowedExtraIds":[]}
+    plan_id=str(uuid4())
+    with client:
+        result=client.put(f"/v1/me/plans/{plan_id}",headers=a,
+                          json={**basic,"seatPreferences":seat,"terms":terms})
+        assert result.status_code==200,result.text
+        stored=client.get("/v1/me",headers=a).json()["bookingPlans"][0]
+        assert stored["seatPreferences"]==seat
+        assert stored["terms"]==terms
+        assert client.get("/v1/me",headers=b).json()["bookingPlans"]==[]
+        for mutation in [
+            {"terms":{**terms,"allowRealName":"yes"}},
+            {"terms":{**terms,"allowedExtraIds":["insurance","insurance"]}},
+            {"terms":{**terms,"allowedExtraIds":["<script>"]}},
+            {"terms":{**terms,"cardNumber":"4111111111111111"}},
+            {"seatPreferences":{**seat,"priceTier":["VIP","VIP"]}},
+            {"seatPreferences":{**seat,"seatMode":"any_auto"}},
+            {"seatPreferences":{**seat,"section":["<script>"]}},
+            {"seatPreferences":{**seat,"unverifiedFee":False}},
+        ]:
+            assert client.put(f"/v1/me/plans/{uuid4()}",headers=a,json={
+                **basic,"seatPreferences":seat,"terms":terms,**mutation
+            }).status_code==422,mutation
+        # Old clients may omit new fields without implicit high-risk consent.
+        legacy=client.put(f"/v1/me/plans/{uuid4()}",headers=a,json=basic)
+        assert legacy.status_code==200
+        assert legacy.json()["terms"] is None
+    engine.dispose()

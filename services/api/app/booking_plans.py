@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,40 @@ from .models import (
 )
 
 router = APIRouter(prefix="/v1/me")
+
+
+class SeatSelections(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    priceTier: list[str] = Field(default_factory=list, max_length=30)
+    section: list[str] = Field(default_factory=list, max_length=30)
+    floor: list[str] = Field(default_factory=list, max_length=30)
+    seatMode: Literal["", "assigned", "standing", "automatic"] = ""
+    fulfillment: str = Field(default="", max_length=160)
+
+    @field_validator("priceTier", "section", "floor")
+    @classmethod
+    def no_duplicate_tiers(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value) or any(not x.strip() or len(x)>160 or
+            "<" in x or ">" in x for x in value):
+            raise ValueError("Invalid seat priority list")
+        return value
+
+
+class SeatConsent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    allowRestrictedView: bool = False
+    allowRealName: bool = False
+    allowAgeRestricted: bool = False
+    allowAccessibilityRestricted: bool = False
+    allowedExtraIds: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("allowedExtraIds")
+    @classmethod
+    def safe_extras(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value) or any(not x.strip() or len(x)>160
+            or "<" in x or ">" in x for x in value):
+            raise ValueError("Invalid optional extras")
+        return value
 
 
 class PlanPayload(BaseModel):
@@ -36,6 +70,8 @@ class PlanPayload(BaseModel):
     currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
     requireTogether: bool = True
     allowFallback: bool = True
+    seatPreferences: SeatSelections | None = None
+    terms: SeatConsent | None = None
     preferencesReady: bool = False
     accountReady: bool = False
     paymentReady: bool = False

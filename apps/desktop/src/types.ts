@@ -56,7 +56,7 @@ export interface WatchEvent {
 export type { AIAdvisoryRequest, AIAdvisoryResponse, AIAdvisoryContext };
 export type RehearsalTarget = Pick<BookingPlan,
   "id" | "artist" | "title" | "providerId" | "currency" | "quantity" |
-  "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady">;
+  "budgetMinor" | "requireTogether" | "allowFallback" | "preferencesReady" | "seatPreferences" | "terms">;
 export interface RehearsalLabScenario {
   id:string;title:string;ko:string;hint:string;hintKo:string;
 }

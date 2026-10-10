@@ -1,6 +1,15 @@
 import { tx } from "./i18n";
 import type { WatchEvent } from "./types";
+import type { SeatRestrictionConsentV2 } from "../../../packages/addon-sdk";
 
+export interface SeatPreferenceSelections {
+  priceTier: string[]; section: string[]; floor: string[];
+  seatMode: '' | 'assigned' | 'standing' | 'automatic';
+  fulfillment: string;
+}
+export const EMPTY_SEAT_SELECTIONS: SeatPreferenceSelections = {
+  priceTier:[], section:[], floor:[], seatMode:'', fulfillment:''
+};
 export interface BookingPlan {
   id: string;
   artist: string;
@@ -19,6 +28,8 @@ export interface BookingPlan {
   currency: string;
   requireTogether: boolean;
   allowFallback: boolean;
+  seatPreferences?: SeatPreferenceSelections;
+  terms?: SeatRestrictionConsentV2;
   preferencesReady: boolean;
   accountReady: boolean;
   paymentReady: boolean;
@@ -50,6 +61,7 @@ export function planFromWatch(item: WatchEvent): BookingPlan {
     saleAt: item.saleAt || "", performanceAt: item.performanceAt || "", timezone: "",
     quantity: 2, budgetMinor: 0, currency: currencyForProvider(item.providerId),
     requireTogether: true, allowFallback: true,
+    seatPreferences: {...EMPTY_SEAT_SELECTIONS}, terms: {},
     preferencesReady: false, accountReady: false, paymentReady: false,
     lastRehearsalAt: null, notes: "",
     createdAt: item.addedAt, updatedAt: item.addedAt,

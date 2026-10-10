@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { BookingContext, BookingPreferences, BookingRun, CardSummary } from '../../../../packages/addon-sdk';
 import type { TicketAddon, TicketWindow, WatchEvent } from '../types';
 import type { BookingPlan } from '../booking-plans';
-import { currencyFactor } from '../booking-plans';
-import { tx } from '../i18n';
+import { currencyFactor, EMPTY_SEAT_SELECTIONS } from '../booking-plans';
+import { SeatRulesEditor } from './SeatRulesEditor';
+import { tx, useLanguage } from '../i18n';
 import { RunAIAdvisor } from './RunAIAdvisor';
 const terminal = new Set(['completed', 'stopped', 'failed', 'payment_unknown']);
 function defaults(ctx: BookingContext): BookingPreferences {
@@ -14,6 +15,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
   plan?: BookingPlan; onPlanPreferencesSaved?: (prefs: BookingPreferences) => Promise<void>;
   onRehearse?: () => void;
 }) {
+  useLanguage(); // Re-render both Korean and English text after language switch.
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
   useEffect(() => {
@@ -39,6 +41,7 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
   const [cvv, setCvv] = useState('');
   const [textOptions, setTextOptions] = useState<Record<string,string>>({});
   const [consent, setConsent] = useState(false);
+  const [finalApproval, setFinalApproval] = useState<{runId:string;signature:string}|null>(null);
   const [run, setRun] = useState<BookingRun | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -76,12 +79,25 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
       const safe = !rehearsal && addon.booking?.implementation.payment !== 'verified'
         ? { ...previous, checkout: 'review' as const } : previous;
       // The plan's hard limits override saved dynamic options; no implicit budget defaults.
-      const initial = plan ? { ...safe, quantity: plan.quantity,
+      const planOptions = {...safe.options};
+      if(plan?.seatPreferences) for(const field of ctx.schema.fields){
+        const selected=plan.seatPreferences[field.id as keyof typeof plan.seatPreferences];
+        if(selected===undefined)continue;
+        if(field.type==='ranked'&&Array.isArray(selected)){
+          planOptions[field.id]=selected.filter(item=>!field.choices||
+            field.choices.some(c=>c.id===item));
+        }else if(field.type==='select'&&typeof selected==='string'&&
+          (!selected||!field.choices||field.choices.some(c=>c.id===selected))){
+          planOptions[field.id]=selected;
+        }
+      }
+      const initial = plan ? { ...safe, options:planOptions, quantity: plan.quantity,
         maxTotalMinor: plan.budgetMinor, requireTogether: plan.requireTogether,
-        allowFallback: plan.allowFallback } : safe;
+        allowFallback: plan.allowFallback,
+        terms: plan.terms || {} } : safe;
       setPrefs(initial);
       setTextOptions(Object.fromEntries(ctx.schema.fields.filter(f=>f.type==='ranked'&&!f.choices).map(f=>[f.id,(initial.options[f.id] as string[]).join('\n')])));
-      setConsent(false); setCvv('');
+      setConsent(false); setFinalApproval(null); setCvv('');
     });
   }
   function option(id: string, value: string | string[]) { if (prefs) { setPrefs({...prefs,options:{...prefs.options,[id]:value}}); setConsent(false); } }
@@ -91,6 +107,10 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
     if (to >= 0 && to < list.length) { [list[from],list[to]]=[list[to],list[from]]; option(id,list); }
   }
   const active = Boolean(run && !terminal.has(run.status));
+  const reviewSignature = run?.status==='review' && run.order?
+    JSON.stringify({id:run.id,order:run.order}):null;
+  const reviewApproved = reviewSignature!==null &&
+    finalApproval?.runId===run?.id && finalApproval?.signature===reviewSignature;
   // A promoter's event page can describe a Cityline sale without being
   // Cityline's own event booking form. The demo is independent of either site.
   const directProviderUrl = (() => {
@@ -130,15 +150,65 @@ export function BookingPanel({ event, addon, windows, onClose, plan, onPlanPrefe
             })}</div>}
           </label>{field.hint && <p className="input-hint">{field.hint}</p>}
         </div>)}
-        <label>Checkout<select value={prefs.checkout} onChange={e=> { setPrefs({...prefs,checkout:e.target.value as 'review'|'automatic'}); setConsent(false); }}><option value="review">Confirm final order before payment</option><option value="automatic" disabled={!context.rehearsal && addon.booking?.implementation.payment !== "verified"}>Automatic checkout (verified providers only)</option></select></label>
+        <SeatRulesEditor key={context.contextId} showRanking={false} selections={{
+          priceTier:Array.isArray(prefs.options.priceTier)?prefs.options.priceTier:[],
+          section:Array.isArray(prefs.options.section)?prefs.options.section:[],
+          floor:Array.isArray(prefs.options.floor)?prefs.options.floor:[],
+          seatMode:(typeof prefs.options.seatMode==='string'?prefs.options.seatMode:'') as
+            ''|'assigned'|'standing'|'automatic',
+          fulfillment:typeof prefs.options.fulfillment==='string'?prefs.options.fulfillment:''
+        }} terms={prefs.terms} disabled={busy||active}
+        onSelections={selections=>{
+          if(!prefs)return;
+          const options={...prefs.options};
+          for(const field of context.schema.fields){
+            const value=selections[field.id as keyof typeof selections];
+            if(value===undefined)continue;
+            if(field.type==='ranked'&&Array.isArray(value))
+              options[field.id]=value.filter(item=>!field.choices||field.choices.some(choice=>choice.id===item));
+            if(field.type==='select'&&typeof value==='string'&&
+              (!value||!field.choices||field.choices.some(choice=>choice.id===value)))
+              options[field.id]=value;
+          }
+          setPrefs({...prefs,options});setConsent(false);setFinalApproval(null);
+        }}
+        onTerms={terms=>{setPrefs({...prefs,terms});setConsent(false);setFinalApproval(null);}}/>
+        <label>{tx("Checkout mode")}<select value={prefs.checkout} onChange={e=> { setPrefs({...prefs,checkout:e.target.value as 'review'|'automatic'}); setConsent(false); }}><option value="review">{tx("Review every final order manually")}</option><option value="automatic" disabled={!context.rehearsal}>{tx("Automatic checkout (offline rehearsal only)")}</option></select></label>
         {!context.rehearsal && <><label>Local payment card<select value={cardId} onChange={e=>setCardId(e.target.value)}><option value="">No card prepared</option>{cards.map(c=><option key={c.id} value={c.id}>{c.label} · •••• {c.last4}</option>)}</select></label>{cardId&&<label>CVV for this run<input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={cvv} onChange={e=>setCvv(e.target.value)}/><small>Kept in memory for up to 30 minutes. Cleared at completion, stop or failure.</small></label>}</>}
         {prefs.checkout==='automatic' && <label className="booking-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>I authorize payment for this event, up to {prefs.currency} {(prefs.maxTotalMinor/currencyFactor(prefs.currency)).toFixed(currencyFactor(prefs.currency) === 1 ? 0 : 2)}, when all required conditions match.</label>}
       </fieldset>
       <div className="booking-actions"><button className="button button-outline" disabled={busy || active} onClick={()=>perform(async()=> { await window.tixbam!.saveBookingPreferences(context.contextId,prefs); await onPlanPreferencesSaved?.(prefs); setError('Preferences saved on this device and booking plan updated.'); })}>Save preferences</button><button className="button button-primary" disabled={busy || active || prefs.maxTotalMinor <= 0 || (prefs.checkout==='automatic'&&!consent)} onClick={()=>perform(async()=> { const code=cvv; setCvv(''); setRun(await window.tixbam!.startBooking({contextId:context.contextId,preferences:prefs,cardId:cardId||undefined,cvv:code,paymentConsent:consent})); })}>Start {context.rehearsal?'rehearsal':'booking'}</button></div>
     </>}
     {run&&<div className="booking-run" role="status"><strong>{run.rehearsal?'REHEARSAL · ':''}{run.status.replaceAll('_',' ').toUpperCase()}</strong><p>{run.message}</p>{run.order&&run.status==='review'&&<p>{run.order.quantity} ticket(s) · {run.order.currency} {(run.order.totalMinor/currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency) === 1 ? 0 : 2)} including fees · {run.order.seats.join(', ')}</p>}{run.receipt&&<p>{run.receipt}</p>}
+      {run.status==='review'&&run.order&&<div className="booking-review-panel" role="group" aria-label={tx("Final order approval")}>
+        <h3>{tx("Final order approval")}</h3>
+        <p>{tx("Review the verified order and total before approving this single checkout step. Do not approve if fees, restrictions, or seats are unknown.")}</p>
+        <dl>
+          <dt>{tx("Tickets")}</dt><dd>{run.order.quantity}</dd>
+          <dt>{tx("Total including fees")}</dt><dd>{run.order.currency} {(run.order.totalMinor/currencyFactor(run.order.currency)).toFixed(currencyFactor(run.order.currency)===1?0:2)}</dd>
+          <dt>{tx("Seats")}</dt><dd>{run.order.seats?.length?run.order.seats.join(', '):tx("Standing / allocation details require confirmation")}</dd>
+          <dt>{tx("Price tier")}</dt><dd>{run.order.priceTier||tx("Not verified")}</dd>
+          <dt>{tx("Seat allocation type")}</dt><dd>{tx(run.order.seatMode||"Not verified")}</dd>
+          <dt>{tx("Fulfillment")}</dt><dd>{tx(run.order.fulfillment||"Not verified")}</dd>
+        </dl>
+        {run.order.feeBreakdown&&<dl>
+          <dt>{tx("Ticket subtotal")}</dt><dd>{run.order.feeBreakdown.ticketSubtotalMinor/currencyFactor(run.order.currency)}</dd>
+          <dt>{tx("Service fees")}</dt><dd>{run.order.feeBreakdown.serviceFeeMinor/currencyFactor(run.order.currency)}</dd>
+          <dt>{tx("Taxes")}</dt><dd>{run.order.feeBreakdown.taxMinor/currencyFactor(run.order.currency)}</dd>
+          <dt>{tx("Delivery fee")}</dt><dd>{run.order.feeBreakdown.deliveryFeeMinor/currencyFactor(run.order.currency)}</dd>
+          <dt>{tx("Extra products")}</dt><dd>{run.order.feeBreakdown.extrasMinor/currencyFactor(run.order.currency)}</dd>
+        </dl>}
+        <label className="booking-review-check">
+          <input type="checkbox" checked={!!reviewApproved} onChange={e=>
+            setFinalApproval(e.target.checked&&reviewSignature?
+              {runId:run.id,signature:reviewSignature}:null)}/>
+          {tx("I checked this exact order, all-in price, seats and extra conditions. I authorize only this reviewed step.")}
+        </label>
+        <p>{run.rehearsal?tx("Offline simulation: no real card will be charged."):
+          tx("Actual provider payment automation is disabled. Finish payment in the official site.")}</p>
+      </div>}
       <RunAIAdvisor run={run}/>
-      <div className="booking-actions">{['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.resumeBooking(run.id,run.status==='review')))}>{run.status==='review'?'Confirm this order and pay':run.rehearsal?'Complete simulated verification & resume':'I completed the required step · Resume'}</button>}{active&&<button className="button button-outline" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.stopBooking(run.id)))}>Stop and clear payment preparation</button>}</div>
+      <div className="booking-actions">{['awaiting_user','review'].includes(run.status)&&<button className="button button-primary" disabled={busy || (run.status==='review'&&!reviewApproved)} onClick={()=>perform(async()=> {const approved=run.status==='review'&&reviewApproved;setFinalApproval(null);setRun(await window.tixbam!.resumeBooking(run.id,approved));})}>{run.status==='review'?(run.rehearsal?tx("Confirm MOCK checkout"):tx("Confirm reviewed order")):run.rehearsal?'Complete simulated verification & resume':'I completed the required step · Resume'}</button>}{active&&<button className="button button-outline" disabled={busy} onClick={()=>perform(async()=>setRun(await window.tixbam!.stopBooking(run.id)))}>Stop and clear payment preparation</button>}</div>
     </div>}
     {active && <p className="input-hint">Closing this panel keeps the run active. Manage it in Live windows, or stop it here.</p>}
     {error&&<p className="form-error" role="alert">{tx(error)}</p>}

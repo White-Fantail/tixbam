@@ -54,6 +54,11 @@ export interface BookingOrder {
   id: string; eventKey: string; quantity: number; totalMinor: number; currency: string;
   feesIncluded: boolean; adjacent?: boolean; seats: string[];
   performance: string; priceTier: string; section?: string; floor?: string; seatMode?: string; fulfillment?: string;
+  /** Verified seller evidence, when supplied by strict AB-10 V2 offer. */
+  feeBreakdown?:VerifiedFeeBreakdownV2;
+  restrictedView?:boolean;realNameRequired?:boolean;
+  ageRestricted?:boolean;accessibilityRestricted?:boolean;
+  extras?:SelectedOptionalExtraV2[];
 }
 export interface BookingContext {
   contextId: string; eventKey: string; schema: BookingSchema;

@@ -460,3 +460,24 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
 .lab-ai-planner{display:grid;justify-items:start;gap:10px;padding:15px;border:1px solid #3e5264;background:#1b2434;border-radius:12px}
 .lab-ai-planner small{font-size:11px;color:#b9cadc;line-height:1.6}
 .lab-ai-planner .cl-drill-rules{width:100%}
+
+/* AB-11 responsive, bilingual, accessible seat and purchase consent controls */
+.seat-rules-editor{border:1px solid #484657;border-radius:12px;padding:16px;min-width:0;display:grid;gap:13px;margin:18px 0}
+.seat-rules-editor legend{padding:0 8px;color:#d8fab3;font-weight:700;font-size:13px}
+.seat-rules-editor label{display:grid;gap:8px;font-size:12px;color:#eeeaf8;font-weight:600;min-width:0}
+.seat-rules-editor textarea,.seat-rules-editor select{width:100%;background:#23232f;border:1px solid #535163;border-radius:8px;padding:10px;color:#f7f5ff;font:inherit}
+.seat-rules-editor .form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.seat-priority-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.seat-rules-editor .seat-rule-check{display:flex;flex-direction:row;gap:9px;align-items:flex-start;line-height:1.55}
+.seat-rule-check input{flex:none;margin:3px 0 0}
+.seat-rules-consents{display:grid;gap:6px}
+.seat-rules-hint{font-size:11px!important;font-weight:400!important;color:#bcb8cb!important;line-height:1.6;margin:0}
+.seat-rules-label{font-size:12px;color:#e1dbea}
+.booking-review-check{display:flex!important;flex-direction:row!important;gap:8px;align-items:flex-start;line-height:1.6}
+.booking-review-panel{border:1px solid #7a946b;border-radius:12px;padding:16px;background:#202b26;display:grid;gap:10px}
+.booking-review-panel h3{margin:0;font-size:15px}
+.booking-review-panel p{font-size:12px;line-height:1.6;margin:0}
+.booking-review-panel dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 12px;font-size:12px;margin:0}
+.booking-review-panel dd{margin:0;overflow-wrap:anywhere}
+.booking-review-panel dt{color:#d0d0bf}
+@media(max-width:600px){.seat-priority-grid,.seat-rules-editor .form-row{grid-template-columns:1fr}.seat-rules-editor{padding:12px}}

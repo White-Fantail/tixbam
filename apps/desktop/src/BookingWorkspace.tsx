@@ -5,7 +5,8 @@ import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, Circle, ExternalLin
 import type { TicketAddon, RehearsalTarget } from "./types";
 import { TicketSaleStatus } from "./TicketSaleStatus";
 import { formatSaleLocalTime, saleTimestamp } from "./ticket-sales";
-import { type BookingPlan, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
+import { type BookingPlan, EMPTY_SEAT_SELECTIONS, currencyFactor, currencyForProvider, officialLinkKind, planChecks } from "./booking-plans";
+import { SeatRulesEditor } from "./booking/SeatRulesEditor";
 
 
 type Change = (next: BookingPlan) => Promise<void>;
@@ -223,7 +224,7 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
   const checks = readiness(draft, addons);
   const change = (patch: Partial<BookingPlan>) => {
     setDraft(current => current && ({ ...current, ...patch,
-      preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "currency" in patch || "requireTogether" in patch || "allowFallback" in patch) ? false : current.preferencesReady }));
+      preferencesReady: ("quantity" in patch || "budgetMinor" in patch || "currency" in patch || "requireTogether" in patch || "allowFallback" in patch || "seatPreferences" in patch || "terms" in patch) ? false : current.preferencesReady }));
   };
   const persist = async () => {
     setError("");
@@ -293,7 +294,11 @@ export function BookingPlansWorkspace({ plans, addons, now, onCreate, onSelect, 
           onChange={e => change({ requireTogether: e.target.checked })}/> Require adjacent seats</label>
           <label><input type="checkbox" checked={draft.allowFallback}
             onChange={e => change({ allowFallback: e.target.checked })}/> Allow only explicitly ranked alternatives</label></div>
-        <label className="plan-notes">Notes / preferred sections<textarea rows={3} maxLength={1000} value={draft.notes}
+        <SeatRulesEditor key={draft.id} selections={draft.seatPreferences || EMPTY_SEAT_SELECTIONS}
+          terms={draft.terms}
+          onSelections={seatPreferences=>change({seatPreferences})}
+          onTerms={terms=>change({terms})}/>
+                <label className="plan-notes">Notes / preferred sections<textarea rows={3} maxLength={1000} value={draft.notes}
           onChange={e => change({ notes: e.target.value })} placeholder="e.g. Front section preferred; no restricted-view seats"/></label>
         <div className="plan-options"><label><input type="checkbox" checked={draft.accountReady}
           onChange={e => change({ accountReady: e.target.checked })}/> I've checked my ticketing account</label>
