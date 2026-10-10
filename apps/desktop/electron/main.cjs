@@ -140,7 +140,7 @@ function confirmSessionClose(win, entry, event) {
   if (response !== 1) event.preventDefault();
 }
 
-function trackWindow(win, { providerId, planId = null, popup = false, parentId = null }) {
+function trackWindow(win, { providerId, planId = null, popup = false, parentId = null, initialPhase = "preparing" }) {
   const wc = win.webContents;
   if (popup) wc.setWindowOpenHandler(({ url: requestedUrl }) => {
     if (ticketWindows.size >= MAX_WINDOWS ||
@@ -153,7 +153,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   });
   const entry = {
     win, providerId, planId, popup, parentId, openedAt: Date.now(),
-    phase: "preparing", loadError: null
+    phase: initialPhase, loadError: null
   };
   ticketWindows.set(win.id, entry);
   wc.on("did-start-loading", () => { copilot.clear(win.id); entry.loadError = null; broadcast(); });
@@ -167,7 +167,7 @@ function trackWindow(win, { providerId, planId = null, popup = false, parentId =
   wc.on("did-create-window", child => {
     // Some providers open their login, seat or bank verification in a popup.
     // Keep it visible in Sessions, but do not inspect its contents.
-    trackWindow(child, { providerId, planId, popup: true, parentId: win.id });
+    trackWindow(child, { providerId, planId, popup: true, parentId: win.id, initialPhase: entry.phase });
     broadcast();
   });
   wc.on("will-navigate", (event, target) => {
@@ -486,7 +486,12 @@ app.whenReady().then(() => {
   ipcMain.handle("tixbam:set-live-phase", (event, windowId, phase) => {
     dashboardOnly(event);
     const entry = ticketWindows.get(windowId);
-    if (!entry?.planId || entry.popup) throw new Error("No active booking plan for this window.");
+    if (!entry?.planId) throw new Error("No active booking plan for this window.");
+    if (entry.popup) {
+      const parent=ticketWindows.get(entry.parentId);
+      if (!parent || parent.planId !== entry.planId || parent.providerId !== entry.providerId)
+        throw new Error("This booking popup is no longer linked to its parent window.");
+    }
     copilot.clear(windowId);
     entry.phase = assertPhase(phase);
     rememberSession(entry);
