@@ -239,7 +239,7 @@ function registerAccount({ ipcMain, dashboardOnly, safeStorage, app, shell, onSe
       const active=load();
       if(!active)throw new Error('Sign in to use Copilot Vision.');
       const result=await request(active.apiUrl,'/v1/ai/copilot/vision',
-        'POST',payload,active.token,16500);
+        'POST',payload,active.token,35000);
       if(load()!==active)throw new Error('Copilot Vision account changed.');
       return result;
     },
