@@ -249,13 +249,17 @@ export function LiveBookingWorkspace({
         {advance && advance.status!=="off" && <div className="live-automation-card" role="status">
           <div className="live-card-head"><ShieldAlert size={18}/>
             <h3>{language==="ko"?"사전 승인 코파일럿":"Advance-approved Copilot"}</h3></div>
-          <p><strong>{advance.status==="guiding"
+          <p><strong>{advance.status==="clicked"
+            ? (language==="ko"?"개발자 클릭 테스트 완료":"Developer click test completed")
+            : advance.status==="guiding"
             ? (language==="ko"?"화면 안내 중":"Guidance active")
             : advance.status==="paused"
               ? (language==="ko"?"일시 중단":"Paused")
               : advance.status==="stopped"
                 ? (language==="ko"?"중지됨":"Stopped")
-                : (language==="ko"?"대기 중":"Armed")}</strong> · {advance.reason}</p>
+                : (language==="ko"?"대기 중":"Armed")}</strong> · {advance.status==="clicked" && language==="ko"
+              ? "실제 클릭 입력 1회를 전송했습니다. 사이트 반응을 확인하세요. 좌석 확보 여부는 검증되지 않았습니다."
+              : advance.reason}</p>
           <p className="settings-note">{language==="ko"
             ?"선택된 예매처 정책에 따라 자동 클릭이 금지될 수 있습니다. 현재 승인 없이 결제하거나 좌석을 확보하지 않습니다."
             :"Provider rules still apply. No unattended purchase or seat reservation is performed."}</p>
@@ -265,7 +269,7 @@ export function LiveBookingWorkspace({
               {target.label} · {Math.round(target.confidence*100)}% · {target.reason}
             </p>)}
           </div>}
-          {!["stopped","off"].includes(advance.status) && primary &&
+          {!["stopped","off","clicked"].includes(advance.status) && primary &&
             <button className="button button-outline" onClick={()=>
               void invoke("stop-advance",async()=>{
                 await window.tixbam?.copilotAdvanceStop(primary.id);
