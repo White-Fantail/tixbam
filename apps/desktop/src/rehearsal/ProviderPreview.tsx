@@ -43,3 +43,4 @@ export function ProviderPreview({plan,onComplete}:{plan:RehearsalTarget;onComple
     <button className="button button-primary" onClick={()=>void onComplete()}>
       {ko?"안내 내용 확인 완료":"Mark briefing reviewed"}</button>
   </section>;
+}

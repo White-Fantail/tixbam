@@ -102,3 +102,4 @@ export function LiveCopilotPanel({ bookingWindow, plan }: {
       ?"현재 AI가 좌석을 판독하거나 예약한 것은 아니야. 실제 장바구니·결제·영수증은 공식 사이트에서 확인해야 해."
       :"No seat, cart or receipt is verified by this preview. Check the official provider site."}</p>
   </section>;
+}
