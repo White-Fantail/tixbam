@@ -57,6 +57,7 @@ class LiveCopilot {
       requestedMode:session.consent.mode,mode:session.mode,status,reason,
       attempts:session.count,expiresAt:session.expiresAt,
       targets:[],automaticClicks:session.automaticClicks,...extra};
+    session.lastInfo=info;
     this.onAutoUpdate(info);
     return info;
   }
@@ -111,8 +112,24 @@ class LiveCopilot {
   }
   autoStatus(windowId){
     const s=this.autoSessions.get(windowId);
-    return s ? this.autoInfo(s,'armed','Active until stopped or expired.')
+    return s ? s.lastInfo
       : {windowId,mode:'manual',status:'off',reason:'Not armed.',targets:[]};
+  }
+  /** Infers a narrow, recognizable seat-selection route AFTER an authorized
+   * booking-entry action; ambiguous pages remain explicitly user-controlled. */
+  inferSelectionStage(windowId) {
+    const session=this.autoSessions.get(windowId),entry=this.ticketWindows.get(windowId);
+    if(!session || !entry || entry.phase!=='preparing' ||
+       session.lastAction!=='continue')return false;
+    try {
+      this.verify(windowId,{localPreview:true});
+      const route=new URL(entry.win.webContents.getURL()).pathname;
+      if(!/(?:^|\/)(?:select-seats?|seat-?map|seats|seat|ticket\/select|booking\/select)(?:[\/.?_-]|$)/i.test(route))
+        return false;
+      entry.phase='selecting';
+      this.autoInfo(session,'progress','Recognized official seat-selection route. Continuing approved steps.');
+      return true;
+    }catch{return false;}
   }
   /** Move one live approval to a new, actually linked official provider popup.
    * NEVER copy it to another provider or create a second active executor.
