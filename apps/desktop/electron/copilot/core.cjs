@@ -1,9 +1,10 @@
 'use strict';
 const { isSafeWebUrl, isHostAllowed } = require('../security.cjs');
 const SENSITIVE_ROUTE = /(?:^|[\/._-])(checkout|payment|pay|3ds|3dsecure|captcha|login|signin|sign-in|auth|queue|waiting|verify|bank|otp)(?:[\/._-]|$)/i;
-const SNAPSHOT_TTL_MS = 30000;
+const SNAPSHOT_TTL_MS = 90000;
 function screenAllowed(entry, allowedHosts, windowId, options = {}) {
-  if (!entry || entry.popup || !entry.planId || entry.win?.isDestroyed?.() ||
+  if (!entry || (entry.popup && !Number.isInteger(entry.parentId)) ||
+      !entry.planId || entry.win?.isDestroyed?.() ||
       entry.win?.webContents?.isDestroyed?.() || entry.win?.webContents?.isLoading?.() ||
       (windowId !== undefined && entry.win?.id !== windowId))
     return {allowed:false,reason:'No active, fully loaded Booking Plan browser.'};
@@ -31,13 +32,18 @@ function pixelPoint(point,width,height) {
     throw new Error('Invalid or out-of-bounds Copilot target.');
   return {x:Math.floor(point.x*width),y:Math.floor(point.y*height)};
 }
-function validSnapshot(snapshot, entry, token, currentUrl, now = Date.now()) {
+function validObservation(snapshot, entry, token, currentUrl, now = Date.now()) {
   if (!snapshot || typeof token !== 'string' || snapshot.token !== token ||
       !entry || entry.win.id !== snapshot.windowId ||
       entry.planId !== snapshot.planId || entry.providerId !== snapshot.providerId ||
-      entry.phase !== 'selecting' || snapshot.phase !== 'selecting' || currentUrl !== snapshot.url ||
-      now > snapshot.expiresAt || now < snapshot.issuedAt ||
-      snapshot.consumed)
+      !['selecting','preparing'].includes(snapshot.phase) || entry.phase !== snapshot.phase ||
+      currentUrl !== snapshot.url || now > snapshot.expiresAt ||
+      now < snapshot.issuedAt || snapshot.consumed)
     throw new Error('Copilot preview expired or the booking page changed. Capture a fresh screen.');
 }
-module.exports={screenAllowed,validPoint,pixelPoint,validSnapshot,SNAPSHOT_TTL_MS};
+function validSnapshot(snapshot, entry, token, currentUrl, now = Date.now()) {
+  validObservation(snapshot,entry,token,currentUrl,now);
+  if (snapshot.phase !== 'selecting')
+    throw new Error('Clicking is available only at actual ticket selection.');
+}
+module.exports={screenAllowed,validPoint,pixelPoint,validSnapshot,validObservation,SNAPSHOT_TTL_MS};
