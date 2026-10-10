@@ -238,19 +238,21 @@ test('Stop while a cloud claim is in flight remains UNKNOWN after the response a
   const order={id:'o1',eventKey:'e1',quantity:1,currency:'HKD',
     totalMinor:10000,feesIncluded:true,adjacent:true,available:true,
     performance:'p1',priceTier:'100',seats:['A1']};
-  let finish,pay=0;
+  let finish,pay=0,reachedClaim;
   const pending=new Promise(resolve=>finish=resolve);
+  const claiming=new Promise(resolve=>reachedClaim=resolve);
   const b=new BookingRunner({
     eventKey:'e1',windowId:7,rehearsal:false,preferences:prefs,
     adapter:{read:async()=>({stage:'payment',eventKey:'e1',order})},
     payment:{verified:true,submit:()=>{pay++;}},
     secret:{use:fn=>fn({}),clear(){}},
     ledger:{recordCommitIntent:()=>assert.fail('cancel must stop')},
-    sessionCoordinator:{claimBeforeCommit:()=>pending},
-    notify:state=>{if(state.phase==='READY_TO_COMMIT')setImmediate(()=>b.stop());}
+    sessionCoordinator:{claimBeforeCommit:()=>{reachedClaim();return pending;}},
+    notify:()=>{}
   });
   const task=b.step();
-  await new Promise(resolve=>setTimeout(resolve,15));
+  await claiming; // Deterministically stop only AFTER the claim request begins.
+  b.stop();
   assert.equal(b.state.status,'payment_unknown');
   finish({status:'claimed'});
   await task;
