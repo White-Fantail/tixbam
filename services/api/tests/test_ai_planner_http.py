@@ -299,3 +299,51 @@ def test_legacy_upgrade_adds_verified_model_capability_column(tmp_path):
         row=conn.execute(text("SELECT structured_output_verified FROM ai_model_policies")).scalar()
         assert row in (False,0)
     engine.dispose()
+
+
+def test_admin_revocation_or_model_replacement_during_openrouter_call_is_fail_closed(monkeypatch):
+    """A successful model reply does not survive a newly disabled task."""
+    from app.models import AIModelPolicy, AIPlannerRequest
+    app, engine, planner, _id, close = setup(monkeypatch)
+    changed={"enabled":True}
+    class Reply:
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {"choices":[{"finish_reason":"stop","message":{"content":
+                '{"action":"WAIT","targetToken":null,"rationaleCode":"PAGE_READY"}'}}]}
+    class Fake:
+        def __init__(self,timeout):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self,*_):
+            return False
+        async def post(self,url,headers,json):
+            # Mimic a separate Admin request arriving before the model replies.
+            with Session(engine) as db:
+                item=db.get(AIModelPolicy,"planner_v1")
+                if changed["enabled"]:
+                    item.enabled=False
+                else:
+                    item.model="openai/different-model"
+                db.commit()
+            return Reply()
+    monkeypatch.setattr(planner.httpx,"AsyncClient",Fake)
+    try:
+        with TestClient(app) as client:
+            response=client.post("/v1/ai/plans",json=payload())
+            assert response.status_code==502,response.text
+            with Session(engine) as db:
+                assert db.scalars(select(AIPlannerRequest)).one().status=="failed"
+                item=db.get(AIModelPolicy,"planner_v1")
+                item.enabled=True
+                item.model="openai/gpt-4.1-mini"
+                db.commit()
+            changed["enabled"]=False
+            response=client.post("/v1/ai/plans",json=payload())
+            assert response.status_code==502,response.text
+            with Session(engine) as db:
+                assert [r.status for r in db.scalars(select(AIPlannerRequest)).all()]==["failed","failed"]
+    finally:
+        close()
