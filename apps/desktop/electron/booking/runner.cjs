@@ -88,7 +88,7 @@ class BookingRunner {
           return;
         }
         if (!page.order || !this.expected ||
-            !validOrder(page.order, this.preferences, this.expected) || !page.receipt) {
+            !validOrder(page.order, this.preferences, this.expected,{eventKey:this.state.eventKey}) || !page.receipt) {
           this.orchestrator.fail(FAIL_PRE, 'Completion could not be verified. Check the provider order history. Automatic retry is disabled.');
           return;
         }
@@ -127,7 +127,7 @@ class BookingRunner {
         return;
       }
       if (page.stage === 'offers') {
-        const offer = chooseOffer(page.offers || [], this.preferences);
+        const offer = chooseOffer(page.offers || [], this.preferences,{eventKey:this.state.eventKey});
         if (!offer) {
           this.orchestrator.transition('NEED_USER', 'No seats satisfy the quantity, adjacency, preferences and budget including fees.');
           return;
@@ -146,7 +146,7 @@ class BookingRunner {
       }
       if (page.stage === 'payment') {
         const order = page.order;
-        if (!order || !validOrder(order, this.preferences, this.expected || order)) {
+        if (!order || !validOrder(order, this.preferences, this.expected || order,{eventKey:this.state.eventKey})) {
           this.orchestrator.transition('NEED_USER', 'The final order does not satisfy your requirements, or its total including fees is unknown.');
           return;
         }
@@ -167,7 +167,7 @@ class BookingRunner {
         if (!this.orchestrator.check(handle)) return;
         if (this.onPageRead) this.onPageRead(fresh, this.state);
         if (fresh?.eventKey !== this.state.eventKey || fresh.challenge ||
-            fresh.stage !== 'payment' || !validOrder(fresh.order, this.preferences, this.expected)) {
+            fresh.stage !== 'payment' || !validOrder(fresh.order, this.preferences, this.expected,{eventKey:this.state.eventKey})) {
           this.orchestrator.transition('NEED_USER', 'The payment page changed. Review the provider window.');
           return;
         }

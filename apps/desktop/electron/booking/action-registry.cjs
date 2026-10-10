@@ -2,24 +2,19 @@
 const { ActionValidator, PASSIVE } = require('./action-validator.cjs');
 const { RehearsalAdapter } = require('./rehearsal.cjs');
 const { chooseOffer } = require('./preferences.cjs');
+const { canonicalOrderSignature } = require('./offer-policy.cjs');
 
 const MUTATION_HANDLERS = Object.freeze({
   // These are exclusively for offline fixtures. No live provider adapter,
   // downloaded add-on or AI tool may register a JS callback here.
   SELECT_APPROVED_OFFER: async ({adapter,target,scope}) => {
     const offer=target.value;
-    if(!chooseOffer([offer],scope.preferences))throw new Error('Offer changed');
+    if(!chooseOffer([offer],scope.preferences,{eventKey:scope.eventKey}))throw new Error('Offer changed');
     await adapter.reserve(offer,{signal:scope.signal});
     if(scope.signal?.aborted)throw new Error('Recovery deadline exceeded');
     const after=await adapter.read();
     if(after.eventKey!==scope.eventKey || after.stage!=='payment' ||
-       !after.order || after.order.id!==offer.id ||
-       after.order.totalMinor!==offer.totalMinor ||
-       after.order.currency!==offer.currency ||
-       after.order.quantity!==offer.quantity ||
-       after.order.eventKey!==offer.eventKey ||
-       after.order.feesIncluded!==true ||
-       JSON.stringify(after.order.seats)!==JSON.stringify(offer.seats))
+       !after.order || canonicalOrderSignature(after.order)!==canonicalOrderSignature(offer))
       return {code:'POSTCONDITION_FAILED'};
     return {code:'EXECUTED_REHEARSAL'};
   },
@@ -47,7 +42,7 @@ function assertDeterministicHostAction({action,runner,page,offer}={}) {
   if(action==='RESERVE_OFFER') {
     if(page.stage!=='offers' || !offer ||
        offer.eventKey!==runner.state.eventKey ||
-       chooseOffer([offer],runner.preferences)!==offer)
+       chooseOffer([offer],runner.preferences,{eventKey:runner.state.eventKey})!==offer)
       throw new Error('Offer does not match the approved booking constraints');
     return true;
   }
@@ -100,23 +95,8 @@ async function executeReviewedProposal({
   if(proposal.action==='SELECT_APPROVED_OFFER') {
     const selected=first.target?.value;
     if(!selected || !Array.isArray(page.offers) ||
-       !page.offers.some(candidate=>
-         candidate && candidate.available===true &&
-         candidate.id===selected.id &&
-         candidate.eventKey===selected.eventKey &&
-         candidate.quantity===selected.quantity &&
-         candidate.currency===selected.currency &&
-         candidate.totalMinor===selected.totalMinor &&
-         candidate.feesIncluded===true &&
-         candidate.adjacent===selected.adjacent &&
-         candidate.performance===selected.performance &&
-         candidate.priceTier===selected.priceTier &&
-         candidate.section===selected.section &&
-         candidate.floor===selected.floor &&
-         candidate.seatMode===selected.seatMode &&
-         candidate.fulfillment===selected.fulfillment &&
-         Array.isArray(candidate.seats) &&
-         JSON.stringify(candidate.seats)===JSON.stringify(selected.seats))) {
+       !page.offers.some(candidate=>candidate && candidate.available===true &&
+         canonicalOrderSignature(candidate)===canonicalOrderSignature(selected))) {
       return denied('STALE_OBSERVATION');
     }
   }

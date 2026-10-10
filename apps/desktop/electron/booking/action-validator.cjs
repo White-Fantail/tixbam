@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const { chooseOffer } = require('./preferences.cjs');
+const {normalizedOffer} = require('./offer-policy.cjs');
 const { evaluateEffectiveCapability } = require('./capability-policy.cjs');
 
 /** AB-03: Never use a model-provided selector, script, URL, coordinate or payment command.
@@ -44,21 +45,24 @@ const isInt = value => Number.isSafeInteger(value) && value >= 0;
 const decision = (code, now) => Object.freeze({allowed:code === 'ALLOW',code,checkedAtMs:now});
 const BAD = 'UNKNOWN_ACTION';
 const fixedOffer = value => {
-  if (!isRecord(value)) return null;
-  const {id,eventKey,quantity,currency,totalMinor,feesIncluded,adjacent,available,
-    priceTier,performance,section,floor,seatMode,fulfillment,seats} = value;
-  if (!['string'].includes(typeof id) || !id || id.length>160 ||
-      !['string'].includes(typeof eventKey) || !eventKey || eventKey.length>180 ||
-      !Array.isArray(seats) || seats.length>20 ||
-      seats.some(x=>typeof x !== 'string' || !x || x.length>160) ||
-      !Number.isSafeInteger(quantity) || quantity<1 || quantity>20 ||
-      !Number.isSafeInteger(totalMinor) || totalMinor<=0 ||
-      typeof currency!=='string' || !/^[A-Z]{3}$/.test(currency) ||
-      feesIncluded!==true || available!==true) return null;
-  const optionStrings=[priceTier,performance,section,floor,seatMode,fulfillment];
-  if(optionStrings.some(x=>x!==undefined&&(typeof x!=='string'||x.length>160)))return null;
-  return Object.freeze({id,eventKey,quantity,currency,totalMinor,feesIncluded,
-    adjacent,available,priceTier,performance,section,floor,seatMode,fulfillment,seats:Object.freeze([...seats])});
+  const safe=normalizedOffer(value);
+  if(!safe)return null;
+  // All identity / risk / fee fields are copied; never drop a restrictive
+  // condition when moving into host-only AB-03 action handles.
+  const copy={id:safe.id,eventKey:safe.eventKey,quantity:safe.quantity,
+    currency:safe.currency,totalMinor:safe.totalMinor,feesIncluded:true,
+    available:true,adjacent:safe.raw.adjacent,
+    priceTier:safe.raw.priceTier,performance:safe.raw.performance,
+    section:safe.raw.section,floor:safe.raw.floor,
+    seatMode:safe.raw.seatMode,fulfillment:safe.raw.fulfillment,
+    seats:[...safe.seats]};
+  for(const k of ['schemaVersion','ticketMode','providerId','areaId',
+    'feeBreakdown','restrictedView','realNameRequired','ageRestricted',
+    'accessibilityRestricted','maxPerOrder','verifiedAllocation',
+    'extras','totalVerified','availabilityVerified','identityVerified']){
+    if(Object.hasOwn(safe.raw,k))copy[k]=structuredClone(safe.raw[k]);
+  }
+  return Object.freeze(copy);
 };
 
 function strictProposal(raw) {
@@ -204,7 +208,7 @@ class ActionValidator {
            target.value.currency!==permit.currency ||
            target.value.quantity!==permit.quantity ||
            target.value.totalMinor>permit.maxAllInMinor ||
-           !chooseOffer([target.value],scope.preferences))
+           !chooseOffer([target.value],scope.preferences,{eventKey:s.eventKey}))
           return {decision:decision('UNKNOWN_PRICE',now),target:null};
       }
       if(p.action==='SELECT_PERFORMANCE' &&

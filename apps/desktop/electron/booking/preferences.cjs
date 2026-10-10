@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const {rankOffers,verifyFinalOrder,termsAllow} = require('./offer-policy.cjs');
 
 function eventKey(providerId, eventUrl) {
   return crypto.createHash('sha256').update(providerId + '\n' + eventUrl).digest('hex');
@@ -27,37 +28,20 @@ function validatePreferences(input, schema) {
     if (field.required && (!value || (Array.isArray(value) && !value.length))) throw new Error('Select ' + field.label + '.');
   }
   // Construct an allowlisted record. Secret/unknown properties never reach disk.
-  return { schemaVersion: 1, quantity, maxTotalMinor, currency, requireTogether, allowFallback, checkout, options };
+  // Advanced seat/age/identity/extras consents are explicit, opt-in only.
+  // Never infer any opt-in from an offer, add-on, model or price label.
+  if (input.terms !== undefined && !termsAllow({terms:input.terms}))
+    throw new Error('Invalid booking restriction consent.');
+  return { schemaVersion: 1, quantity, maxTotalMinor, currency, requireTogether,
+    allowFallback, checkout, options,
+    ...(input.terms!==undefined?{terms:structuredClone(input.terms)}:{}) };
 }
-function chooseOffer(offers, prefs) {
-  const ranked = ['priceTier', 'section', 'floor'];
-  const valid = offers.filter(o => {
-    if (!o.available || o.quantity !== prefs.quantity || o.currency !== prefs.currency ||
-      !Number.isSafeInteger(o.totalMinor) || o.totalMinor <= 0 || o.totalMinor > prefs.maxTotalMinor || o.feesIncluded !== true) return false;
-    if (prefs.requireTogether && prefs.quantity > 1 && o.adjacent !== true) return false;
-    if (prefs.options.performance && o.performance !== prefs.options.performance) return false;
-    if (prefs.options.seatMode && o.seatMode !== prefs.options.seatMode) return false;
-    if (prefs.options.fulfillment && o.fulfillment !== prefs.options.fulfillment) return false;
-    return ranked.every(key => {
-      const values = prefs.options[key] || [];
-      return !values.length || (prefs.allowFallback ? values.includes(o[key]) : o[key] === values[0]);
-    });
-  });
-  const score = o => ranked.map(key => {
-    const values = prefs.options[key] || [];
-    return values.length ? values.indexOf(o[key]) : 0;
-  });
-  return valid.sort((a, b) => {
-    const left = score(a), right = score(b);
-    for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return left[i] - right[i];
-    return a.totalMinor - b.totalMinor;
-  })[0] || null;
+function chooseOffer(offers, prefs, scope = null) {
+  // Preserve original object identity for existing runners and AB-03 targets.
+  return rankOffers(offers,prefs,scope)[0] || null;
 }
-function validOrder(order, prefs, expected) {
-  // Exact immutable order identity and all hard requirements must still match at payment.
-  const chosen = chooseOffer([{ ...order, available: true }], prefs);
-  return Boolean(chosen && Array.isArray(order.seats) && order.seats.length === prefs.quantity && order.seats.every(s => typeof s === 'string' && s.length > 0) && new Set(order.seats).size === order.seats.length && order.id && order.id === expected.id && order.eventKey === expected.eventKey &&
-    order.totalMinor === expected.totalMinor && JSON.stringify(order.seats) === JSON.stringify(expected.seats));
+function validOrder(order, prefs, expected, scope = null) {
+  return verifyFinalOrder(order,prefs,expected,scope).ok;
 }
 class PreferenceStore {
   constructor(file) { this.file = file; }

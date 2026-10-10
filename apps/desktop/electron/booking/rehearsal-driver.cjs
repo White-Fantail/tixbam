@@ -33,6 +33,7 @@ function makeSyntheticOffer(key,prefs,seed,kind){
     feesIncluded:true,available:kind!=='sold_out',adjacent:kind!=='adjacency',
     priceTier:'practice-standard',performance:'practice-performance',section:'Mock-A',floor:'Mock',
     seatMode:kind==='standing'?'standing':kind==='automatic'?'automatic':'assigned',
+    verifiedAllocation:kind==='automatic'?true:undefined,
     fulfillment:'eticket',seats};
 }
 class ScenarioAdapter{
