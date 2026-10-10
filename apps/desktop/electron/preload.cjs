@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld("tixbam", {
   listLiveHistory: () => ipcRenderer.invoke("tixbam:list-live-history"),
   dismissLiveHistory: planId => ipcRenderer.invoke("tixbam:dismiss-live-history", planId),
   openTicketAgent: (sourceWindowId, agentUrl) => ipcRenderer.invoke("tixbam:open-ticket-agent", sourceWindowId, agentUrl),
+  copilotDeveloperCapabilities: () => ipcRenderer.invoke("tixbam:copilot-developer-capabilities"),
   copilotAdvanceArm: (id,conditions,consent) => ipcRenderer.invoke("tixbam:copilot-advance-arm", id,conditions,consent),
   copilotAdvanceStop: id => ipcRenderer.invoke("tixbam:copilot-advance-stop", id),
   copilotAdvanceStatus: id => ipcRenderer.invoke("tixbam:copilot-advance-status", id),
