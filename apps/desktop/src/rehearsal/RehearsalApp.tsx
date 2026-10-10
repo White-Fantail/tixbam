@@ -81,7 +81,7 @@ export default function RehearsalApp() {
       {plan && (mode==="preview"
         ? <ProviderPreview plan={plan} onComplete={async()=>{await bridge!.complete();}}/>
         : <RehearsalSimulator plan={plan} onComplete={async () => { await bridge!.complete(); }}
-            onClose={() => setMode("preview")}/>)}}
+            onClose={() => setMode("preview")}/>)}
     </div>
   </main>;
 }
