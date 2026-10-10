@@ -110,8 +110,8 @@ export function ScenarioLab({plan,onComplete}:{
           {ko?"앱 재시작 상황 재현":"Simulate app restart"}
         </button>
       </div>
-      {state.events?.length>0&&<details className="lab-history"><summary>{ko?"FSM 실행 기록":"FSM execution trace"}</summary>
-        <ol>{state.events.map((event,i)=><li key={i}>
+      {(state.events?.length ?? 0)>0&&<details className="lab-history"><summary>{ko?"FSM 실행 기록":"FSM execution trace"}</summary>
+        <ol>{(state.events??[]).map((event,i)=><li key={i}>
           <strong>{event.phase}</strong> — {event.message}
         </li>)}</ol>
       </details>}
