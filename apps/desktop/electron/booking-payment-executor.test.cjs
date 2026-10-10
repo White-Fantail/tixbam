@@ -125,16 +125,17 @@ test('unknown or timed-out mock response is permanently blocked after restart',a
   assert.equal(d.runner.payment.outcome,'unknown');
   assert.equal(d.runner.state.status,'payment_unknown');
   const old=d.runner.paymentIntent;
+  const attemptFolder=path.dirname(path.dirname(d.runner.ledger.journal.file));
   assert.equal(d.runner.ledger.recovered().length,1);
   await d.simulateRestart();
   assert.equal(d.state.status,'payment_unknown');
   assert.equal(d.state.active,false);
   assert.equal(d.coordinator,null);
   assert.equal(d.adapter,null);
-  assert.equal(new PaymentAttemptLedger(path.join(d.folder,'runs',old.runId)).recovered().length,1);
+  assert.equal(new PaymentAttemptLedger(attemptFolder).recovered().length,1);
   await assert.rejects(d.next({confirm:true}),/No active rehearsal step/);
   // No merchant id / PAN / CVV / guest email written to journal.
-  const raw=fs.readFileSync(path.join(d.folder,'runs',old.runId,'booking-safety','journal-v1.ndjson'),'utf8');
+  const raw=fs.readFileSync(path.join(attemptFolder,'booking-safety','journal-v1.ndjson'),'utf8');
   for(const forbidden of ['4111111111111111','cvv','token','https://','fixture-only',plan.id])
     assert.equal(raw.includes(forbidden),false,forbidden);
 });
