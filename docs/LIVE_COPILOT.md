@@ -5,7 +5,7 @@ Live booking is the primary user journey. A Booking Plan contains hard requireme
 
 ## Implemented phase 1: user-directed native browser interaction
 - Electron main process captures a **single opt-in, local JPEG preview** from an official, plan-bound browser. No screenshot is uploaded, logged, or persisted.
-- Capture is restricted to the user-marked ticket-selection phase; known login, waiting room, queue and checkout paths are blocked.
+- A plan-linked **preparing** page can be captured for a local-only, read-only connection diagnostic. It cannot be analyzed with AI, highlighted or clicked via Copilot. Login, waiting room, queue and checkout paths remain blocked even for this preview. A fresh capture in the user-confirmed ticket-selection phase is required to enable guided actions.
 - A user chooses a point on the local preview. The host can highlight the corresponding point on top of the official page with an isolated, mouse-transparent Electron child window.
 - After a separate user confirmation, the host verifies exact window ownership, plan/provider, URL, phase, viewport size, age and screenshot content **again**, then sends one native mouse-down/up pair into that browser. A consumed or stale snapshot cannot be reused.
 - Changing navigation, window, account, phase or closing the browser invalidates previews. No arbitrary URLs, JavaScript, CSS selectors or page DOM cross the dashboard IPC boundary.
