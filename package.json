@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "npm run dev -w @tixbam/desktop",
     "dev:desktop": "npm run dev -w @tixbam/desktop",
+    "dev:copilot": "npm run dev:copilot -w @tixbam/desktop",
     "dev:web": "npm run dev:web -w @tixbam/desktop",
     "dev:admin": "npm run dev -w @tixbam/admin",
     "test": "npm run test -w @tixbam/desktop",
