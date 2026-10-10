@@ -84,7 +84,9 @@ class PaymentReconciler{
     const owner=this.coordinator.assertOwner(runId,windowId,eventKey);
     if(owner.leaseId!==leaseId||owner.fencingToken!==fencingToken||
        owner.status!=='leased')throw FAIL('fencing_mismatch');
-    const p=canonicalPermit(permit),o=canonicalOrder(order,p);
+    let p,o;
+    try{p=canonicalPermit(permit);o=canonicalOrder(order,p);}
+    catch{throw FAIL('purchase_snapshot_mismatch');}
     const pending=scan(this.ledger.journal.read()).attempts
       .find(x=>x.attemptId===attemptId);
     if(!pending||pending.runId!==runId||

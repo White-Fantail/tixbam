@@ -252,7 +252,8 @@ class RehearsalDriver{
       if(!['reported_paid','reported_not_paid','inconclusive'].includes(outcome)||
          confirmedByUser!==true||this.state.status!=='payment_unknown')
         throw Error('Explicit unresolved-payment review required.');
-      const runId=this.runner?.paymentIntent?.runId||this.last?.runId;
+      // The durable scenario folder ID differs from the FSM UUID.
+      const runId=this.last?.runId;
       if(!ID.test(runId||''))throw Error('Unknown payment record unavailable.');
       const dir=path.join(this.folder,'runs',runId);
       const ledger=new PaymentAttemptLedger(dir,{clock:this.clock});
