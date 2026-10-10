@@ -34,7 +34,7 @@
 
 ## 검증 및 알려진 제한
 
-- 빠른 자동 회귀: `npm test` (Electron core + NOL mock integrated checks), `npm run check`, `npm run build:desktop`.
+- 빠른 자동 회귀: `npm run test:copilot` (NOL/Copilot만 빠르게 점검), `npm test` (전체 Electron 체크), `npm run check`, `npm run build:desktop`.
 - 모의 테스트는 네트워크 및 실제 티켓 사이트와 상호작용하지 않는다. 운영 NOL의 팝업 호스트, 렌더링, 버튼 오버레이의 macOS 정확도는 사용자의 실제 화면에서 별도로 확인해야 한다.
 - 서로 다른 예매처/로그인/결제 도메인으로 이동한 팝업은 공급자 허용 도메인이 검증될 때까지 안내되지 않는다. 임의의 도메인을 자동으로 허용하지 않는다.
 - 화면 안의 버튼은 실제 재고/가격/장바구니 상태를 증명하지 않는다. 좌석·결제·영수증 결과는 공식 사이트를 직접 확인한다.
