@@ -26,3 +26,10 @@ def test_no_sensitive_controls_can_be_returned():
     with pytest.raises(ValidationError):
         Target(x=1.1,y=.3,label="Section A",reason="good",confidence=.9,kind="seat")
     assert ModelResult(status="uncertain",targets=[]).targets == []
+    sample=bytes.fromhex("ffd8ff")+b"0"*120+bytes.fromhex("ffd9")
+    assert request(sample).stage == "selecting"
+    assert VisionRequest(providerId="nol",quantity=1,currency="KRW",budgetMinor=300000,
+                         stage="preparing",imageBase64=base64.b64encode(sample).decode()).stage == "preparing"
+    with pytest.raises(ValidationError):
+        VisionRequest(providerId="nol",quantity=1,currency="KRW",budgetMinor=300000,
+                      stage="checkout",imageBase64=base64.b64encode(sample).decode())
