@@ -267,3 +267,62 @@ test('successful offline rehearsal remains compatible without persisting mock pa
   adapter.completeChallenge();await runner.step();
   assert.equal(runner.state.status,'completed');
 });
+
+
+test('restarting Desktop surfaces unresolved payment in booking list without enabling replay',t=>{
+  const vm=require('node:vm');
+  const dir=temp(t);
+  const l=new PaymentAttemptLedger(dir);
+  const intent=commit(l);l.submissionReturned(intent);
+  const controllerFile=path.join(__dirname,'booking/controller.cjs');
+  const loaded={exports:{}},handlers=new Map(),lifecycle=new Map();
+  const localRequire=name=>name==='electron'?
+    {Notification:{isSupported:()=>false}}:
+    name.startsWith('.')?require(path.resolve(path.dirname(controllerFile),name)):require(name);
+  vm.runInNewContext(fs.readFileSync(controllerFile,'utf8'),{
+    module:loaded,require:localRequire,
+    setInterval:()=>1,clearInterval:()=>{}
+  });
+  const config={app:{getPath:()=>dir,on:(name,handler)=>lifecycle.set(name,handler)},
+    safeStorage:{isEncryptionAvailable:()=>false},
+    ipcMain:{handle:(name,handler)=>handlers.set(name,handler)},
+    dashboardOnly:event=>{if(!event.authorized)throw Error('Unauthorized');},
+    ticketWindows:new Map(),requireInstalled:()=>{throw Error('unneeded')},
+    resolveAddonUrl:()=>{throw Error('unneeded')},send:()=>{}};
+  loaded.exports.registerBooking(config);
+  const list=()=>handlers.get('tixbam:list-bookings')({authorized:true});
+  const result=list();
+  assert.equal(result.length,1);
+  assert.equal(result[0].status,'payment_unknown');
+  assert.equal(result[0].phase,'PAYMENT_UNKNOWN');
+  assert.equal(result[0].storageRecovered,true);
+  assert.equal(result[0].attemptId,intent.attemptId);
+  assert.ok(result[0].message.includes('official provider order history'));
+  assert.throws(()=>handlers.get('tixbam:list-bookings')({authorized:false}),/Unauthorized/);
+  // A recovered attempt is informational/terminal, not a resumable run.
+  assert.rejects(()=>handlers.get('tixbam:resume-booking')({authorized:true},result[0].id),
+    /Booking run not found/);
+  lifecycle.get('before-quit')();
+  // Broken disk history must not be reported as an empty, successful state.
+  fs.appendFileSync(l.journal.file,'{\"partial\":');
+  const reloaded={exports:{}},handlers2=new Map();
+  vm.runInNewContext(fs.readFileSync(controllerFile,'utf8'),{
+    module:reloaded,require:localRequire,
+    setInterval:()=>1,clearInterval:()=>{}
+  });
+  reloaded.exports.registerBooking({...config,ipcMain:{
+    handle:(name,handler)=>handlers2.set(name,handler)
+  }});
+  const failed=handlers2.get('tixbam:list-bookings')({authorized:true});
+  assert.equal(failed.length,1);
+  assert.equal(failed[0].id,'journal-unavailable');
+  assert.equal(failed[0].status,'payment_unknown');
+  assert.ok(failed[0].message.includes('blocked'));
+});
+
+test('journal never silently auto-repairs a missing fingerprint key after restart',t=>{
+  const dir=temp(t),l=new PaymentAttemptLedger(dir);
+  commit(l);
+  fs.unlinkSync(path.join(path.dirname(l.journal.file),'journal-v1.key'));
+  assert.throws(()=>new PaymentAttemptLedger(dir),/incomplete_or_deleted_journal/);
+});
