@@ -47,7 +47,11 @@ export function AdvanceSettingsEditor({planId,provider}:{
     setValue(v=>({...v,...patch}));setSaved(false);
     if(planId)setOverride(true);
   }
+  const hasDevClickKind=value.actions.some(kind=>kind!=="continue");
   function save(){
+    if(effectiveMode==="authorized" && developerCanTest && !hasDevClickKind){
+      setSaved(false);return;
+    }
     if(value.mode!=="manual" && !value.shareScreenshots){
       setSaved(false);return;
     }
@@ -83,6 +87,10 @@ export function AdvanceSettingsEditor({planId,provider}:{
           : (ko?"허가된 예매처만 자동 클릭까지":"Auto clicks where the provider explicitly permits it")}</option>
       </select>
     </label>
+    {developerCanTest && effectiveMode==="authorized" && !hasDevClickKind &&
+      <p className="settings-note" role="alert">{ko
+        ?"개발자 클릭 테스트에는 회차·가격 등급·매수·좌석 중 하나 이상을 선택해야 합니다. 예매 진입 버튼은 자동 클릭하지 않습니다."
+        :"Select at least one performance, price tier, quantity or seat action. Booking-entry buttons are not auto-clicked."}</p>}
     <p className="settings-note" role="note">{provider && developerCanTest && !permission.allowed
       ? (ko
           ? "개발자 테스트에서만 자동 클릭 옵션을 설정할 수 있습니다. 이 예매처는 여전히 "+permission.reasonKo+" 실제 동작은 좌석 선택 단계의 AI 신뢰도 95% 이상 대상에 대해 최대 1회 클릭으로 제한됩니다."
@@ -128,7 +136,9 @@ export function AdvanceSettingsEditor({planId,provider}:{
       ?"로그인·대기열·CAPTCHA·결제 단계에서는 중단합니다. 세션은 최대 15분, AI 분석 최대 5회이며 사용자가 언제든 중지할 수 있습니다. 자동 결제는 불가합니다."
       :"Stops at login, queue, CAPTCHA or checkout. Maximum 15 minutes / 5 automatic AI requests. Stop anytime; payment is never automatic."}</p>
     <div className="booking-actions"><button className="button button-outline"
-      disabled={Boolean(planId&&!override) || (effectiveMode!=="manual" &&
+      disabled={Boolean(planId&&!override) ||
+        (developerCanTest && effectiveMode==="authorized" && !hasDevClickKind) ||
+        (effectiveMode!=="manual" &&
         (!value.shareScreenshots || value.actions.length===0))}
       onClick={save}>{ko?"사전 승인 설정 저장":"Save advance settings"}</button></div>
     {saved&&<p role="status" className="copilot-note">{ko?"이 기기에 설정을 저장했습니다. 실제 실행 전에는 별도 동의를 받습니다.":"Saved on this device. Session consent is requested before launch."}</p>}
