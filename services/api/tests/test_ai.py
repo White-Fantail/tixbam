@@ -5,7 +5,7 @@ from app.ai import AdviceContext, AdviceOutput, PolicyInput, TASKS, policy_data
 
 
 def test_policy_registry_is_stable_and_defaults_disabled():
-    assert set(TASKS) == {"rehearsal_guidance", "page_recovery", "seat_review", "planner_v1"}
+    assert set(TASKS) == {"rehearsal_guidance", "page_recovery", "seat_review", "planner_v1", "copilot_vision"}
     for task in TASKS:
         data = policy_data(task, None)
         assert data["enabled"] is False

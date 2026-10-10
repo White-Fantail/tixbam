@@ -125,7 +125,10 @@ class LiveCopilot {
     overlay.showInactive();
     const activeOverlay=overlay;
     setTimeout(()=>{
-      if(this.overlays.get(windowId)===activeOverlay)this.clear(windowId);
+      if(this.overlays.get(windowId)===activeOverlay){
+        this.overlays.delete(windowId);
+        if(!activeOverlay.isDestroyed())activeOverlay.destroy();
+      }
     },5000).unref?.();
     return {highlighted:true,expiresAt:Date.now()+5000};
   }
