@@ -595,7 +595,18 @@ function App() {
         planId: plan.id, providerId: plan.providerId, url: plan.bookingUrl,
         ...(consent ? {copilotConsent:consent,copilotConditions:{
           planId:plan.id,quantity:plan.quantity,currency:plan.currency,
-          budgetMinor:plan.budgetMinor,locale:language}} : {})
+          budgetMinor:plan.budgetMinor,locale:language,
+          ...(target.id==="nol" ? {nolStrategy:{
+            version:1 as const,quantity:plan.quantity,currency:plan.currency,
+            budgetMinor:plan.budgetMinor,performanceId:plan.performanceId,
+            allowFallback:plan.allowFallback,
+            seatPreferences:{
+              priceTier:plan.seatPreferences?.priceTier||[],
+              section:plan.seatPreferences?.section||[],
+              floor:plan.seatPreferences?.floor||[],
+              seatMode:plan.seatPreferences?.seatMode||""
+            }
+          }} : {})}} : {})
       });
       setSelectedPlanId(plan.id);
       setSection("sessions");
