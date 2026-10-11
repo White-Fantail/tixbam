@@ -2,7 +2,7 @@
 import base64
 import pytest
 from pydantic import ValidationError
-from app.copilot_vision import VisionRequest, Target, ModelResult
+from app.copilot_vision import VisionRequest, Target, ModelResult, confirmed_nol_step
 
 def request(image):
     return VisionRequest(providerId="cityline", locale="ko", quantity=1,
@@ -33,3 +33,47 @@ def test_no_sensitive_controls_can_be_returned():
     with pytest.raises(ValidationError):
         VisionRequest(providerId="nol",quantity=1,currency="KRW",budgetMinor=300000,
                       stage="checkout",imageBase64=base64.b64encode(sample).decode())
+
+
+def test_nol_detailed_stage_metadata_is_strict_and_read_only():
+    samples = {
+        "event_detail": "event",
+        "performance_date": "selecting",
+        "seat_map": "selecting",
+        "price_quantity": "selecting",
+        "seat_conflict": "selecting",
+        "sold_out": "selecting",
+        "cart_review": "checkout",
+    }
+    for substep, stage in samples.items():
+        response = ModelResult(status="candidates", targets=[],
+                               screenStage=stage, stageConfidence=.99,
+                               nolScreenStep=substep, nolStepConfidence=.99)
+        assert confirmed_nol_step("nol", response) == (substep, .99)
+        assert confirmed_nol_step("cityline", response) == ("unknown", 0)
+        assert response.targets == []
+
+    challenge = ModelResult(status="human_required", targets=[],
+                            screenStage="unknown", stageConfidence=.99,
+                            nolScreenStep="human_gate", nolStepConfidence=.99)
+    assert confirmed_nol_step("nol", challenge) == ("human_gate", .99)
+
+
+def test_nol_stage_mismatch_low_confidence_or_unknown_never_promotes_a_substep():
+    for kw in [
+        dict(screenStage="event", stageConfidence=.99,
+             nolScreenStep="seat_map", nolStepConfidence=.99),
+        dict(screenStage="selecting", stageConfidence=.96,
+             nolScreenStep="seat_map", nolStepConfidence=.99),
+        dict(screenStage="selecting", stageConfidence=.99,
+             nolScreenStep="seat_map", nolStepConfidence=.96),
+        dict(screenStage="selecting", stageConfidence=.99,
+             nolScreenStep="unknown", nolStepConfidence=.99),
+    ]:
+        response = ModelResult(status="candidates", targets=[], **kw)
+        assert confirmed_nol_step("nol", response) == ("unknown", 0)
+
+    with pytest.raises(ValidationError):
+        ModelResult(status="candidates", targets=[], nolScreenStep="fake")
+    with pytest.raises(ValidationError):
+        ModelResult(status="candidates", targets=[], nolStepConfidence=1.1)
