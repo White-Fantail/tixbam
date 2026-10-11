@@ -280,6 +280,17 @@ export function LiveBookingWorkspace({
             })[advance.providerStep.step]}
             {advance.providerStep.evidence==="visual_hint"
               ? " · "+Math.round(advance.providerStep.confidence*100)+"%" : ""}
+            {advance.providerStep.substep && advance.providerStep.substep!=="unknown" &&
+              <span> · {({
+                event_detail:language==="ko"?"공연 상세":"Event details",
+                performance_date:language==="ko"?"날짜·회차 선택":"Date / performance",
+                seat_map:language==="ko"?"좌석 배치·구역 선택":"Seat map / section",
+                price_quantity:language==="ko"?"가격·매수 선택":"Price / quantity",
+                seat_conflict:language==="ko"?"좌석 선택 충돌 · 사용자 확인":"Seat conflict · review needed",
+                sold_out:language==="ko"?"매진 표시 · 사용자 확인":"Sold out · review needed",
+                cart_review:language==="ko"?"장바구니·주문 검토 · 보류 미확인":"Cart / review · hold unverified",
+                human_gate:language==="ko"?"인증·대기열 · 사용자 조작":"Authentication / queue · user action"
+              })[advance.providerStep.substep]}</span>}
             {language==="ko"?" · 이 진단은 좌석 확보 증거가 아닙니다.":" · Not proof of a seat hold."}
           </p>}
           <p className="settings-note">{language==="ko"
