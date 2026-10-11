@@ -487,3 +487,51 @@ test('NOL-03 seat conflict recovery requires manual action without blind retries
   assert.equal(state.events.length,0);
   host.clearAll();
 });
+
+
+test('NOL-05 real Copilot session diagnostic tracks queue handoff and holds without screenshot leakage',async()=>{
+  const {host,entry,state,requests}=setup();
+  entry.phase='queue';
+  const consent={mode:'observe',confirmed:true,shareScreenshots:true,
+    actions:['seat'],developmentOverride:false};
+  host.arm(42,{...preferences,planId:'test-plan'},consent);
+  await host.observe(42);
+  let info=host.autoStatus(42);
+  assert.equal(info.status,'awaiting_user');
+  assert.equal(info.validationMetrics.queueEntries,1);
+  assert.equal(info.validationMetrics.queuePending,true);
+  assert.equal(info.validationMetrics.observationCount,0);
+  assert.equal(requests.length,0,'queue cannot be uploaded');
+
+  entry.phase='selecting';
+  host.setVisionProvider(async payload=>{
+    requests.push(payload);
+    return {status:'uncertain',advisoryOnly:true,
+      humanApprovalRequired:true,screenStage:'selecting',
+      stageConfidence:.99,targets:[]};
+  });
+  await host.observe(42);
+  info=host.autoStatus(42);
+  assert.equal(info.validationMetrics.queueResumptions,1);
+  assert.equal(info.validationMetrics.queuePending,false);
+  assert.equal(info.validationMetrics.observationCount,1);
+  assert.ok(info.validationMetrics.manualPauses>=2);
+  assert.equal(info.validationMetrics.officialHoldVerified,false);
+  assert.equal(state.events.length,0);
+
+  entry.phase='checkout';
+  state.url='https://nol.yanolja.com/en/cart';
+  await host.observe(42);
+  info=host.autoStatus(42);
+  assert.equal(info.status,'hold_unverified');
+  assert.equal(info.holdEvidence.verified,false);
+  assert.ok(info.validationMetrics.holdUnverified>=1);
+  assert.equal(info.validationMetrics.observationCount,1);
+  assert.equal(requests.length,1,'cart never triggers a new image upload');
+  assert.equal(info.validationMetrics.clickAttempts,0);
+  assert.equal(state.events.length,0);
+  const telemetry=JSON.stringify(info.validationMetrics);
+  assert.ok(!telemetry.includes('nol.yanolja.com'));
+  assert.ok(!telemetry.includes('test-plan'));
+  host.clearAll();
+});
