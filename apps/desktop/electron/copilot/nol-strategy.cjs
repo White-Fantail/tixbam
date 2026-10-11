@@ -124,6 +124,9 @@ function planChoices(plan,candidates){
       kind:x.candidate.kind,label:x.candidate.label,rank:x.assessment.rank,
       reason:x.assessment.reason,usedFallback:x.assessment.usedFallback||false,
       requiresUser:x.assessment.status==='needs_user',
+      apparentTotalMinor:Number.isSafeInteger(x.candidate.offer?.allInTotalMinor)
+        ? x.candidate.offer.allInTotalMinor:null,
+      feesShownIncluded:x.candidate.offer?.feesIncluded===true,
     })),
     rejected:rated.length-possible.length,readyCount:ready.length,
     holdVerified:false,actionAuthorized:false};
