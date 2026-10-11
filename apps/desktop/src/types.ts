@@ -129,7 +129,10 @@ export interface CopilotAdvanceInfo {
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
   providerStep?:{step:"event_detail"|"selection_unknown"|"human_gate"|"checkout_unverified"|"unknown";
-    evidence:string;confidence:number;detail:string;needsUser:boolean;holdVerified:false};
+    evidence:string;confidence:number;detail:string;needsUser:boolean;holdVerified:false;
+    substep?:"event_detail"|"performance_date"|"seat_map"|"price_quantity"|
+      "seat_conflict"|"sold_out"|"cart_review"|"human_gate"|"unknown";
+    substepConfidence?:number};
 }
 export interface CopilotSnapshot {
   token: string;windowId:number;expiresAt:number;
