@@ -86,3 +86,25 @@ Obtain **sanitized** manually provided screenshots or official non-sensitive moc
 5. For NOL-02, supply only redacted **non-sensitive** screenshot examples or descriptions of steps. Log what the NOL UI actually displayed, whether the URL host changed, and whether a linked popup appeared. Never share login tokens, account information, CAPTCHA or payment pages.
 
 **Important:** The development click executor still exists as a separate, explicit experiment, but NOL-01 does not require it and makes no claim that live-site automation is allowed by NOL.
+
+
+## NOL-02 implementation log (2026-10-11)
+
+**Implemented on `dev`:**
+
+- `electron/copilot/nol-taxonomy.cjs` adds nine **read-only** diagnostic substeps: `event_detail`, `performance_date`, `seat_map`, `price_quantity`, `seat_conflict`, `sold_out`, `cart_review`, `human_gate`, `unknown`. The result has no hold/purchase authority.
+- Copilot Vision schema/prompt can return `nolScreenStep` and `nolStepConfidence` for NOL only. A result is accepted when both the broad stage and NOL substep claim confidence **>= 0.97** and the stage pair is consistent; contradictory/low-confidence hints become `unknown`. This is **model-reported confidence, not a measured probability of correct recognition**.
+- On a recognized `seat_conflict` or `sold_out` result, Copilot pauses and requires user inspection; `human_gate` also pauses and `cart_review` reports `hold_unverified`. The API suppresses action targets on these cases. This does not turn any restricted NOL automation into approved production functionality.
+- Desktop **NOL 화면 진단** displays the substep (Korean/English) and unverified-hold message. Older API versions remain supported with an unknown substep.
+- `electron/copilot/fixtures/nol-step-cases.json` contains **18 synthetic metadata scenarios with documentation provenance and no images**. These are not actual NOL screenshots; they test consistency, contradiction and security fallbacks rather than real visual-recognition accuracy.
+- Added `electron/copilot.nol-taxonomy.test.cjs`, API validation unit tests and integration test cases in `electron/copilot.integration.test.cjs`. Isolated JS validation ran 11 test groups / 284 assertions (NOL-01+02 pure classification) successfully; full native Electron/TypeScript/Python test suites have **not yet been executed** on a checked-out repository.
+
+**Official and third-party reference guides:** [NOL ticket booking guide](https://ticketimage.interpark.com/TicketImage/2016/20160530_detailMo/loadingHtml/howToPreorder_nol.html) and [2026 NOL World booking screen guide](https://gayon-korea.com/interpark-ticketing/). These document broad flows but **do not verify** the active NOL World UI, popup URLs, screenshot selectors or specific event variants today.
+
+**NOL-02 acceptance still pending:** real user-consented, redacted, non-sensitive screenshot fixtures from each major NOL variant. Once collected, label expected substeps independently, run a fixed vision model/configuration, and report confusion matrix, per-stage recall/precision and false-stop rate. Actual recognition accuracy remains **unmeasured**, and NOL-03 should not interpret synthetic fixture matches as live-readiness.
+
+### Instructions for next real read-only observation
+
+Run `npm run dev:copilot`. In a NOL plan enable advance **observe/visual guidance** with explicit screenshot consent, but disable the local developer-click diagnostic while collecting examples. On an ordinary (non-sensitive) date-selection or seat-selection screen, note whether the NOL screen diagnostic matches your visual observation. Do not capture or submit an account profile, passport, CAPTCHA, queue challenge, payment screen, reservation QR code or checkout details. Close/stop screenshot sharing before navigating to sensitive content, especially on single-page apps where the URL may not change.
+
+**Deployment:** the NOL-02 server-side step fields require deploying the updated TixBam API and enabling the `copilot_vision` task. The UI still works with older API responses, but then the fine-grained substep is unknown.
