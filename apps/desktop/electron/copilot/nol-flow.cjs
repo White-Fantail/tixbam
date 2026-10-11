@@ -1,14 +1,17 @@
 'use strict';
 /** NOL-01: bounded, read-only step assessment. Never authorizes a click or hold. */
 const NOL_HOSTS=Object.freeze(['nol.yanolja.com','world.nol.com']);
+const {readNolSubstep}=require('./nol-taxonomy.cjs');
 const PHASES=new Set(['preparing','waiting','queue','selecting','checkout','verification']);
 const VISION_STAGES=new Set(['event','selecting','waiting','queue','checkout','unknown']);
 const HIGH_CONFIDENCE=.97;
 const SENSITIVE_PATH=/(?:^|[\/._-])(login|sign-?in|auth|captcha|verify|verification|otp|queue|waiting|waitroom|bank|3ds|3dsecure)(?:[\/._-]|$)/i;
 const CHECKOUT_PATH=/(?:^|[\/._-])(checkout|payment|pay|cart)(?:[\/._-]|$)/i;
 
-function result(step,evidence,confidence,detail,needsUser=true){
-  return Object.freeze({step,evidence,confidence,detail,needsUser,holdVerified:false});
+function result(step,evidence,confidence,detail,needsUser=true,substep='unknown',substepConfidence=0){
+  // A screenshot can never attest to a provider-issued reservation.
+  return Object.freeze({step,evidence,confidence,detail,needsUser,holdVerified:false,
+    substep,substepConfidence});
 }
 function assessNolScreen(input){
   if(!input || typeof input!=='object')
@@ -34,6 +37,18 @@ function assessNolScreen(input){
     input.visionConfidence>=0 && input.visionConfidence<=1
       ? input.visionConfidence:0;
   const stage=VISION_STAGES.has(input.visionStage)?input.visionStage:'unknown';
+  const sub=readNolSubstep({
+    screenStage:stage,screenConfidence:confidence,
+    screenStep:input.visionStep,stepConfidence:input.visionStepConfidence
+  });
+  if(sub.substep==='human_gate')
+    return result('human_gate','visual_hint',sub.confidence,
+      'Possible authentication, queue or challenge. Inspect manually.',true,
+      sub.substep,sub.confidence);
+  if(sub.substep==='cart_review')
+    return result('checkout_unverified','visual_hint',sub.confidence,
+      'Cart/review may be visible. No provider seat-hold proof.',true,
+      sub.substep,sub.confidence);
   if(confidence<HIGH_CONFIDENCE)
     return result('unknown','low_or_missing_confidence',confidence,
       'Visual stage cannot be established reliably.');
@@ -45,10 +60,18 @@ function assessNolScreen(input){
       'Possible checkout: provider hold must be verified independently.');
   if(stage==='event' && phase==='preparing')
     return result('event_detail','visual_hint',confidence,
-      'NOL event detail appears visible.',false);
-  if(stage==='selecting' && phase==='selecting')
+      'NOL event detail appears visible.',false,
+      sub.substep==='event_detail'?'event_detail':'unknown',sub.confidence);
+  if(stage==='selecting' && phase==='selecting') {
+    const conflict=['seat_conflict','sold_out'].includes(sub.substep);
     return result('selection_unknown','visual_hint',confidence,
-      'Selection flow appears visible; date/seat/price substep unverified.',false);
+      conflict
+        ? (sub.substep==='seat_conflict'
+            ? 'Seat conflict detected. Verify the provider error before trying another seat.'
+            : 'Sold-out indication detected. Review eligible alternatives manually.')
+        : 'Ticket selection appears visible; substep is observational only.',
+      conflict,sub.substep,sub.confidence);
+  }
   if(stage==='selecting' && phase==='preparing')
     return result('unknown','phase_conflict',confidence,
       'Selection may have opened without navigation. Verify stage before continuing.');
