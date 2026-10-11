@@ -128,6 +128,8 @@ export interface CopilotAdvanceInfo {
   requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized"|"dev_single_click"|"dev_flow";
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
+  providerStep?:{step:"event_detail"|"selection_unknown"|"human_gate"|"checkout_unverified"|"unknown";
+    evidence:string;confidence:number;detail:string;needsUser:boolean;holdVerified:false};
 }
 export interface CopilotSnapshot {
   token: string;windowId:number;expiresAt:number;
