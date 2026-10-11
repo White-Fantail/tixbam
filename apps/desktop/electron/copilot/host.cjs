@@ -10,6 +10,7 @@ const {normalizeConsent,providerAutomationStatus,canRun,
 const {MAX_AUTO_STEPS,actionPermission,chooseStep}=require('./auto-flow.cjs');
 const {assessNolScreen}=require('./nol-flow.cjs');
 const {normalizePlan:normalizeNolPlan,planChoices,recoveryAdvice}=require('./nol-strategy.cjs');
+const {NolValidationTimeline}=require('./nol-validation.cjs');
 /** Host-owned, bounded opt-in visual execution.
  * Remote pages receive no privileged preload or scripts. Real purchase, payment
  * and official seat holds must be verified by independent provider evidence.
@@ -55,6 +56,22 @@ class LiveCopilot {
     for(const id of [...this.autoSessions.keys()])this.disarm(id);
   }
   autoInfo(session,status,reason,extra={}) {
+    // Diagnostic-only, bounded counters. No screenshot, URL, identity or seat.
+    if(session.providerId==='nol' && session.nolTimeline){
+      try {
+        const timestamp=Date.now();
+        if(status==='observing')session.nolTimeline.record('observe_start',timestamp);
+        else if(session.lastInfo?.status==='observing')
+          session.nolTimeline.record('observe_end',timestamp);
+        if(status==='awaiting_user'||status==='paused')
+          session.nolTimeline.record('manual_pause',timestamp);
+        if(status==='hold_unverified')
+          session.nolTimeline.record('hold_unverified',timestamp);
+        if(status==='stopped')session.nolTimeline.record('stop',timestamp);
+        if(status==='progress' && extra.clickResult)
+          session.nolTimeline.record('click_attempt',timestamp);
+      }catch{ /* Telemetry can never interrupt an official browser session. */ }
+    }
     const info={windowId:session.windowId,planId:session.planId,providerId:session.providerId,
       requestedMode:session.consent.mode,mode:session.mode,status,reason,
       attempts:session.count,expiresAt:session.expiresAt,
@@ -63,6 +80,8 @@ class LiveCopilot {
         ? {providerStep:session.providerStep}:{}),
       ...(session.providerId==='nol' && session.strategyInfo
         ? {strategyInfo:session.strategyInfo}:{}),
+      ...(session.providerId==='nol' && session.nolTimeline
+        ? {validationMetrics:session.nolTimeline.snapshot()}:{}),
       ...(session.providerId==='nol' && status==='hold_unverified'
         ? {holdEvidence:{status:'provider_verifier_unavailable',verified:false,
             reason:'No authorized NOL live hold observer is installed. A checkout screen is not proof of a reserved ticket.'}}:{}),
@@ -114,7 +133,9 @@ class LiveCopilot {
       expiresAt:Date.now()+MAX_AGE_MS,
       count:0,lastAttemptAt:0,stopped:false,automaticClicks:0,
       lastActionKey:null,lastActionDigest:null,lastAction:null,
-      providerStep:null,nolPlan,strategyInfo:null};
+      providerStep:null,nolPlan,strategyInfo:null,
+      nolTimeline:entry.providerId==='nol'?new NolValidationTimeline():null,
+      nolQueueSeen:false};
     this.autoSessions.set(windowId,session);
     return this.autoInfo(session,'armed',developerTest
       ? 'Developer multi-step test armed. Official login, queue, CAPTCHA and checkout are user-owned.'
@@ -188,6 +209,16 @@ class LiveCopilot {
     if(!session || this.autoPending.has(windowId))return;
     const entry=this.ticketWindows.get(windowId);
     if(session.providerId==='nol' && entry){
+      const inQueue=['queue','waiting'].includes(entry.phase);
+      try {
+        if(inQueue&&!session.nolQueueSeen){
+          session.nolTimeline?.record('queue_enter',Date.now());
+          session.nolQueueSeen=true;
+        }else if(!inQueue&&session.nolQueueSeen){
+          session.nolTimeline?.record('queue_resume',Date.now());
+          session.nolQueueSeen=false;
+        }
+      }catch{ /* Non-critical diagnostics are never an execution input. */ }
       session.strategyInfo=null; // a previous screen's offers are not current
       const observed=assessNolScreen({
         url:entry.win?.webContents?.getURL?.(),phase:entry.phase});
