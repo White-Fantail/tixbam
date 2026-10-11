@@ -66,6 +66,7 @@ function rateCandidate(plan,candidate){
     if(prefs.length){
       if(!found.known){
         unverified.push(field);
+        rank+=weight*(prefs.length+2);
       }else if(!found.matched){
         if(!plan.allowFallback)
           return {status:'reject',reason:'The '+field+' is outside approved selections.',rank:9999};
@@ -84,7 +85,8 @@ function rateCandidate(plan,candidate){
   if(price!==undefined){
     if(!Number.isSafeInteger(price) || price<0)
       return {status:'reject',reason:'Invalid displayed price.',rank:9999};
-    if(feeComplete && price>plan.budgetMinor)
+    // Even the displayed base amount being above budget rules out a safe offer.
+    if(price>plan.budgetMinor)
       return {status:'reject',reason:'Displayed all-in price is above the budget.',rank:9999};
   }
   // A model's numeric price/fee claim is not evidence from an authorized
