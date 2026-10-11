@@ -104,7 +104,10 @@ class LiveCopilot {
     const mode=developerTest ? 'dev_flow' :
       consent.mode==='authorized' && permission.allowed ? 'authorized' : 'observe';
     const session={windowId,planId:entry.planId,providerId:entry.providerId,
-      consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
+      consent,mode,
+      preferences:Object.freeze({...preferences,
+        ...(nolPlan ? {nolStrategy:nolPlan}:{} )}),
+      expiresAt:Date.now()+MAX_AGE_MS,
       count:0,lastAttemptAt:0,stopped:false,automaticClicks:0,
       lastActionKey:null,lastActionDigest:null,lastAction:null,
       providerStep:null,nolPlan,strategyInfo:null};
@@ -181,6 +184,7 @@ class LiveCopilot {
     if(!session || this.autoPending.has(windowId))return;
     const entry=this.ticketWindows.get(windowId);
     if(session.providerId==='nol' && entry){
+      session.strategyInfo=null; // a previous screen's offers are not current
       const observed=assessNolScreen({
         url:entry.win?.webContents?.getURL?.(),phase:entry.phase});
       // Never carry a previous page's stage label into a new observation.
