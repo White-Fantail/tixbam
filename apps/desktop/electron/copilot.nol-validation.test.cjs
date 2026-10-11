@@ -148,3 +148,17 @@ test('NOL-05 local scorer accepts only fixed-origin reviewed metadata, never upl
     {...verified,humanReviewed:false}
   ]}),/unreviewed/);
 });
+
+
+test('NOL-05 CI report passes synthetic replay but ALWAYS keeps live release on HOLD',async()=>{
+  const {report}=require('../../../scripts/nol-validation-report.cjs');
+  const data=await report();
+  assert.equal(data.ciResult,'PASS');
+  assert.equal(data.offlineScenarioCount,18);
+  assert.equal(data.syntheticFixtureAccuracy,1);
+  assert.equal(data.actualVisualAccuracy,null);
+  assert.equal(data.actualTicketHoldSuccessRate,null);
+  assert.equal(data.release.status,'HOLD');
+  assert.equal(data.release.productionAutomationAllowed,false);
+  assert.equal(data.release.checkoutAutomationAllowed,false);
+});
