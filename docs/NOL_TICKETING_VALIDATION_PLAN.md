@@ -108,3 +108,30 @@ Obtain **sanitized** manually provided screenshots or official non-sensitive moc
 Run `npm run dev:copilot`. In a NOL plan enable advance **observe/visual guidance** with explicit screenshot consent, but disable the local developer-click diagnostic while collecting examples. On an ordinary (non-sensitive) date-selection or seat-selection screen, note whether the NOL screen diagnostic matches your visual observation. Do not capture or submit an account profile, passport, CAPTCHA, queue challenge, payment screen, reservation QR code or checkout details. Close/stop screenshot sharing before navigating to sensitive content, especially on single-page apps where the URL may not change.
 
 **Deployment:** the NOL-02 server-side step fields require deploying the updated TixBam API and enabling the `copilot_vision` task. The UI still works with older API responses, but then the fine-grained substep is unknown.
+
+
+## NOL-03 implementation log (2026-10-11)
+
+**Goal:** choose a viable **single** NOL ticket before optimizing the view, respecting the hard total budget and only using explicitly approved fallback preferences. This phase makes a decision-support engine; it does **not** claim an officially reserved seat.
+
+### Implemented
+
+- `electron/copilot/nol-strategy.cjs` now normalizes an approved one-ticket plan, checks exactly `quantity=1`, `currency=KRW`, and a positive all-in budget; checks any known performance ID, ticket count, currency and visual pricing; rejects visually unavailable offers or amounts already above budget.
+- Preference order is deterministic: listed **price tier**, **section** and **floor**, then seat mode; the first listed value is preferred. Unknown metadata is penalized rather than treated as a match. Fallback only applies to seat tier/section/floor/mode when `allowFallback=true`; it never silently changes the approved performance ID or quantity.
+- `App.tsx` now passes a **plan-scoped** NOL strategy snapshot to the existing advance-approved browser session. The main Electron host cross-checks its quantity, budget and currency against the approved booking conditions. Non-NOL providers are unchanged.
+- Copilot Vision supports optional bounded **visual offer hints** (`priceTier`, `section`, `floor`, `seatMode`, `quantity`, `performanceId`, `currency`, `allInTotalMinor`, `feesIncluded`, `availability`) for NOL. The backend validates types, cost bounds, control characters and unknown fields. Only explicitly visible fields may be returned. These hints are **model interpretations**, not official offer evidence.
+- Live Copilot ranks up to five approved visible candidates, displays up to three with fallback reason and strictly provisional KRW cost, and shows a separate next-step suggestion for seat conflict/sold-out situations. It does not repeatedly click the same failed target or bypass login/queue/security screens.
+- **Safety decision:** on NOL plans using the new strategy, the selecting stage stays at `awaiting_user`. Even when the screen looks like one eligible R-section ticket within budget, no automated provider selection is authorized from an AI visual guess alone. Unattended NOL selection belongs to **NOL-04**, after an independent provider-approved outcome/offer adapter can verify total fees, price and performance. Event-entry buttons remain separately governed by previously approved generic controls.
+- Explicit conflict recovery requires human review: `REOBSERVE_WITH_USER` only if fallback is enabled and no possibly committed cart/hold action is pending; after two attempts or any potential cart/hold action, the recommendation is `ASK_USER`. No blind inventory refresh loops or order retries.
+
+### Acceptance evidence
+
+- `electron/copilot.nol-strategy.test.cjs` covers 1-ticket/KRW prerequisite, budget exceedance (even before fees), exact performance identity, unknown fees/amount, strict vs fallback sections, sorted preferred seats, collision handling, no visual claim of official authority.
+- `electron/copilot.integration.test.cjs` tests the plan being attached to the Copilot session, bounded preferences sent to Vision, ranked displayed alternatives, zero native input on unverified NOL selection, rejected forged plan quantities/budgets, and manual-only conflict recovery.
+- Offline pure-strategy tests: **8/8 passed** using an isolated JS harness. Additional mocked browser/Copilot scenarios: **2/2 passed** (rank and conflict), with zero automatic selection events. These are not real NOL E2E runs. TypeScript build and full Node/Python suites still need a checked-out environment or CI run.
+
+### Constraints before NOL-04
+
+The official NOL site still marks unauthorized automation as restricted, and no audited native reservation API/seat-hold evidence exists in the bundled addon. Before any live automation release, obtain authorized test access and record **non-sensitive** official evidence for seat selection, all-in price, exact performance, seat conflict and held-cart expiry. Until then, user actions and the official page remain the final source of truth.
+
+**Manual exploration:** set a NOL Booking Plan to **one ticket**, **KRW**, **maximum all-in budget**, and optionally ranked seat tiers/sections. Specify whether fallback is allowed. Start **automatic screen recognition and hints** without the developer auto-click diagnostic. In the live session, inspect **NOL · 1장 우선 후보 검토**; compare the visual preference ranking against the actual official screen. Do not share CAPTCHA, queue, login, payment or identifying screenshots.
