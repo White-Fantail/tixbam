@@ -110,3 +110,16 @@ test('NOL-03 prioritizes known preferred seat data above unknown labels',()=>{
   assert.equal(result.recommended[0].label,'Seat A');
   assert.equal(result.recommended[1].requiresUser,true);
 });
+
+
+test('NOL-03 freezes per-session preferred tier/section/floor snapshots',()=>{
+  const tier=['R','S'];
+  const plan=config({seatPreferences:{
+    priceTier:tier,section:['Main'],floor:['1F'],seatMode:'assigned'
+  }});
+  assert.ok(Object.isFrozen(plan));
+  assert.ok(Object.isFrozen(plan.seatPreferences));
+  assert.ok(Object.isFrozen(plan.seatPreferences.priceTier));
+  tier[0]='Modified';
+  assert.equal(plan.seatPreferences.priceTier[0],'R');
+});
