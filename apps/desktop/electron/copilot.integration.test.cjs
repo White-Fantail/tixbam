@@ -355,3 +355,64 @@ test('NOL-01 checkout/cart/payment routes never upload images or click',async()=
     host.clearAll();
   }
 });
+
+
+test('NOL-02 reports detailed permitted selection screens without falsely verifying a hold',async()=>{
+  for(const substep of ['performance_date','seat_map','price_quantity']){
+    const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+    entry.phase='selecting';
+    host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+      humanApprovalRequired:true,screenStage:'selecting',stageConfidence:.99,
+      nolScreenStep:substep,nolStepConfidence:.99,
+      targets:[{x:.31,y:.5,label:'Seat',reason:'Select eligible item',
+        confidence:.99,kind:'seat'}]}));
+    host.arm(42,developerConditions,developerConsent);
+    await host.observe(42);
+    const info=host.autoStatus(42);
+    assert.equal(info.providerStep.substep,substep);
+    assert.equal(info.providerStep.holdVerified,false);
+    assert.equal(info.status,'progress');
+    assert.equal(state.events.length,2);
+    host.clearAll();
+  }
+});
+
+test('NOL-02 stops on sold out, seat conflict, cart and challenge evidence',async()=>{
+  for(const [nolScreenStep,screenStage,status] of [
+    ['seat_conflict','selecting','awaiting_user'],
+    ['sold_out','selecting','awaiting_user'],
+    ['cart_review','checkout','hold_unverified'],
+    ['human_gate','unknown','awaiting_user']
+  ]){
+    const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+    entry.phase='selecting';
+    host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+      humanApprovalRequired:true,screenStage,stageConfidence:.99,
+      nolScreenStep,nolStepConfidence:.99,
+      targets:[{x:.31,y:.5,label:'Seat',reason:'Select eligible item',
+        confidence:.99,kind:'seat'}]}));
+    host.arm(42,developerConditions,developerConsent);
+    await host.observe(42);
+    const info=host.autoStatus(42);
+    assert.equal(info.providerStep.substep,nolScreenStep);
+    assert.equal(info.providerStep.holdVerified,false);
+    assert.equal(info.status,status,nolScreenStep);
+    assert.equal(state.events.length,0,'no click for '+nolScreenStep);
+    host.clearAll();
+  }
+});
+
+test('NOL-02 absent substep from older API does not claim fine-grained classification',async()=>{
+  const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+  entry.phase='selecting';
+  host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+    humanApprovalRequired:true,screenStage:'selecting',stageConfidence:.99,
+    targets:[{x:.31,y:.5,label:'Seat',reason:'Select eligible item',
+      confidence:.99,kind:'seat'}]}));
+  host.arm(42,developerConditions,developerConsent);
+  await host.observe(42);
+  assert.equal(host.autoStatus(42).providerStep.substep,'unknown');
+  assert.equal(host.autoStatus(42).providerStep.holdVerified,false);
+  assert.equal(state.events.length,2);
+  host.clearAll();
+});
