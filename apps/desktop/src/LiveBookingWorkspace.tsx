@@ -303,7 +303,9 @@ export function LiveBookingWorkspace({
                     ? (language==="ko"?" · 대안":" · fallback") : ""}
                   {item.apparentTotalMinor!==null && item.apparentTotalMinor!==undefined
                     ? " · KRW "+item.apparentTotalMinor.toLocaleString()+
-                      (item.feesShownIncluded?" (AI visual all-in estimate)":" (fees unknown)")
+                      (item.feesShownIncluded
+                        ? (language==="ko"?" (AI 추정 수수료 포함)":" (AI visual all-in estimate)")
+                        : (language==="ko"?" (수수료 미확인)":" (fees unknown)"))
                     : ""}
                   {" · "}{language==="ko"?"공식 화면 확인 필요":"verify on official page"}
                 </p>)}
