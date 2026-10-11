@@ -9,6 +9,7 @@ const {normalizeConsent,providerAutomationStatus,canRun,
   =require('./advance-authorization.cjs');
 const {MAX_AUTO_STEPS,actionPermission,chooseStep}=require('./auto-flow.cjs');
 const {assessNolScreen}=require('./nol-flow.cjs');
+const {normalizePlan:normalizeNolPlan,planChoices,recoveryAdvice}=require('./nol-strategy.cjs');
 /** Host-owned, bounded opt-in visual execution.
  * Remote pages receive no privileged preload or scripts. Real purchase, payment
  * and official seat holds must be verified by independent provider evidence.
@@ -59,7 +60,9 @@ class LiveCopilot {
       attempts:session.count,expiresAt:session.expiresAt,
       targets:[],automaticClicks:session.automaticClicks,
       ...(session.providerId==='nol' && session.providerStep
-        ? {providerStep:session.providerStep}:{}),...extra};
+        ? {providerStep:session.providerStep}:{}),
+      ...(session.providerId==='nol' && session.strategyInfo
+        ? {strategyInfo:session.strategyInfo}:{}),...extra};
     session.lastInfo=info;
     this.onAutoUpdate(info);
     return info;
@@ -80,6 +83,15 @@ class LiveCopilot {
        !['ko','en'].includes(preferences.locale))
       throw new Error('Invalid or mismatched advance-authorized booking conditions.');
     const addon=this.requireInstalled(entry.providerId);
+    // The renderer cannot silently replace the plan's one-ticket hard limits.
+    // A NOL-03 run is advice-only until NOL-04 has verified offer evidence.
+    const nolPlan=entry.providerId==='nol' && preferences.nolStrategy
+      ? normalizeNolPlan(preferences.nolStrategy):null;
+    if(entry.providerId==='nol' && preferences.nolStrategy &&
+       (!nolPlan || nolPlan.quantity!==preferences.quantity ||
+        nolPlan.budgetMinor!==preferences.budgetMinor ||
+        nolPlan.currency!==preferences.currency))
+      throw new Error('NOL plan constraints do not match the approved booking.');
     const developerTest=consent.developmentOverride===true;
     // Only opt-in, unbundled Electron developer mode can request a one-click
     // native input test. A cloud flag or renderer IPC field can never enable it.
@@ -95,7 +107,7 @@ class LiveCopilot {
       consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
       count:0,lastAttemptAt:0,stopped:false,automaticClicks:0,
       lastActionKey:null,lastActionDigest:null,lastAction:null,
-      providerStep:null};
+      providerStep:null,nolPlan,strategyInfo:null};
     this.autoSessions.set(windowId,session);
     return this.autoInfo(session,'armed',developerTest
       ? 'Developer multi-step test armed. Official login, queue, CAPTCHA and checkout are user-owned.'
@@ -237,12 +249,31 @@ class LiveCopilot {
         if(['human_gate','checkout_unverified'].includes(observed.step) ||
            ['seat_conflict','sold_out'].includes(observed.substep) ||
            observed.evidence==='phase_conflict'){
+          if(session.nolPlan && ['seat_conflict','sold_out'].includes(observed.substep)){
+            const advice=recoveryAdvice({plan:session.nolPlan,stage:observed.substep,
+              previousAction:session.lastAction,attempts:session.automaticClicks});
+            session.strategyInfo={status:'review',reason:advice.reason,recommended:[],
+              recovery:advice,holdVerified:false,actionAuthorized:false};
+          }
           this.autoInfo(session,observed.step==='checkout_unverified'
             ? 'hold_unverified':'awaiting_user',observed.detail);
           return;
         }
       }
       const candidates=response.targets.filter(t=>session.consent.actions.includes(t.kind));
+      if(session.providerId==='nol' && session.nolPlan){
+        session.strategyInfo=planChoices(session.nolPlan,candidates);
+        // NOL-03 ranks visible options but cannot certify price/fees or a seat
+        // hold. NOL-04 must implement independent provider evidence before
+        // enabling an unattended selection. Booking entry remains handled by
+        // the existing separate consented generic decision path.
+        if(entry.phase==='selecting'){
+          this.autoInfo(session,'awaiting_user',
+            session.strategyInfo.reason+' Selection requires official provider verification.',
+            {targets:candidates});
+          return;
+        }
+      }
       const addon=this.requireInstalled(entry.providerId);
       const decision=chooseStep({session,entry,addon,
         developerEnabled:this.developerClickTestEnabled()},candidates);
