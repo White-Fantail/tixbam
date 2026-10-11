@@ -67,3 +67,22 @@ The NOL-01 stage assessment appears alongside advance Copilot status when a NOL 
 ## Follow-up artifacts for NOL-02
 
 Obtain **sanitized** manually provided screenshots or official non-sensitive mockups at each stage, without QR codes, account identifiers, payment details, tokens or CAPTCHA solutions. Record variant, URL host (not query/credentials), stage, visible controls, known outcomes and whether a popup appears. Never treat screenshots as proof of booking authorization.
+
+
+## NOL-01 implementation log (2026-10-11)
+
+- Added `apps/desktop/electron/copilot/nol-flow.cjs`: pure stage assessment, exact NOL host validation, fail-closed sensitive route/phase handling, confidence threshold `0.97`; `holdVerified` is **always false**.
+- Connected the existing Copilot Vision API's optional `screenStage` / `stageConfidence` hints to the **read-only** NOL session diagnostics. A contradictory or clearly sensitive stage pauses execution; no visual hint alone grants click authority or changes provider policy.
+- Desktop session panel now shows **NOL 화면 진단** (event detail, selection substep unknown, user-required, checkout hold unverified, unknown).
+- Added pure unit tests and simulated Copilot integration cases. Shared `core.cjs` now blocks **cart** routes before screenshot capture/upload, in addition to checkout/payment and authentication routes.
+- Validation completed so far: JavaScript syntax checks, 6 NOL pure unit scenarios in an isolated JS harness, additional simulated live Copilot transitions for event, phase mismatch, queue, checkout, and an explicit cart pre-capture block. Full native Electron/TypeScript CI and genuine NOL ticketing E2E **not yet run**.
+
+### Read-only manual verification before NOL-02
+
+1. Start the desktop app: `npm run dev:copilot` from the repository root.
+2. Open a NOL Booking Plan → **코파일럿 사전 승인** → **이 공연만 별도 설정**. Choose **자동 화면 인식 및 버튼 안내**, allow screenshot sharing, and **turn off 개발자 클릭 진단** for read-only exploration.
+3. Open the official event page and navigate manually as appropriate. In **진행 중인 예매**, watch the **NOL 화면 진단** line. If the model isn't enabled or the backend hasn't deployed `screenStage`, results can remain **화면 단계 미확인**.
+4. When a user-only step or a protected route is encountered, the helper stops or waits; it does not capture a CAPTCHA, OTP, checkout or payment page under the protected route rules. Some SPA challenges may share non-sensitive URLs, so **mark login/queue manually and avoid screenshot consent in those states** until stage protection is verified against real fixtures.
+5. For NOL-02, supply only redacted **non-sensitive** screenshot examples or descriptions of steps. Log what the NOL UI actually displayed, whether the URL host changed, and whether a linked popup appeared. Never share login tokens, account information, CAPTCHA or payment pages.
+
+**Important:** The development click executor still exists as a separate, explicit experiment, but NOL-01 does not require it and makes no claim that live-site automation is allowed by NOL.
