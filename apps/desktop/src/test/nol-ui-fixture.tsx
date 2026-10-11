@@ -32,7 +32,7 @@ function OfflineNolFixture(){
     id:42,providerId:"nol",planId:plan.id,
     phase,site:"nol.yanolja.com",title:"NOL offline fixture",
     url:"https://nol.yanolja.com/product/offline-fixture",
-    loading:false,popup:false,parentId:null,loadError:null,
+    loading:false,popup:false,parentId:null,loadError:null,openedAt:Date.now(),
   };
   return <main data-testid="nol-ui-fixture">
     <LiveBookingWorkspace
