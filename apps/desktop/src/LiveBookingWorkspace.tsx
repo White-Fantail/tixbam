@@ -293,6 +293,27 @@ export function LiveBookingWorkspace({
               })[advance.providerStep.substep]}</span>}
             {language==="ko"?" · 이 진단은 좌석 확보 증거가 아닙니다.":" · Not proof of a seat hold."}
           </p>}
+          {advance.providerId==="nol" && advance.strategyInfo &&
+            <div className="copilot-candidates" role="status">
+              <strong>{language==="ko"?"NOL · 1장 우선 후보 검토":"NOL · one-ticket candidate review"}</strong>
+              <p>{advance.strategyInfo.reason}</p>
+              {advance.strategyInfo.recommended.slice(0,3).map((item,i)=>
+                <p key={i}>
+                  {i+1}. {item.label}{item.usedFallback
+                    ? (language==="ko"?" · 대안":" · fallback") : ""}
+                  {item.apparentTotalMinor!==null && item.apparentTotalMinor!==undefined
+                    ? " · KRW "+item.apparentTotalMinor.toLocaleString()+
+                      (item.feesShownIncluded?" (AI visual all-in estimate)":" (fees unknown)")
+                    : ""}
+                  {" · "}{language==="ko"?"공식 화면 확인 필요":"verify on official page"}
+                </p>)}
+              {advance.strategyInfo.recovery && <p>
+                {language==="ko"?"실패 처리: ":"Recovery: "}{advance.strategyInfo.recovery.reason}
+              </p>}
+              <p className="settings-note">{language==="ko"
+                ?"화면 인식 후보는 실제 재고·금액·좌석 보류 증명이 아닙니다. 검증 전에는 자동 확정하지 않습니다."
+                :"Visual candidates do not prove ticket inventory, total price or a held seat. No unverified auto-confirmation."}</p>
+            </div>}
           <p className="settings-note">{language==="ko"
             ?"사전 승인한 동작만 화면별로 검증해 이어서 진행합니다. 로그인·대기열·CAPTCHA·결제는 사용자가 직접 처리해야 합니다. 클릭 자체는 좌석 확보의 증거가 아닙니다."
             :"Approved non-payment actions continue across screens. Login, queue and payment require you. A click does not prove a seat hold."}</p>
