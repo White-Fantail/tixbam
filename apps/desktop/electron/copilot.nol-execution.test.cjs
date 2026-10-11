@@ -144,6 +144,8 @@ test('NOL-04 expired hold or stale observation can never be verified',async()=>{
     assert.equal(result.liveHoldVerified,false);
     assert.notEqual(result.status,'sandbox_hold_verified');
     assert.equal(provider.submissions,1);
+    if(scenario.holdDurationMs===-1)
+      assert.equal(result.status,'hold_expired');
   }
 });
 
@@ -189,4 +191,16 @@ test('NOL-04 concurrent executor contenders share one journal fence',async()=>{
   assert.equal(results.filter(x=>x.status==='sandbox_hold_verified').length,1);
   assert.equal(results.filter(x=>x.status==='reservation_unknown').length,1);
   assert.equal(journal.view(scope).status,'sandbox_hold_verified');
+});
+
+test('NOL-04 tampering with previously issued mock evidence fails fingerprint check',async()=>{
+  now=1791740000000;
+  const provider=new NolSandboxProvider({offers:[seat()],clock});
+  await provider.submitOnce('R-01',scope);
+  const proof=await provider.observeHold(scope);
+  assert.equal(provider.verifies(proof,scope),true);
+  proof.totalMinor=1;
+  assert.equal(provider.verifies(proof,scope),false);
+  assert.throws(()=>verifySandboxHold({provider,scope,plan,offer:seat(),
+    evidence:proof,clock}),/not verified/);
 });
