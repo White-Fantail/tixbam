@@ -4,8 +4,14 @@ import {LiveBookingWorkspace} from "../LiveBookingWorkspace";
 import {type BookingPlan} from "../booking-plans";
 import {type LivePhase, type TicketWindow, type TicketAddon} from "../types";
 import addonCatalog from "../../addons/catalog.json";
-import "../styles.css";
+import appCss from "../styles.css?inline";
 import "../i18n";
+
+// Load the same production stylesheet, but strip the third-party Google Fonts
+// import: offline DOM tests must not even try to make an external request.
+const style=document.createElement("style");
+style.textContent=appCss.replace(/@import\\s+url\\(\\s*['"]https?:\\/\\/[^)]+\\)\\s*;/g,"");
+document.head.appendChild(style);
 
 // Actual production LiveBookingWorkspace and LiveCopilotPanel, never a
 // counterfeit copy of their JSX. Browser, IPC and provider are *offline* mocks.
