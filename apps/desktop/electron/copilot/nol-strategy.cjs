@@ -106,6 +106,10 @@ function rateCandidate(plan,candidate){
 function planChoices(plan,candidates){
   if(!plan)return {status:'not_configured',reason:'NOL strategy not enabled.',
     recommended:[],rejected:0,holdVerified:false,actionAuthorized:false};
+  if(plan.quantity!==1 || plan.currency!=='KRW' ||
+     !Number.isSafeInteger(plan.budgetMinor) || plan.budgetMinor<=0)
+    return {status:'needs_user',reason:'Set exactly one KRW ticket and a positive total budget before selection.',
+      recommended:[],rejected:0,holdVerified:false,actionAuthorized:false};
   const proposed=(Array.isArray(candidates)?candidates:[]).slice(0,5);
   const rated=proposed.map((candidate,i)=>({candidate,index:i,assessment:rateCandidate(plan,candidate)}));
   const possible=rated.filter(x=>!['reject','not_configured'].includes(x.assessment.status))
