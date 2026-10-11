@@ -163,10 +163,10 @@ The official NOL site still marks unauthorized automation as restricted, and no 
 - quantity, performance, currency, fee completeness, event and total-budget mismatch **before** submission
 - mutated/mismatched evidence, replayed/fabricated proof
 - expired hold and stale observations
-- owner invalidation, cancel/stop, no mutation outside a valid session
+- owner invalidation, cancel/stop before provider mutation, ownership loss after a mutation, no mutation outside a valid session
 - all results require `liveHoldVerified:false`
 
-Validation to date: isolated JavaScript runner passed **13/13 NOL-04 test groups and 102 assertions**. The real Node test suite, Electron/TypeScript build and official NOL site E2E remain pending. No claims about measured NOL live success rate are made.
+Validation to date: isolated JavaScript runner passed **15/15 NOL-04 test groups and 111 assertions**. The real Node test suite, Electron/TypeScript build and official NOL site E2E remain pending. No claims about measured NOL live success rate are made.
 
 ### Remaining before actual NOL hold success (NOL-05 entry blockers)
 
