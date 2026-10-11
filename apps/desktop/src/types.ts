@@ -117,6 +117,10 @@ export interface LiveHistory {
 export interface CopilotSuggestion {
   x:number;y:number;label:string;reason:string;confidence:number;
   kind:"performance"|"price_tier"|"seat"|"quantity"|"continue";
+  offer?:{priceTier?:string;section?:string;floor?:string;performanceId?:string;
+    seatMode?:"assigned"|"standing"|"automatic";
+    availability?:"unknown"|"visibly_available"|"unavailable";
+    quantity?:number;currency?:string;allInTotalMinor?:number;feesIncluded?:boolean};
 }
 export interface CopilotVisionResult {
   status:"candidates"|"uncertain"|"human_required";
@@ -128,6 +132,12 @@ export interface CopilotAdvanceInfo {
   requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized"|"dev_single_click"|"dev_flow";
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
+  strategyInfo?:{status:string;reason:string;holdVerified:false;actionAuthorized:false;
+    rejected?:number;readyCount?:number;
+    recommended:Array<{kind:string;label:string;rank:number;reason:string;
+      usedFallback:boolean;requiresUser:boolean;apparentTotalMinor?:number|null;
+      feesShownIncluded?:boolean}>;
+    recovery?:{action:string;reason:string;autoRetry?:false}};
   providerStep?:{step:"event_detail"|"selection_unknown"|"human_gate"|"checkout_unverified"|"unknown";
     evidence:string;confidence:number;detail:string;needsUser:boolean;holdVerified:false;
     substep?:"event_detail"|"performance_date"|"seat_map"|"price_quantity"|
