@@ -180,3 +180,21 @@ Validation to date: isolated JavaScript runner passed **15/15 NOL-04 test groups
 ### Execute offline regression
 
 From `apps/desktop`: `npm run test:copilot` runs `electron/copilot*.test.cjs`, including the NOL-04 suite. A standalone invocation is `node --test electron/copilot.nol-execution.test.cjs`. Both run without touching NOL World, making a booking, or charging a card.
+
+
+## NOL-05 implementation log (2026-10-11)
+
+**Implemented on `dev`:**
+- `electron/copilot/nol-validation.cjs`: privacy-bounded stage/timing counters, confusion matrix, per-label precision/recall, sensitive-screen missed-stop counter, false hold-claim counter and an unconditional release **HOLD** audit. Real visual accuracy and live hold-success rate remain **null/unmeasured**.
+- `LiveCopilot`: emits only session-local aggregate observation P50/P95, user handoffs, queue enter/resume, action attempts and `hold_unverified` counts. No screenshots, account information, URLs, seat coordinates, cookies, tokens or booking IDs are stored by the new telemetry. Queue transition counters **do not** prove queue-position continuity.
+- Desktop: **NOL 검증 진단** shows session observation count, handoff count, queue transition count and P95 observation elapsed time. This is diagnostics, not official ticket or provider-hold confirmation.
+- `scripts/nol-validation-report.cjs`: synthetic replay of **18** existing NOL stage fixtures, separated from real-world accuracy and measured live booking success. The NOL automation addon must remain restricted and every successful report must remain `status:HOLD`.
+- `scripts/nol-score-screens.cjs`: locally scores **only** reviewed non-sensitive, human-labeled *metadata* from actual NOL images against the same classifier. It rejects raw images, unknown fields and actual account/session URLs, runs without browser or network, and cannot permit execution. Actual reviewed screen records have not yet been supplied.
+- `electron/copilot.nol-validation.test.cjs` and `electron/copilot.integration.test.cjs`: validate synthetic classification and sensitive-screen abstention, bounded metrics, queue/manual takeover and checkout no-upload/no-click, forgery resistance and the release HOLD invariant.
+- Added `npm run test:nol -w @tixbam/desktop` and `node scripts/nol-validation-report.cjs` to the existing `dev` GitHub Actions desktop CI, alongside the established Electron tests and build.
+
+**Instructions for collecting meaningful, consented NOL observations:** [NOL-05 real-screen validation protocol](./NOL_05_REAL_SCREEN_VALIDATION.md). Live captures/labelled samples and approved provider E2E are **not yet available**; therefore fixture match rates must not be represented as real recognition accuracy.
+
+### NOL-05 release blockers remain
+
+Actual NOL automation cannot be called production-ready: written vendor authorization and sanctioned test environment; an audited live seat-hold/price/result observer; durable crash-resilient duplicate reservation fencing; independent real-screen recognition measurements; no wrong-action/unsafe-site proofs; security/recovery review and a real provider booking hold E2E. Payment, queue, CAPTCHA and identity challenges remain user-owned, and no NOL release flag has been enabled. **Synthetic CI PASS never equals LIVE GO.**
