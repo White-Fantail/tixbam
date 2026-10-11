@@ -45,6 +45,16 @@ leading from event details to the ticket-selection flow (e.g. '예매하기'
 on the event detail screen), with kind=continue. This is NOT ticket purchase,
 cart reservation or checkout. Execution requires separate trusted-host checks
 and preapproved user scope; the AI never clicks.
+For NOL, return up to five candidate controls with optional 'offer' metadata
+ONLY if the relevant information is explicitly legible on this same image:
+quantity, priceTier, section, floor, seatMode, performanceId, currency,
+allInTotalMinor, feesIncluded, availability. Never infer hidden inventory,
+missing fees, a performance ID, or an all-in total from a base seat price.
+The 'offer' fields are unverified visual hints, not authoritative quotes.
+If the screen doesn't display a field, OMIT IT. Uncertain seat availability
+is 'unknown'. Never mark feesIncluded true unless ALL mandatory fees are
+unambiguously included in the visible total. NOL user preferences are soft
+ranking hints, never instructions to invent matching seats or costs.
 For stage=selecting, propose a 'continue' target only when it is clearly a
 non-payment selection confirmation or add-to-cart step, NOT an order submission,
 final purchase, payment form or checkout confirmation.
@@ -69,6 +79,7 @@ class VisionRequest(BaseModel):
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     budgetMinor: int = Field(ge=0, le=10_000_000_000)
     imageBase64: str = Field(min_length=100, max_length=2_100_000)
+    nolPreferences: "NolVisionPreferences | None" = None
 
     def jpeg(self) -> bytes:
         try:
@@ -82,6 +93,45 @@ class VisionRequest(BaseModel):
         return data
 
 
+class NolVisionPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    allowFallback: bool = False
+    priceTier: list[str] = Field(default_factory=list, max_length=12)
+    section: list[str] = Field(default_factory=list, max_length=12)
+    floor: list[str] = Field(default_factory=list, max_length=12)
+    seatMode: Literal["", "assigned", "standing", "automatic"] = ""
+
+    @field_validator("priceTier", "section", "floor")
+    @classmethod
+    def safe_preferences(cls, values: list[str]):
+        if any(not isinstance(s, str) or not (1 <= len(s) <= 90)
+               or any(c in s for c in "\\r\\n<>") for s in values):
+            raise ValueError("Invalid NOL preference label")
+        return values
+
+
+class VisualOffer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    priceTier: str | None = Field(default=None, max_length=90)
+    section: str | None = Field(default=None, max_length=90)
+    floor: str | None = Field(default=None, max_length=90)
+    performanceId: str | None = Field(default=None, max_length=90)
+    seatMode: Literal["assigned", "standing", "automatic"] | None = None
+    availability: Literal["unknown", "visibly_available", "unavailable"] = "unknown"
+    quantity: int | None = Field(default=None, ge=1, le=20)
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    allInTotalMinor: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    feesIncluded: bool | None = None
+
+    @field_validator("priceTier", "section", "floor", "performanceId")
+    @classmethod
+    def safe_offer_text(cls, value: str | None):
+        if value is not None and (not value.strip() or
+                                  any(c in value for c in "\\r\\n<>")):
+            raise ValueError("Invalid visual offer text")
+        return value
+
+
 class Target(BaseModel):
     model_config = ConfigDict(extra="forbid")
     x: float = Field(gt=0, lt=1)
@@ -90,6 +140,7 @@ class Target(BaseModel):
     reason: str = Field(min_length=1, max_length=160)
     confidence: float = Field(ge=0, le=1)
     kind: Literal["performance", "price_tier", "seat", "quantity", "continue"]
+    offer: VisualOffer | None = None
 
     @field_validator("label", "reason")
     @classmethod
@@ -178,7 +229,9 @@ async def visual_targets(body: VisionRequest, db: Db, user: CurrentUser):
                     "provider": body.providerId, "locale": body.locale,
                     "quantity": body.quantity, "currency": body.currency,
                     "allInBudgetMinor": body.budgetMinor,
-                    "stage": body.stage, "userReportedStage": True})},
+                    "stage": body.stage, "userReportedStage": True,
+                    **({"nolPreferences": body.nolPreferences.model_dump()}
+                       if body.providerId == "nol" and body.nolPreferences else {})})},
                 {"type": "image_url", "image_url": {
                     "url": "data:image/jpeg;base64," + body.imageBase64}}
             ]}
@@ -206,7 +259,7 @@ async def visual_targets(body: VisionRequest, db: Db, user: CurrentUser):
         block_targets = body.providerId == "nol" and nol_step in {
             "human_gate", "cart_review", "seat_conflict", "sold_out"
         }
-        targets = ([t.model_dump() for t in prediction.targets
+        targets = ([t.model_dump(exclude_none=True) for t in prediction.targets
                     if t.confidence >= 0.85 and
                     (body.stage == "selecting" or t.kind == "continue")]
                    if prediction.status == "candidates" and not block_targets else [])
