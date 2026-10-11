@@ -27,6 +27,8 @@ jobs:
           node scripts/nol-validation-report.cjs
       - name: Build Electron renderer and admin
         run: npm run build
+      - name: NOL Desktop UI E2E (real React under offline Electron + Xvfb)
+        run: npm run test:ui:nol -w @tixbam/desktop
   python-services:
     runs-on: ubuntu-latest
     services:
