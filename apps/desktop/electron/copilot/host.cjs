@@ -171,8 +171,8 @@ class LiveCopilot {
     if(session.providerId==='nol' && entry){
       const observed=assessNolScreen({
         url:entry.win?.webContents?.getURL?.(),phase:entry.phase});
-      if(['human_gate','checkout_unverified'].includes(observed.step))
-        session.providerStep=observed;
+      // Never carry a previous page's stage label into a new observation.
+      session.providerStep=observed;
     }
     const check=canRun(session,entry);
     if(!check.allowed) {
