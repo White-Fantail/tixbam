@@ -416,13 +416,14 @@ class LiveCopilot {
         // Omitting the default stage keeps existing deployments compatible.
         ...(preview.phase==='preparing' ? {stage:'preparing'} : {}),
         ...(entry.providerId==='nol' && preferences.nolStrategy
-          ? {nolPreferences:{
-              allowFallback:preferences.nolStrategy.allowFallback===true,
-              priceTier:preferences.nolStrategy.seatPreferences?.priceTier||[],
-              section:preferences.nolStrategy.seatPreferences?.section||[],
-              floor:preferences.nolStrategy.seatPreferences?.floor||[],
-              seatMode:preferences.nolStrategy.seatPreferences?.seatMode||''
-            }} : {}),
+          ? {nolPreferences:(()=>{
+              const scoped=normalizeNolPlan(preferences.nolStrategy);
+              return {allowFallback:scoped?.allowFallback===true,
+                priceTier:scoped?.seatPreferences.priceTier||[],
+                section:scoped?.seatPreferences.section||[],
+                floor:scoped?.seatPreferences.floor||[],
+                seatMode:scoped?.seatPreferences.seatMode||''};
+            })()} : {}),
         imageBase64:preview.bytes.toString('base64')
       });
     } catch(error) {
