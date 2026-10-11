@@ -22,8 +22,10 @@ function normalizePlan(input){
     performanceId:safeName(input.performanceId)||null,
     allowFallback:input.allowFallback===true,
     seatPreferences:Object.freeze({
-      priceTier:names(s.priceTier),section:names(s.section),
-      floor:names(s.floor),seatMode:TIERS.has(s.seatMode)?s.seatMode:'',
+      priceTier:Object.freeze(names(s.priceTier)),
+      section:Object.freeze(names(s.section)),
+      floor:Object.freeze(names(s.floor)),
+      seatMode:TIERS.has(s.seatMode)?s.seatMode:'',
     }),
   });
 }
