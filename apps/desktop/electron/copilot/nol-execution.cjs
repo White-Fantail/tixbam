@@ -106,12 +106,14 @@ class NolSandboxProvider {
     // A mock ACK does not supply this evidence; the separate provider READ does.
     if(this.#scenario.observationOverride)
       Object.assign(snapshot,this.#scenario.observationOverride);
-    issuedEvidence.set(snapshot,{provider:this,scopeKey:scopeKey(scope)});
+    issuedEvidence.set(snapshot,{provider:this,scopeKey:scopeKey(scope),
+      fingerprint:JSON.stringify(snapshot)});
     return snapshot;
   }
   verifies(evidence,scope){
     const receipt=issuedEvidence.get(evidence);
-    return receipt?.provider===this && receipt.scopeKey===scopeKey(scope);
+    return receipt?.provider===this && receipt.scopeKey===scopeKey(scope) &&
+      receipt.fingerprint===JSON.stringify(evidence);
   }
 }
 function verifySandboxHold({provider,scope,plan,offer,evidence,clock=Date.now}={}){
@@ -192,9 +194,18 @@ class NolSandboxExecutor {
       const proof=await this.#provider.observeHold(this.#scope);
       this.#guard();
       if(proof?.status==='seat_conflict'||proof?.status==='sold_out'){
+        if(!this.#provider.verifies(proof,this.#scope))
+          throw Error('Unverified mock conflict observation');
         this.#journal.conclude(intent,proof.status);
         return safeResult(proof.status,'The provider explicitly rejected this mock seat. A different attempt requires user confirmation.',
           {retryBlocked:true,manualFallbackPossible:this.#plan.allowFallback});
+      }
+      if(proof?.status==='held' && this.#provider.verifies(proof,this.#scope) &&
+         time(proof.expiresAtMs) && proof.expiresAtMs<=this.#clock()){
+        this.#journal.conclude(intent,'expired');
+        return safeResult('hold_expired',
+          'Mock provider hold already expired. Reconciliation is needed; automatic retry blocked.',
+          {retryBlocked:true});
       }
       const verified=verifySandboxHold({provider:this.#provider,scope:this.#scope,
         plan:this.#plan,offer,evidence:proof,clock:this.#clock});
