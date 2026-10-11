@@ -204,3 +204,40 @@ test('NOL-04 tampering with previously issued mock evidence fails fingerprint ch
   assert.throws(()=>verifySandboxHold({provider,scope,plan,offer:seat(),
     evidence:proof,clock}),/not verified/);
 });
+
+
+test('NOL-04 stop during delayed offer read prevents any provider mutation',async()=>{
+  now=1791740000000;
+  const {runner,provider,journal}=make();
+  const read=provider.readOffer.bind(provider);
+  let releaseRead;
+  provider.readOffer=async id=>{
+    await new Promise(resolve=>{releaseRead=resolve;});
+    return read(id);
+  };
+  const attempt=runner.execute({offerId:'R-01'});
+  // The await is inside the mock provider, before journal intent or mutation.
+  runner.stop();
+  releaseRead();
+  const outcome=await attempt;
+  assert.equal(outcome.status,'reservation_unknown');
+  assert.equal(provider.submissions,0);
+  assert.equal(journal.view(scope),null);
+});
+
+test('NOL-04 owner lost after provider mutation produces unknown and no replay',async()=>{
+  now=1791740000000;
+  let owned=true;
+  const {runner,provider,journal}=make({check:()=>owned});
+  const submit=provider.submitOnce.bind(provider);
+  provider.submitOnce=async (...args)=>{await submit(...args);owned=false;};
+  const result=await runner.execute({offerId:'R-01'});
+  assert.equal(result.status,'reservation_unknown');
+  assert.equal(result.liveHoldVerified,false);
+  assert.equal(provider.submissions,1);
+  assert.equal(journal.view(scope).status,'submitted_unknown');
+  owned=true;
+  const retry=await runner.execute({offerId:'R-01'});
+  assert.equal(retry.retryBlocked,true);
+  assert.equal(provider.submissions,1);
+});
