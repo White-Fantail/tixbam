@@ -350,6 +350,8 @@ test('NOL-01 checkout/cart/payment routes never upload images or click',async()=
     const info=host.autoStatus(42);
     assert.equal(info.status,'hold_unverified',protectedRoute);
     assert.equal(info.providerStep.step,'checkout_unverified',protectedRoute);
+    assert.equal(info.holdEvidence.status,'provider_verifier_unavailable',protectedRoute);
+    assert.equal(info.holdEvidence.verified,false);
     assert.equal(requests.length,0,'protected route cannot upload: '+protectedRoute);
     assert.equal(state.events.length,0,protectedRoute);
     host.clearAll();
