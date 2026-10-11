@@ -269,6 +269,19 @@ export function LiveBookingWorkspace({
                       : advance.status==="stopped"
                         ? (language==="ko"?"중지됨":"Stopped")
                         : (language==="ko"?"준비됨":"Armed")}</strong> · {advance.reason}</p>
+          {advance.providerId==="nol" && advance.providerStep && <p className="settings-note" role="status">
+            <strong>{language==="ko"?"NOL 화면 진단: ":"NOL screen check: "}</strong>
+            {({
+              event_detail:language==="ko"?"공연 상세":"Event details",
+              selection_unknown:language==="ko"?"티켓 선택 단계 (세부 미확인)":"Ticket selection (substep unknown)",
+              human_gate:language==="ko"?"사용자 조작 필요":"Manual step required",
+              checkout_unverified:language==="ko"?"결제 단계 / 좌석 보류 미확인":"Checkout / hold unverified",
+              unknown:language==="ko"?"화면 단계 미확인":"Unknown stage"
+            })[advance.providerStep.step]}
+            {advance.providerStep.evidence==="visual_hint"
+              ? " · "+Math.round(advance.providerStep.confidence*100)+"%" : ""}
+            {language==="ko"?" · 이 진단은 좌석 확보 증거가 아닙니다.":" · Not proof of a seat hold."}
+          </p>}
           <p className="settings-note">{language==="ko"
             ?"사전 승인한 동작만 화면별로 검증해 이어서 진행합니다. 로그인·대기열·CAPTCHA·결제는 사용자가 직접 처리해야 합니다. 클릭 자체는 좌석 확보의 증거가 아닙니다."
             :"Approved non-payment actions continue across screens. Login, queue and payment require you. A click does not prove a seat hold."}</p>
