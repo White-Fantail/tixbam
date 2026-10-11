@@ -168,7 +168,7 @@ test('NOL-04 owner change and cancellation stop mutation and block replay',async
   let owned=true;
   const {runner,provider,journal}=make({check:()=>owned});
   owned=false;
-  assert.equal((await runner.execute({offerId:'R-01'})).status,'reservation_unknown');
+  assert.equal((await runner.execute({offerId:'R-01'})).status,'blocked');
   assert.equal(provider.submissions,0);
   assert.equal(journal.view(scope),null);
   owned=true;
@@ -189,7 +189,7 @@ test('NOL-04 concurrent executor contenders share one journal fence',async()=>{
   ]);
   assert.equal(provider.submissions,1);
   assert.equal(results.filter(x=>x.status==='sandbox_hold_verified').length,1);
-  assert.equal(results.filter(x=>x.status==='reservation_unknown').length,1);
+  assert.equal(results.filter(x=>x.status==='blocked').length,1);
   assert.equal(journal.view(scope).status,'sandbox_hold_verified');
 });
 
@@ -220,7 +220,7 @@ test('NOL-04 stop during delayed offer read prevents any provider mutation',asyn
   runner.stop();
   releaseRead();
   const outcome=await attempt;
-  assert.equal(outcome.status,'reservation_unknown');
+  assert.equal(outcome.status,'blocked');
   assert.equal(provider.submissions,0);
   assert.equal(journal.view(scope),null);
 });
