@@ -132,6 +132,7 @@ export interface CopilotAdvanceInfo {
   requestedMode?:"manual"|"observe"|"authorized";mode:"manual"|"observe"|"authorized"|"dev_single_click"|"dev_flow";
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
+  holdEvidence?:{status:"provider_verifier_unavailable";verified:false;reason:string};
   strategyInfo?:{status:string;reason:string;holdVerified:false;actionAuthorized:false;
     rejected?:number;readyCount?:number;
     recommended:Array<{kind:string;label:string;rank:number;reason:string;
