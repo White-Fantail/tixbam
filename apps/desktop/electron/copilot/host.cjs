@@ -62,7 +62,11 @@ class LiveCopilot {
       ...(session.providerId==='nol' && session.providerStep
         ? {providerStep:session.providerStep}:{}),
       ...(session.providerId==='nol' && session.strategyInfo
-        ? {strategyInfo:session.strategyInfo}:{}),...extra};
+        ? {strategyInfo:session.strategyInfo}:{}),
+      ...(session.providerId==='nol' && status==='hold_unverified'
+        ? {holdEvidence:{status:'provider_verifier_unavailable',verified:false,
+            reason:'No authorized NOL live hold observer is installed. A checkout screen is not proof of a reserved ticket.'}}:{}),
+      ...extra};
     session.lastInfo=info;
     this.onAutoUpdate(info);
     return info;
