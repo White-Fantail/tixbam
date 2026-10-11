@@ -122,3 +122,29 @@ test('NOL-05: refuse malformed fixture sources or unexpected label values',()=>{
   ])assert.throws(()=>scoreNolFixtures([invalid]),/Invalid|Unknown/);
   assert.equal(classifyLabel('selection_unknown','seat_conflict'),'seat_conflict');
 });
+
+
+test('NOL-05 local scorer accepts only fixed-origin reviewed metadata, never uploaded images',()=>{
+  const {scoreLocalScreens}=require('../../../scripts/nol-score-screens.cjs');
+  const original=cases.find(x=>x.id==='seat-map');
+  const verified={
+    id:'seatmap-reviewed-01',fixtureType:'redacted_human_labeled_screen',
+    containsScreenshot:false,humanReviewed:true,modelOutputFromActualScreen:true,
+    input:original.input,
+    expected:{step:original.expected.step,substep:original.expected.substep}
+  };
+  const good=scoreLocalScreens({schemaVersion:1,cases:[verified]});
+  assert.equal(good.samples,1);
+  assert.equal(good.matched,1);
+  assert.equal(good.release.status,'HOLD');
+  assert.equal(good.release.productionAutomationAllowed,false);
+  assert.throws(()=>scoreLocalScreens({schemaVersion:1,cases:[
+    {...verified,input:{...verified.input,url:'https://nol.yanolja.com/account/?token=secret'}}
+  ]}),/fixed NOL test origin/);
+  assert.throws(()=>scoreLocalScreens({schemaVersion:1,cases:[
+    {...verified,base64Screenshot:'secret'}
+  ]}),/private media/);
+  assert.throws(()=>scoreLocalScreens({schemaVersion:1,cases:[
+    {...verified,humanReviewed:false}
+  ]}),/unreviewed/);
+});
