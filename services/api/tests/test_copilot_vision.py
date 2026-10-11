@@ -2,7 +2,7 @@
 import base64
 import pytest
 from pydantic import ValidationError
-from app.copilot_vision import VisionRequest, Target, ModelResult, confirmed_nol_step
+from app.copilot_vision import VisionRequest, Target, ModelResult, VisualOffer, NolVisionPreferences, confirmed_nol_step
 
 def request(image):
     return VisionRequest(providerId="cityline", locale="ko", quantity=1,
@@ -77,3 +77,37 @@ def test_nol_stage_mismatch_low_confidence_or_unknown_never_promotes_a_substep()
         ModelResult(status="candidates", targets=[], nolScreenStep="fake")
     with pytest.raises(ValidationError):
         ModelResult(status="candidates", targets=[], nolStepConfidence=1.1)
+
+
+def test_nol_visual_offer_metadata_is_optional_and_never_booking_proof():
+    hint = VisualOffer(quantity=1, currency="KRW",
+                       allInTotalMinor=120000, feesIncluded=True,
+                       section="Main", priceTier="R", seatMode="assigned",
+                       availability="visibly_available")
+    target = Target(x=.3, y=.4, label="Section R", reason="One ticket",
+                    confidence=.98, kind="seat", offer=hint)
+    assert target.offer.allInTotalMinor == 120000
+    assert "holdVerified" not in target.model_dump()
+    assert Target(x=.3, y=.4, label="Seat", reason="One ticket",
+                  confidence=.97, kind="seat").offer is None
+    for data in [
+        {"quantity": 0}, {"quantity": 21}, {"currency": "USD-INVALID"},
+        {"allInTotalMinor": -1}, {"seatMode": "vip"},
+        {"section": "x\nunsafe"}, {"holdVerified": True}
+    ]:
+        with pytest.raises(ValidationError):
+            VisualOffer(**data)
+
+
+def test_nol_plan_preference_hints_are_bounded_and_not_an_authority():
+    pref = NolVisionPreferences(allowFallback=False,
+        priceTier=["R", "S"], section=["Main"], floor=["1F"],
+        seatMode="assigned")
+    assert pref.allowFallback is False
+    assert pref.priceTier == ["R", "S"]
+    with pytest.raises(ValidationError):
+        NolVisionPreferences(section=["X"] * 13)
+    with pytest.raises(ValidationError):
+        NolVisionPreferences(section=["\r"])
+    with pytest.raises(ValidationError):
+        NolVisionPreferences(allowFallback=True, autoPurchase=True)
