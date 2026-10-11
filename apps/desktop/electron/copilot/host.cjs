@@ -8,6 +8,7 @@ const {normalizeConsent,providerAutomationStatus,canRun,
   DEV_CLICK_KINDS,MAX_AGE_MS,MIN_ANALYSIS_GAP_MS}
   =require('./advance-authorization.cjs');
 const {MAX_AUTO_STEPS,actionPermission,chooseStep}=require('./auto-flow.cjs');
+const {assessNolScreen}=require('./nol-flow.cjs');
 /** Host-owned, bounded opt-in visual execution.
  * Remote pages receive no privileged preload or scripts. Real purchase, payment
  * and official seat holds must be verified by independent provider evidence.
@@ -56,7 +57,9 @@ class LiveCopilot {
     const info={windowId:session.windowId,planId:session.planId,providerId:session.providerId,
       requestedMode:session.consent.mode,mode:session.mode,status,reason,
       attempts:session.count,expiresAt:session.expiresAt,
-      targets:[],automaticClicks:session.automaticClicks,...extra};
+      targets:[],automaticClicks:session.automaticClicks,
+      ...(session.providerId==='nol' && session.providerStep
+        ? {providerStep:session.providerStep}:{}),...extra};
     session.lastInfo=info;
     this.onAutoUpdate(info);
     return info;
@@ -91,7 +94,8 @@ class LiveCopilot {
     const session={windowId,planId:entry.planId,providerId:entry.providerId,
       consent,mode,preferences:Object.freeze({...preferences}),expiresAt:Date.now()+MAX_AGE_MS,
       count:0,lastAttemptAt:0,stopped:false,automaticClicks:0,
-      lastActionKey:null,lastActionDigest:null,lastAction:null};
+      lastActionKey:null,lastActionDigest:null,lastAction:null,
+      providerStep:null};
     this.autoSessions.set(windowId,session);
     return this.autoInfo(session,'armed',developerTest
       ? 'Developer multi-step test armed. Official login, queue, CAPTCHA and checkout are user-owned.'
@@ -164,6 +168,12 @@ class LiveCopilot {
     const session=this.autoSessions.get(windowId);
     if(!session || this.autoPending.has(windowId))return;
     const entry=this.ticketWindows.get(windowId);
+    if(session.providerId==='nol' && entry){
+      const observed=assessNolScreen({
+        url:entry.win?.webContents?.getURL?.(),phase:entry.phase});
+      if(['human_gate','checkout_unverified'].includes(observed.step))
+        session.providerStep=observed;
+    }
     const check=canRun(session,entry);
     if(!check.allowed) {
       if(check.reason==='Automatic AI cooldown.') {
@@ -211,6 +221,19 @@ class LiveCopilot {
       if(session.stopped || this.autoSessions.get(windowId)!==session)return;
       const response=await this.analyze(windowId,shot.token,session.preferences);
       if(session.stopped || this.autoSessions.get(windowId)!==session)return;
+      if(session.providerId==='nol'){
+        const observed=assessNolScreen({
+          url:entry.win.webContents.getURL(),phase:entry.phase,
+          visionStage:response.stageHint?.stage,
+          visionConfidence:response.stageHint?.confidence});
+        session.providerStep=observed;
+        if(['human_gate','checkout_unverified'].includes(observed.step) ||
+           observed.evidence==='phase_conflict'){
+          this.autoInfo(session,observed.step==='checkout_unverified'
+            ? 'hold_unverified':'awaiting_user',observed.detail);
+          return;
+        }
+      }
       const candidates=response.targets.filter(t=>session.consent.actions.includes(t.kind));
       const addon=this.requireInstalled(entry.providerId);
       const decision=chooseStep({session,entry,addon,
@@ -371,8 +394,15 @@ class LiveCopilot {
       typeof t.confidence==='number'&&t.confidence>=0.85 &&
       ['seat','price_tier','performance','quantity','continue'].includes(t.kind) &&
       (preview.phase === 'selecting' || t.kind === 'continue'));
+    // Visual hints are not click authority or reservation evidence.
+    const stage=['event','selecting','waiting','queue','checkout','unknown']
+      .includes(response.screenStage)?response.screenStage:'unknown';
+    const confidence=Number.isFinite(response.stageConfidence) &&
+      response.stageConfidence>=0 && response.stageConfidence<=1
+        ? response.stageConfidence:0;
     return {status:response.status,targets,advisoryOnly:true,
-      humanApprovalRequired:true,snapshotToken:preview.token};
+      humanApprovalRequired:true,snapshotToken:preview.token,
+      stageHint:{stage,confidence}};
   }
   async highlight(windowId,token,point) {
     const {entry,target}=await this.verifiedTarget(windowId,token,point,{readOnly:true});
