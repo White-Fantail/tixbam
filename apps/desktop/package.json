@@ -12,6 +12,9 @@
     "test": "node --test electron/*.test.cjs",
     "test:copilot": "node --test electron/copilot*.test.cjs",
     "test:nol": "node --test electron/copilot.nol-*.test.cjs electron/copilot.integration.test.cjs",
+    "build:ui:nol": "vite build --config vite.nol-ui.config.ts",
+    "test:ui:nol": "npm run build:ui:nol && node electron/nol-ui-e2e-runner.cjs",
+    "verify:nol": "npm run test:nol && npm run test:ui:nol && node ../../scripts/nol-validation-report.cjs",
     "build": "npm run check && vite build",
     "preview": "vite preview"
   },
