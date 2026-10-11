@@ -10,7 +10,7 @@ import "../i18n";
 // Load the same production stylesheet, but strip the third-party Google Fonts
 // import: offline DOM tests must not even try to make an external request.
 const style=document.createElement("style");
-style.textContent=appCss.replace(/@import\\s+url\\(\\s*['"]https?:\\/\\/[^)]+\\)\\s*;/g,"");
+style.textContent=appCss.replace(/@import[^;]*https?:[^;]*;/g,"");
 document.head.appendChild(style);
 
 // Actual production LiveBookingWorkspace and LiveCopilotPanel, never a
