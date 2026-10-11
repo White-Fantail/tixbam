@@ -415,6 +415,14 @@ class LiveCopilot {
         // Older production APIs only accept selection-stage requests.
         // Omitting the default stage keeps existing deployments compatible.
         ...(preview.phase==='preparing' ? {stage:'preparing'} : {}),
+        ...(entry.providerId==='nol' && preferences.nolStrategy
+          ? {nolPreferences:{
+              allowFallback:preferences.nolStrategy.allowFallback===true,
+              priceTier:preferences.nolStrategy.seatPreferences?.priceTier||[],
+              section:preferences.nolStrategy.seatPreferences?.section||[],
+              floor:preferences.nolStrategy.seatPreferences?.floor||[],
+              seatMode:preferences.nolStrategy.seatPreferences?.seatMode||''
+            }} : {}),
         imageBase64:preview.bytes.toString('base64')
       });
     } catch(error) {
