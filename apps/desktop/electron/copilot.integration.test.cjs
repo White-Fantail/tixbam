@@ -282,3 +282,74 @@ test('unchanged screen cannot repeat the same selection',async()=>{
   assert.equal(host.autoStatus(42).status,'awaiting_user');
   host.clearAll();
 });
+
+
+test('NOL-01 live assessment reports event detail without falsely asserting a hold',async()=>{
+  const {host,entry,state}=setup({developerMode:true});
+  host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+    humanApprovalRequired:true,screenStage:'event',stageConfidence:.99,
+    targets:[{x:.72,y:.7,label:'예매하기',reason:'Enter booking',
+      confidence:.96,kind:'continue'}]}));
+  const consent={mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['continue','seat'],developmentOverride:true};
+  host.arm(42,developerConditions,consent);
+  await host.observe(42);
+  const info=host.autoStatus(42);
+  assert.equal(info.providerStep.step,'event_detail');
+  assert.equal(info.providerStep.holdVerified,false);
+  assert.equal(state.events.length,0,'a low-confidence entry must not click');
+  host.clearAll();
+});
+
+test('NOL-01 visual phase conflict blocks live dev clicks until user verifies stage',async()=>{
+  const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+  host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+    humanApprovalRequired:true,screenStage:'selecting',stageConfidence:.99,
+    targets:[{x:.7,y:.7,label:'예매하기',reason:'Enter booking',
+      confidence:.99,kind:'continue'}]}));
+  const consent={mode:'authorized',confirmed:true,shareScreenshots:true,
+    actions:['continue','seat'],developmentOverride:true};
+  host.arm(42,developerConditions,consent);
+  await host.observe(42);
+  const info=host.autoStatus(42);
+  assert.equal(info.status,'awaiting_user');
+  assert.equal(info.providerStep.evidence,'phase_conflict');
+  assert.equal(state.events.length,0);
+  host.clearAll();
+});
+
+test('NOL-01 high-confidence checkout or queue hints stop clicking even on selection URL',async()=>{
+  for(const [screenStage,status,step] of [
+    ['checkout','hold_unverified','checkout_unverified'],
+    ['queue','awaiting_user','human_gate']
+  ]){
+    const {host,entry,state}=setup({developerMode:true,seatConfidence:.99});
+    entry.phase='selecting';
+    host.setVisionProvider(async()=>({status:'candidates',advisoryOnly:true,
+      humanApprovalRequired:true,screenStage,stageConfidence:.99,
+      targets:[{x:.31,y:.5,label:'Seat',reason:'Select seat',
+        confidence:.99,kind:'seat'}]}));
+    host.arm(42,developerConditions,developerConsent);
+    await host.observe(42);
+    const info=host.autoStatus(42);
+    assert.equal(info.status,status,screenStage);
+    assert.equal(info.providerStep.step,step,screenStage);
+    assert.equal(info.providerStep.holdVerified,false);
+    assert.equal(state.events.length,0,screenStage);
+    host.clearAll();
+  }
+});
+
+test('NOL-01 protected checkout URL produces a local no-upload warning',async()=>{
+  const {host,entry,state,requests}=setup({developerMode:true,seatConfidence:.99});
+  entry.phase='selecting';
+  state.url='https://nol.yanolja.com/en/checkout';
+  host.arm(42,developerConditions,developerConsent);
+  await host.observe(42);
+  const info=host.autoStatus(42);
+  assert.equal(info.status,'hold_unverified');
+  assert.equal(info.providerStep.step,'checkout_unverified');
+  assert.equal(requests.length,0,'never upload a protected checkout screenshot');
+  assert.equal(state.events.length,0);
+  host.clearAll();
+});
