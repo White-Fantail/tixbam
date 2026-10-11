@@ -77,7 +77,7 @@ test('NOL-04 fallback is not allowed when user disallows alternative sections',a
   now=1791740000000;
   const strict={...plan,allowFallback:false};
   const {runner,provider}=make({prefs:strict,scenario:{outcome:'seat_conflict'},
-    offers:[seat('R-01'),seat('S-02',{section:'Balcony'})]});
+    offers:[seat('R-01'),seat('S-02',{section:'Unapproved',floor:'3F'})]});
   assert.equal((await runner.execute({offerId:'R-01'})).status,'seat_conflict');
   assert.equal((await runner.execute({offerId:'S-02',confirmedFallback:true})).retryBlocked,true);
   assert.equal(provider.submissions,1);
