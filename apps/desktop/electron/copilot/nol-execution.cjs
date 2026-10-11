@@ -214,7 +214,10 @@ class NolSandboxExecutor {
       return safeResult('sandbox_hold_verified','Provider-mock read independently confirmed the seat hold. No real NOL reservation was made.',
         {...verified,retryBlocked:true});
     }catch(error){
-      // Intent, if recorded, remains permanently blocking on ambiguity.
+      // Before intent there was no provider mutation. After intent we cannot
+      // distinguish submission, lost response, and a completed provider hold.
+      if(!intent)return safeResult('blocked',
+        'No provider request was sent. Review the owner, plan, or existing reservation.');
       return safeResult('reservation_unknown',
         'Outcome unknown or execution interrupted. Do not retry without manual reconciliation.',
         {retryBlocked:true});
