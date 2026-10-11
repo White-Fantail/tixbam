@@ -70,29 +70,6 @@ Example: {"status":"candidates","targets":[{"x":0.5,"y":0.4,
 "label":"Section A","reason":"May match preferences","confidence":0.91,"kind":"seat"}]}"""
 
 
-class VisionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    providerId: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,59}$")
-    locale: Literal["ko", "en"] = "ko"
-    stage: Literal["preparing", "selecting"] = "selecting"
-    quantity: int = Field(ge=1, le=20)
-    currency: str = Field(pattern=r"^[A-Z]{3}$")
-    budgetMinor: int = Field(ge=0, le=10_000_000_000)
-    imageBase64: str = Field(min_length=100, max_length=2_100_000)
-    nolPreferences: "NolVisionPreferences | None" = None
-
-    def jpeg(self) -> bytes:
-        try:
-            data = base64.b64decode(self.imageBase64, validate=True)
-        except (ValueError, binascii.Error) as exc:
-            raise ValueError("Invalid image encoding") from exc
-        if not (100 <= len(data) <= 1_500_000
-                and data.startswith(bytes.fromhex("ffd8ff"))
-                and data.endswith(bytes.fromhex("ffd9"))):
-            raise ValueError("Only bounded JPEG images are accepted")
-        return data
-
-
 class NolVisionPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     allowFallback: bool = False
@@ -105,9 +82,32 @@ class NolVisionPreferences(BaseModel):
     @classmethod
     def safe_preferences(cls, values: list[str]):
         if any(not isinstance(s, str) or not (1 <= len(s) <= 90)
-               or any(c in s for c in "\\r\\n<>") for s in values):
+               or any(ord(c)<32 or c in "<>" for c in s) for s in values):
             raise ValueError("Invalid NOL preference label")
         return values
+
+
+class VisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    providerId: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,59}$")
+    locale: Literal["ko", "en"] = "ko"
+    stage: Literal["preparing", "selecting"] = "selecting"
+    quantity: int = Field(ge=1, le=20)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    budgetMinor: int = Field(ge=0, le=10_000_000_000)
+    imageBase64: str = Field(min_length=100, max_length=2_100_000)
+    nolPreferences: NolVisionPreferences | None = None
+
+    def jpeg(self) -> bytes:
+        try:
+            data = base64.b64decode(self.imageBase64, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("Invalid image encoding") from exc
+        if not (100 <= len(data) <= 1_500_000
+                and data.startswith(bytes.fromhex("ffd8ff"))
+                and data.endswith(bytes.fromhex("ffd9"))):
+            raise ValueError("Only bounded JPEG images are accepted")
+        return data
 
 
 class VisualOffer(BaseModel):
@@ -127,7 +127,7 @@ class VisualOffer(BaseModel):
     @classmethod
     def safe_offer_text(cls, value: str | None):
         if value is not None and (not value.strip() or
-                                  any(c in value for c in "\\r\\n<>")):
+                                  any(ord(c)<32 or c in "<>" for c in value)):
             raise ValueError("Invalid visual offer text")
         return value
 
