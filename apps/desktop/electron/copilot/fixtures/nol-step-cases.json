@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "title": "NOL-02 offline structured-stage fixture matrix",
+  "warning": "These are synthetic metadata scenarios based on public guidance and threat modeling, NOT screenshots or observed actual NOL HTML. They do not measure live AI visual accuracy.",
+  "sources": [
+    "https://ticketimage.interpark.com/TicketImage/2016/20160530_detailMo/loadingHtml/howToPreorder_nol.html",
+    "https://gayon-korea.com/interpark-ticketing/"
+  ],
+  "cases": [
+    {
+      "id": "event-detail",
+      "category": "documented_journey",
+      "description": "Event details and booking entry shown",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "preparing",
+        "visionStage": "event",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "event_detail"
+      },
+      "expected": {
+        "step": "event_detail",
+        "substep": "event_detail",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "performance-date",
+      "category": "documented_journey",
+      "description": "Select show date/time in a booking dialog",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "performance_date"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "performance_date",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "seat-map",
+      "category": "documented_journey",
+      "description": "Venue seat map or zone map for active selection",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "seat_map",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "price-quantity",
+      "category": "documented_journey",
+      "description": "Ticket grade and quantity picker",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "price_quantity"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "price_quantity",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "seat-conflict",
+      "category": "reported_failure",
+      "description": "Seat was already selected by another customer",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_conflict"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "seat_conflict",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "sold-out",
+      "category": "reported_failure",
+      "description": "Explicit no remaining availability",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "sold_out"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "sold_out",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "cart-review",
+      "category": "documented_journey",
+      "description": "Checkout/cart page detected visually without sensitive route",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "checkout",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "cart_review"
+      },
+      "expected": {
+        "step": "checkout_unverified",
+        "substep": "cart_review",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "auth-challenge",
+      "category": "human_intervention",
+      "description": "Security or login challenge embedded in a SPA",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "human_gate"
+      },
+      "expected": {
+        "step": "human_gate",
+        "substep": "human_gate",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "queue-screen",
+      "category": "human_intervention",
+      "description": "Browser is in waiting queue phase",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "queue",
+        "visionStage": "queue",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "human_gate"
+      },
+      "expected": {
+        "step": "human_gate",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "cart-route",
+      "category": "human_intervention",
+      "description": "Official URL entered cart stage",
+      "input": {
+        "url": "https://nol.yanolja.com/cart",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "checkout_unverified",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "low-stage-confidence",
+      "category": "uncertainty",
+      "description": "Model unsure which booking phase",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.89,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "unknown",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "low-step-confidence",
+      "category": "uncertainty",
+      "description": "General seat selection certain but exact substep uncertain",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.93,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "unknown",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "wrong-substep-stage",
+      "category": "contradiction",
+      "description": "Seat map returned while broad stage is event",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "preparing",
+        "visionStage": "event",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "event_detail",
+        "substep": "unknown",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "contradictory-phase",
+      "category": "contradiction",
+      "description": "Selection shown while plan thinks it is event detail",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "preparing",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "unknown",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "host-spoof",
+      "category": "security",
+      "description": "Untrusted host imitation",
+      "input": {
+        "url": "https://nol.yanolja.com.evil.example/cart",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "unknown",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "sensitive-path",
+      "category": "security",
+      "description": "Sensitive login URI overrides seat map",
+      "input": {
+        "url": "https://nol.yanolja.com/verify",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0.99,
+        "visionStep": "seat_map"
+      },
+      "expected": {
+        "step": "human_gate",
+        "substep": "unknown",
+        "needsUser": true
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "promotional-chart",
+      "category": "uncertainty",
+      "description": "Event promotional chart must not be treated as live seat map",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "preparing",
+        "visionStage": "event",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0,
+        "visionStep": "unknown"
+      },
+      "expected": {
+        "step": "event_detail",
+        "substep": "unknown",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    },
+    {
+      "id": "model-unknown",
+      "category": "uncertainty",
+      "description": "No substep from older deployed backend",
+      "input": {
+        "url": "https://nol.yanolja.com/product/offline-fixture",
+        "phase": "selecting",
+        "visionStage": "selecting",
+        "visionConfidence": 0.99,
+        "visionStepConfidence": 0,
+        "visionStep": "unknown"
+      },
+      "expected": {
+        "step": "selection_unknown",
+        "substep": "unknown",
+        "needsUser": false
+      },
+      "fixtureType": "synthetic_vision_metadata_only",
+      "containsScreenshot": false,
+      "provider": "nol"
+    }
+  ]
+}
