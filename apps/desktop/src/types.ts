@@ -133,6 +133,14 @@ export interface CopilotAdvanceInfo {
   status:string;reason:string;attempts?:number;expiresAt?:number;
   targets:CopilotSuggestion[];automaticClicks?:number;
   holdEvidence?:{status:"provider_verifier_unavailable";verified:false;reason:string};
+  validationMetrics?:{
+    classification:"diagnostic_only";observationCount:number;
+    observationLatencyMs:{p50:number|null;p95:number|null;max:number|null};
+    queueEntries:number;queueResumptions:number;queuePending:boolean;
+    manualPauses:number;clickAttempts:number;clickRejections:number;
+    seatConflicts:number;soldOut:number;holdUnverified:number;
+    providerHoldClaims:number;officialHoldVerified:false;recordedEvents:number;
+  };
   strategyInfo?:{status:string;reason:string;holdVerified:false;actionAuthorized:false;
     rejected?:number;readyCount?:number;
     recommended:Array<{kind:string;label:string;rank:number;reason:string;
