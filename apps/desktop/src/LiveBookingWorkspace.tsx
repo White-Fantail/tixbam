@@ -269,6 +269,12 @@ export function LiveBookingWorkspace({
                       : advance.status==="stopped"
                         ? (language==="ko"?"중지됨":"Stopped")
                         : (language==="ko"?"준비됨":"Armed")}</strong> · {advance.reason}</p>
+          {advance.providerId==="nol" && advance.holdEvidence && <p className="settings-note" role="status">
+            <strong>{language==="ko"?"NOL 공식 좌석 보류 검증: 미연결":"NOL official seat hold verification: unavailable"}</strong>
+            {" · "}{language==="ko"
+              ?"공식 예매창에서 좌석, 1장, 수수료 포함 총액과 남은 시간을 직접 확인하세요. 화면 진입만으로 좌석이 확보된 것은 아닙니다."
+              :"Check the official window for one ticket, final fees and hold expiration. Reaching checkout does not secure a seat."}
+          </p>}
           {advance.providerId==="nol" && advance.providerStep && <p className="settings-note" role="status">
             <strong>{language==="ko"?"NOL 화면 진단: ":"NOL screen check: "}</strong>
             {({
