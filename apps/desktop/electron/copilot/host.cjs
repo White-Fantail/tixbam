@@ -230,9 +230,11 @@ class LiveCopilot {
         const observed=assessNolScreen({
           url:entry.win.webContents.getURL(),phase:entry.phase,
           visionStage:response.stageHint?.stage,
-          visionConfidence:response.stageHint?.confidence});
+          visionConfidence:response.stageHint?.confidence,
+          visionStep:response.stageHint?.nolStep,
+          visionStepConfidence:response.stageHint?.nolConfidence});
         session.providerStep=observed;
-        if(['human_gate','checkout_unverified'].includes(observed.step) ||
+        if(observed.needsUser ||
            observed.evidence==='phase_conflict'){
           this.autoInfo(session,observed.step==='checkout_unverified'
             ? 'hold_unverified':'awaiting_user',observed.detail);
@@ -407,7 +409,12 @@ class LiveCopilot {
         ? response.stageConfidence:0;
     return {status:response.status,targets,advisoryOnly:true,
       humanApprovalRequired:true,snapshotToken:preview.token,
-      stageHint:{stage,confidence}};
+      stageHint:{stage,confidence,
+        nolStep:typeof response.nolScreenStep==='string'
+          ? response.nolScreenStep:'unknown',
+        nolConfidence:Number.isFinite(response.nolStepConfidence) &&
+          response.nolStepConfidence>=0 && response.nolStepConfidence<=1
+            ? response.nolStepConfidence:0}};
   }
   async highlight(windowId,token,point) {
     const {entry,target}=await this.verifiedTarget(windowId,token,point,{readOnly:true});
