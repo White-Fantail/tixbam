@@ -198,3 +198,17 @@ From `apps/desktop`: `npm run test:copilot` runs `electron/copilot*.test.cjs`, i
 ### NOL-05 release blockers remain
 
 Actual NOL automation cannot be called production-ready: written vendor authorization and sanctioned test environment; an audited live seat-hold/price/result observer; durable crash-resilient duplicate reservation fencing; independent real-screen recognition measurements; no wrong-action/unsafe-site proofs; security/recovery review and a real provider booking hold E2E. Payment, queue, CAPTCHA and identity challenges remain user-owned, and no NOL release flag has been enabled. **Synthetic CI PASS never equals LIVE GO.**
+
+
+## Follow-up: automated validation of stages 1 and 2 (2026-10-12)
+
+Previously documented manual validation tracks **(1) offline Copilot/backend behavior** and **(2) Desktop screen/UI response** are now both covered by automated test cases. The dedicated command is:
+
+```bash
+npm ci
+npm run verify:nol
+```
+
+This runs the NOL-01..05 host/strategy/executor/validation integration tests, builds a **separate offline Electron fixture**, exercises the actual production `LiveBookingWorkspace` React DOM through NOL-01..05, and emits the synthetic-only HOLD validation report. The new fixture intentionally does **not** open any NOL provider URL, upload screenshots, or issue ticket actions; this does not validate actual NOL site UI recognition or real seat acquisition. CI also runs `npm run test:ui:nol -w @tixbam/desktop` after building Desktop + Admin.
+
+Detailed expected outputs, test-source locations and security boundaries: [NOL automated testing guide](./NOL_AUTOMATED_TESTING.md). This work does not change the existing NOL level-2/3 restriction or the production release HOLD gate.
