@@ -416,3 +416,72 @@ test('NOL-02 absent substep from older API does not claim fine-grained classific
   assert.equal(state.events.length,2);
   host.clearAll();
 });
+
+
+const nolStrategyFixture={
+  version:1,quantity:1,currency:'KRW',budgetMinor:140000,
+  performanceId:'perf-42',allowFallback:true,
+  seatPreferences:{priceTier:['R','S'],section:['A','B'],floor:['1F'],seatMode:'assigned'}
+};
+
+test('NOL-03 passes bounded plan preferences and ranks 1-seat candidates without selecting',async()=>{
+  const {host,entry,state,requests}=setup({developerMode:true,seatConfidence:.99});
+  entry.phase='selecting';
+  host.setVisionProvider(async payload=>{
+    requests.push(payload);
+    return {status:'candidates',advisoryOnly:true,humanApprovalRequired:true,
+      screenStage:'selecting',stageConfidence:.99,
+      nolScreenStep:'seat_map',nolStepConfidence:.99,targets:[
+        {x:.7,y:.3,confidence:.99,label:'Seat B',reason:'Candidate',kind:'seat',offer:{
+          quantity:1,currency:'KRW',performanceId:'perf-42',
+          priceTier:'S',section:'B',floor:'2F',seatMode:'assigned',
+          allInTotalMinor:110000,feesIncluded:true}},
+        {x:.3,y:.3,confidence:.99,label:'Seat A',reason:'Candidate',kind:'seat',offer:{
+          quantity:1,currency:'KRW',performanceId:'perf-42',
+          priceTier:'R',section:'A',floor:'1F',seatMode:'assigned',
+          allInTotalMinor:120000,feesIncluded:true}}
+      ]};
+  });
+  host.arm(42,{...developerConditions,nolStrategy:nolStrategyFixture},developerConsent);
+  await host.observe(42);
+  const info=host.autoStatus(42);
+  assert.equal(info.status,'awaiting_user');
+  assert.equal(info.strategyInfo.recommended[0].label,'Seat A');
+  assert.equal(info.strategyInfo.recommended[1].usedFallback,true);
+  assert.equal(info.strategyInfo.holdVerified,false);
+  assert.equal(info.strategyInfo.actionAuthorized,false);
+  assert.equal(state.events.length,0,'NOL strategy does not auto-confirm visual seat offers');
+  assert.deepEqual(requests[0].nolPreferences.section,['A','B']);
+  assert.equal(requests[0].nolPreferences.allowFallback,true);
+  host.clearAll();
+});
+
+test('NOL-03 rejects forged or mismatched approved price/quantity fields',()=>{
+  const {host,entry}=setup({developerMode:true});
+  entry.phase='selecting';
+  for(const wrong of [
+    {...nolStrategyFixture,quantity:2},
+    {...nolStrategyFixture,currency:'USD'},
+    {...nolStrategyFixture,budgetMinor:140001}
+  ])assert.throws(()=>host.arm(42,{...developerConditions,nolStrategy:wrong},
+    developerConsent),/NOL plan constraints/);
+  host.clearAll();
+});
+
+test('NOL-03 seat conflict recovery requires manual action without blind retries',async()=>{
+  const {host,entry,state}=setup({developerMode:true});
+  entry.phase='selecting';
+  host.setVisionProvider(async()=>({
+    status:'candidates',advisoryOnly:true,humanApprovalRequired:true,
+    screenStage:'selecting',stageConfidence:.99,
+    nolScreenStep:'seat_conflict',nolStepConfidence:.99,targets:[]
+  }));
+  host.arm(42,{...developerConditions,nolStrategy:nolStrategyFixture},developerConsent);
+  await host.observe(42);
+  const info=host.autoStatus(42);
+  assert.equal(info.status,'awaiting_user');
+  assert.equal(info.strategyInfo.recovery.action,'REOBSERVE_WITH_USER');
+  assert.equal(info.strategyInfo.recovery.autoRetry,false);
+  assert.equal(state.events.length,0);
+  host.clearAll();
+});
