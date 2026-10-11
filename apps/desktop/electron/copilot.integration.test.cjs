@@ -340,16 +340,18 @@ test('NOL-01 high-confidence checkout or queue hints stop clicking even on selec
   }
 });
 
-test('NOL-01 protected checkout URL produces a local no-upload warning',async()=>{
-  const {host,entry,state,requests}=setup({developerMode:true,seatConfidence:.99});
-  entry.phase='selecting';
-  state.url='https://nol.yanolja.com/en/checkout';
-  host.arm(42,developerConditions,developerConsent);
-  await host.observe(42);
-  const info=host.autoStatus(42);
-  assert.equal(info.status,'hold_unverified');
-  assert.equal(info.providerStep.step,'checkout_unverified');
-  assert.equal(requests.length,0,'never upload a protected checkout screenshot');
-  assert.equal(state.events.length,0);
-  host.clearAll();
+test('NOL-01 checkout/cart/payment routes never upload images or click',async()=>{
+  for(const protectedRoute of ['checkout','cart','payment']){
+    const {host,entry,state,requests}=setup({developerMode:true,seatConfidence:.99});
+    entry.phase='selecting';
+    state.url='https://nol.yanolja.com/en/'+protectedRoute;
+    host.arm(42,developerConditions,developerConsent);
+    await host.observe(42);
+    const info=host.autoStatus(42);
+    assert.equal(info.status,'hold_unverified',protectedRoute);
+    assert.equal(info.providerStep.step,'checkout_unverified',protectedRoute);
+    assert.equal(requests.length,0,'protected route cannot upload: '+protectedRoute);
+    assert.equal(state.events.length,0,protectedRoute);
+    host.clearAll();
+  }
 });
