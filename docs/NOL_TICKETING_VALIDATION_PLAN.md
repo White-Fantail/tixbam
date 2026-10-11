@@ -135,3 +135,48 @@ Run `npm run dev:copilot`. In a NOL plan enable advance **observe/visual guidanc
 The official NOL site still marks unauthorized automation as restricted, and no audited native reservation API/seat-hold evidence exists in the bundled addon. Before any live automation release, obtain authorized test access and record **non-sensitive** official evidence for seat selection, all-in price, exact performance, seat conflict and held-cart expiry. Until then, user actions and the official page remain the final source of truth.
 
 **Manual exploration:** set a NOL Booking Plan to **one ticket**, **KRW**, **maximum all-in budget**, and optionally ranked seat tiers/sections. Specify whether fallback is allowed. Start **automatic screen recognition and hints** without the developer auto-click diagnostic. In the live session, inspect **NOL · 1장 우선 후보 검토**; compare the visual preference ranking against the actual official screen. Do not share CAPTCHA, queue, login, payment or identifying screenshots.
+
+
+## NOL-04 implementation log (2026-10-11)
+
+### Implemented: strictly sandbox-only action / independent result verification
+
+**`apps/desktop/electron/copilot/nol-execution.cjs`** adds:
+
+- `NolSandboxProvider`: offline, in-memory stand-in for a NOL provider. It exposes separate `readOffer`, `submitOnce`, and `observeHold` methods. It has no browser, network, checkout, login, or payment access.
+- `NolSandboxExecutor`: accepts only the privately branded sandbox provider. It validates the exact account, plan, event, performance, browser/session generation, one KRW ticket, complete fee-included total, budget and explicit seat preferences **before** any mock mutation; revalidates owner scope after each await.
+- `NolSandboxJournal`: synchronous per-account/per-performance intent latch, recorded **before** submitting. A repeated offer, ambiguous outcome, verified hold, expired hold, concurrent attempt, or executor recreation against the same in-memory journal blocks duplicate mutations. A second different offer is possible **only** after independently observed `seat_conflict`/`sold_out`, `allowFallback=true`, explicit `confirmedFallback=true`, and within two attempts. This journal is **not crash-durable**; the existing `booking/journal.cjs` and server session coordination must be integrated before any real authorized provider mutation.
+- `verifySandboxHold`: checks an **independently read** sandbox-provider receipt against exact scope, offer ID, quantity=1, performance, fee-included KRW total within budget, status, observation freshness, binding and hold expiration. It has an internal evidence capability/fingerprint: an AI assertion, fabricated object, mutated proof, action acknowledgement, or checkout page cannot produce this token.
+- Explicit outputs: `sandbox_hold_verified` (the **mock** only), `seat_conflict`, `sold_out`, `hold_expired`, `reservation_unknown`, `blocked`. Every output has `simulation:true`, `liveHoldVerified:false`, `paymentSubmitted:false`. No method can complete a real NOL order or authorize a live executor.
+
+**Desktop integration:** the real NOL Copilot remains in visual guidance/manual-hand-off mode at selecting and checkout. At real checkout/cart, it now emits `holdEvidence.status=provider_verifier_unavailable` with `verified:false` and a Korean/English warning to check official quantity, total and hold timer. The sandbox executor is **not** exposed over Electron IPC or attached to the real browser. The installed NOL addon still has level-2 and level-3 automation restrictions.
+
+### Test cases / gate
+
+**`apps/desktop/electron/copilot.nol-execution.test.cjs`** includes mock-only end-to-end cases for:
+- one-ticket mock hold verified by a separate provider read and exact total
+- repeated requests, executor recreation and concurrent attempts
+- explicit user-confirmed fallback after seat conflict (no auto retry)
+- strict preferences when fallback not approved
+- response loss **after** a mock mutation: unknown outcome / no retry
+- submitted action without a provider hold: not success
+- quantity, performance, currency, fee completeness, event and total-budget mismatch **before** submission
+- mutated/mismatched evidence, replayed/fabricated proof
+- expired hold and stale observations
+- owner invalidation, cancel/stop, no mutation outside a valid session
+- all results require `liveHoldVerified:false`
+
+Validation to date: isolated JavaScript runner passed **13/13 NOL-04 test groups and 102 assertions**. The real Node test suite, Electron/TypeScript build and official NOL site E2E remain pending. No claims about measured NOL live success rate are made.
+
+### Remaining before actual NOL hold success (NOL-05 entry blockers)
+
+1. **Provider-approved adapter:** obtain explicit integration/automation permission and verified active NOL account/event ticket-flow evidence, preferably from a sanctioned test environment. Development flags do not grant vendor authorization.
+2. **Official hold proof:** trustworthy provider-owned readback with exact event/performance, one ticket, fee-included amount and expiration. Neither screenshot suggestions nor URL navigation alone qualifies. Implement a live evidence capability that cannot be minted by AI or the renderer.
+3. **Durable duplicate prevention:** wire the previously built fsync/HMAC journal and distributed session fencing to every actual provider mutation. In-memory mock journal is intentionally insufficient.
+4. **Full automation safety:** reviewed live adapter and proof contracts, session/popup ownership and SPA navigation, restricted pages, timeouts, queue continuity, cancellation, stale observation failure, crash recovery, same-seat conflict re-observation, and regression tests.
+5. **Real test data:** sanctioned fixture screenshots or redacted manual recordings for current NOL variants; NOL-02 visual recognition accuracy is still unmeasured.
+6. **Release checks:** normal packaged mode remains disabled until all conditions are met. No real payment automation and no queue, CAPTCHA or account-verification bypass.
+
+### Execute offline regression
+
+From `apps/desktop`: `npm run test:copilot` runs `electron/copilot*.test.cjs`, including the NOL-04 suite. A standalone invocation is `node --test electron/copilot.nol-execution.test.cjs`. Both run without touching NOL World, making a booking, or charging a card.
