@@ -6,7 +6,14 @@
  */
 const assert=require('node:assert/strict');
 const path=require('node:path');
+const fs=require('node:fs');
+const os=require('node:os');
 const {app,BrowserWindow,ipcMain,session}=require('electron');
+const isolatedProfile=fs.mkdtempSync(path.join(os.tmpdir(),'tixbam-nol-offline-'));
+app.setPath('userData',isolatedProfile);
+app.on('will-quit',()=>{
+  try{fs.rmSync(isolatedProfile,{recursive:true,force:true});}catch{}
+});
 const {assessNolScreen}=require('./copilot/nol-flow.cjs');
 const {normalizePlan,planChoices}=require('./copilot/nol-strategy.cjs');
 const {NolValidationTimeline}=require('./copilot/nol-validation.cjs');
