@@ -103,6 +103,8 @@ async function run(){
   await win.loadFile(fixture);
   await waitText('AI Booking Copilot');
   await waitText('TixBam Live Copilot');
+  // The initial async Copilot status proves the production hook subscribed.
+  await waitText('사전 승인 코파일럿');
 
   await scenario('NOL-01 event/detail + fail-closed human gate',async()=>{
     await send(base('awaiting_user',{
@@ -169,6 +171,23 @@ async function run(){
       return labels.filter(x=>x.includes('Offline '));})()`);
     assert.ok(top[0].includes('Offline R Main'),JSON.stringify(top));
     assert.ok(top[1].includes('Offline S Balcony'),JSON.stringify(top));
+
+    // When fallback is disabled, an out-of-section or over-budget item must
+    // disappear from the rendered recommendation list, not merely be dimmed.
+    const strict=normalizePlan({...preferences,allowFallback:false});
+    const strictChoices=planChoices(strict,[...candidates,{
+      kind:'seat',label:'Offline Over Budget',confidence:.99,offer:{
+        ...offer,priceTier:'R',section:'Main',floor:'1F',
+        allInTotalMinor:220000
+      }
+    }]);
+    assert.deepEqual(strictChoices.recommended.map(x=>x.label),['Offline R Main']);
+    await send(base('awaiting_user',{
+      providerStep:observed('selecting','selecting','seat_map'),
+      strategyInfo:strictChoices
+    }));
+    await waitText('Offline S Balcony',{absent:true});
+    await waitText('Offline Over Budget',{absent:true});
     const disabled=await dom(`[...document.querySelectorAll('button')]
       .some(x=>x.disabled && x.textContent.includes('AI 자동 진행'))`);
     assert.equal(disabled,true,'Real CopilotPanel must block unattended booking');
