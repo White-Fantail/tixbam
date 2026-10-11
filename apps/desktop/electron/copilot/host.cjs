@@ -173,6 +173,11 @@ class LiveCopilot {
         url:entry.win?.webContents?.getURL?.(),phase:entry.phase});
       // Never carry a previous page's stage label into a new observation.
       session.providerStep=observed;
+      if(['human_gate','checkout_unverified'].includes(observed.step)){
+        this.autoInfo(session,observed.step==='checkout_unverified'
+          ? 'hold_unverified':'awaiting_user',observed.detail);
+        return;
+      }
     }
     const check=canRun(session,entry);
     if(!check.allowed) {
