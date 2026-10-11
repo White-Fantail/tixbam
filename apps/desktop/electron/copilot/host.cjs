@@ -234,7 +234,8 @@ class LiveCopilot {
           visionStep:response.stageHint?.nolStep,
           visionStepConfidence:response.stageHint?.nolConfidence});
         session.providerStep=observed;
-        if(observed.needsUser ||
+        if(['human_gate','checkout_unverified'].includes(observed.step) ||
+           ['seat_conflict','sold_out'].includes(observed.substep) ||
            observed.evidence==='phase_conflict'){
           this.autoInfo(session,observed.step==='checkout_unverified'
             ? 'hold_unverified':'awaiting_user',observed.detail);
