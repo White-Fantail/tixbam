@@ -269,6 +269,20 @@ export function LiveBookingWorkspace({
                       : advance.status==="stopped"
                         ? (language==="ko"?"중지됨":"Stopped")
                         : (language==="ko"?"준비됨":"Armed")}</strong> · {advance.reason}</p>
+          {advance.providerId==="nol" && advance.validationMetrics &&
+            <p className="settings-note" role="status">
+              <strong>{language==="ko"?"NOL 검증 진단":"NOL validation diagnostics"}</strong>
+              {" · "}{language==="ko"?"화면 분석":"Observations"}: {advance.validationMetrics.observationCount}
+              {" · "}{language==="ko"?"인계":"Manual pauses"}: {advance.validationMetrics.manualPauses}
+              {" · "}{language==="ko"?"대기열 진입/복귀":"Queue transitions"}:
+              {" "}{advance.validationMetrics.queueEntries}/{advance.validationMetrics.queueResumptions}
+              {advance.validationMetrics.observationLatencyMs.p95!==null &&
+                <span> · P95 {language==="ko"?"분석 소요":"analysis elapsed"}:
+                  {" "}{advance.validationMetrics.observationLatencyMs.p95}ms</span>}
+              {" · "}{language==="ko"
+                ?"비식별 세션 진단값 · 티켓 확보 검증 아님"
+                :"Aggregate session data only · not ticket hold verification"}
+            </p>}
           {advance.providerId==="nol" && advance.holdEvidence && <p className="settings-note" role="status">
             <strong>{language==="ko"?"NOL 공식 좌석 보류 검증: 미연결":"NOL official seat hold verification: unavailable"}</strong>
             {" · "}{language==="ko"
