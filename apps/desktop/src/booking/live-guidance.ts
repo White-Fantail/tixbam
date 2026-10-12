@@ -26,7 +26,21 @@ export function bookingGuide(win:TicketWindow|undefined,advance:CopilotAdvanceIn
   const visual=advance?.providerStep;
   // Conservative: a reported checkout or human gate can show a warning,
   // but cannot grant click authority, mark a purchase or change a stage.
-  if(phase==="checkout"||phase==="verification"||visual?.step==="checkout_unverified"){
+  // The user's declared queue and login screens override untrusted
+  // visual labels. Never advance the progress rail from a model hint alone.
+  if(phase==="queue"||phase==="waiting")return {step:1,kind:"queue",action:"focus",
+    title:l("대기 중이에요. 공식 창을 유지하세요","Keep the official queue open"),
+    instruction:l("순서가 도착하면 공식 사이트의 안내대로 진행하세요.",
+      "Follow the official site when your turn arrives."),
+    caution:l("새 창·새로고침은 대기 순서를 잃게 할 수 있습니다.",
+      "New windows and refreshes may reset your queue position.")};
+  if(looksLikeSignIn(win.url))return {step:0,kind:"signin",action:"focus",
+    title:l("로그인 또는 인증을 완료하세요","Complete sign-in or verification"),
+    instruction:l("로그인 화면으로 보입니다. 주소가 정확한지 확인한 후 공식 창에서 직접 진행하세요.",
+      "This looks like a sign-in screen. Verify its address and proceed in the official window."),
+    caution:l("TixBam은 로그인·인증 화면을 자동 클릭하거나 우회하지 않습니다.",
+      "TixBam never auto-clicks or bypasses sign-in and verification.")};
+  if(phase==="checkout"||phase==="verification"){
     const verify=phase==="verification";
     return {step:3,kind:verify?"verify":"checkout",action:"focus",
       title:verify?l("구매 내역과 영수증을 확인하세요","Verify receipt and order history")
@@ -36,13 +50,14 @@ export function bookingGuide(win:TicketWindow|undefined,advance:CopilotAdvanceIn
       caution:l("결제 결과가 불분명하면 다시 결제하지 마세요.",
         "Never retry a payment when its outcome is uncertain.")};
   }
-  if(phase==="queue"||phase==="waiting")return {step:1,kind:"queue",action:"focus",
-    title:l("대기 중이에요. 공식 창을 유지하세요","Keep the official queue open"),
-    instruction:l("순서가 도착하면 공식 사이트의 안내대로 진행하세요.",
-      "Follow the official site when your turn arrives."),
-    caution:l("새 창·새로고침은 대기 순서를 잃게 할 수 있습니다.",
-      "New windows and refreshes may reset your queue position.")};
-  if(looksLikeSignIn(win.url)||visual?.step==="human_gate")
+  if(visual?.step==="checkout_unverified")return {
+    step:phase==="selecting"?2:0,kind:"checkout",action:"focus",
+    title:l("결제 화면으로 보일 수 있어요","This may be a checkout screen"),
+    instruction:l("공식 예매창의 실제 단계를 확인하세요. 화면 인식만으로 좌석 보류나 결제를 확정하지 않습니다.",
+      "Check the real provider screen. A visual hint cannot prove a hold or purchase."),
+    caution:l("확인 전에는 좌석 클릭을 진행하지 마세요.",
+      "Do not proceed with seat clicks before checking.")};
+  if(visual?.step==="human_gate")
     return {step:0,kind:"signin",action:"focus",
       title:l("로그인 또는 인증을 완료하세요","Complete sign-in or verification"),
       instruction:l("로그인 화면으로 보입니다. 주소가 정확한지 확인한 후 공식 창에서 직접 진행하세요.",
