@@ -14,12 +14,14 @@ export function looksLikeSignIn(url:string):boolean {
   } catch{return false;}
 }
 export function bookingGuide(win:TicketWindow|undefined,advance:CopilotAdvanceInfo|null,
-  ko:boolean):BookingGuide {
+  ko:boolean, quantity=1):BookingGuide {
   const l=(kr:string,en:string)=>ko?kr:en;
+  const count=Number.isSafeInteger(quantity)&&quantity>0?quantity:1;
+  const one=count===1;
   if(!win)return {step:0,kind:"open",action:"open",
     title:l("공식 예매창을 열어주세요","Open the official booking window"),
-    instruction:l("예매할 공연과 1장 목표를 확인하고 공식 예매 사이트를 여세요.",
-      "Confirm the event and your one-ticket target, then open the official site."),
+    instruction:l(`예매할 공연과 ${count}장 목표를 확인하고 공식 예매 사이트를 여세요.`,
+      `Confirm the event and ${count}-ticket target, then open the official site.`),
     caution:l("로그인과 본인 인증은 공식 예매창에서 직접 진행합니다.",
       "Sign-in and identity verification stay in the official window.")};
   const phase=win.phase||"preparing";
@@ -79,9 +81,12 @@ export function bookingGuide(win:TicketWindow|undefined,advance:CopilotAdvanceIn
       caution:l("AI 판단은 좌석의 실제 재고·보류를 확인한 것이 아닙니다.",
         "AI hints do not verify seat stock or holds.")};
   if(phase==="selecting")return {step:2,kind:"select",action:"tools",
-    title:l("1장 확보를 목표로 좌석을 고르세요","Choose one eligible ticket first"),
-    instruction:l("선호 구역보다 예산 이내의 1장 확보를 우선하세요. 화면 분석 도구로 버튼 위치 안내를 받을 수 있습니다.",
-      "Prioritize one ticket within budget. Use the screen guide to find candidate buttons."),
+    title:one?l("1장 확보를 목표로 좌석을 고르세요","Choose one eligible ticket first"):
+      l(`${count}장을 확보할 좌석을 고르세요`,`Choose seats for ${count} tickets`),
+    instruction:one?l("선호 구역보다 예산 이내의 1장 확보를 우선하세요. 화면 분석 도구로 버튼 위치 안내를 받을 수 있습니다.",
+      "Prioritize one ticket within budget. Use the screen guide to find candidate buttons."):
+      l("공식 예매처에서 설정한 매수와 예산을 먼저 확인하세요. 화면 분석은 버튼 위치 안내에만 사용하세요.",
+        "Verify the requested quantity and budget on the official site. Screen analysis only suggests buttons."),
     caution:l("최종 가격과 실제 좌석 확보는 공식 예매창에서 확인하세요.",
       "Verify prices and any actual hold in the official window.")};
   return {step:0,kind:"signin",action:"focus",
