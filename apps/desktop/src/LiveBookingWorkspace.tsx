@@ -181,8 +181,10 @@ export function LiveBookingWorkspace({
     <div className="section-heading">
       <div>
         <span className="eyebrow">LIVE BOOKING · OFFICIAL PROVIDER WINDOWS</span>
-        <h2>AI Booking Copilot</h2>
-        <p>Prepare your targets, use the official browser and get local click guidance. Unverified automatic actions remain disabled.</p>
+        <h2>{language==="ko"?"실전 예매 도우미":"Live booking assistant"}</h2>
+        <p>{language==="ko"
+          ?"지금 해야 할 행동을 확인하고 공식 예매창에서 진행하세요. 필요한 순간에만 화면 분석 도구를 사용하면 됩니다."
+          :"Follow the next action in the official booking window. Open screen guidance only when needed."}</p>
       </div>
       <span className="counter-badge"><Monitor size={14}/>{tr("Browser windows: {count}", { count: windows.length })}</span>
     </div>
