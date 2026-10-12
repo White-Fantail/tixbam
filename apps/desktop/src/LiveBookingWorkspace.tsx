@@ -255,6 +255,19 @@ export function LiveBookingWorkspace({
             onClick={()=>void resumeAdvance()}>
             {language==="ko"?"직접 조작을 마쳤어요 · 계속":"I finished · Resume assistance"}</button>}
       </div>
+      {guide.step===2 && advance?.strategyInfo?.recommended && advance.strategyInfo.recommended.length>0 &&
+        <div className="live-guide-offers" data-testid="live-guide-candidates" role="note">
+          <strong>{language==="ko"?"AI가 확인한 좌석 후보 순서 · 실제 재고 미확인":
+            "AI-suggested seat order · availability unverified"}</strong>
+          {advance.strategyInfo.recommended.slice(0,3).map((offer,index)=>
+            <p key={index}><span>{index+1}. {offer.label}</span>
+              {offer.usedFallback && <em>{language==="ko"?"대안":"Alternative"}</em>}
+              {offer.apparentTotalMinor!==null&&offer.apparentTotalMinor!==undefined &&
+                <small>KRW {offer.apparentTotalMinor.toLocaleString()} · {language==="ko"?
+                  "AI 추정가":"Visual estimate"}</small>}</p>)}
+          <small>{language==="ko"?"공식 사이트에서 조건·좌석·가격을 직접 확인하세요.":
+            "Confirm seat, price and conditions in the official site."}</small>
+        </div>}
       <p className="live-guide-note"><ShieldAlert size={14}/>{guide.caution}</p>
       <p className="live-guide-confidence">{language==="ko"
         ?"안내는 참고용입니다. 공식 사이트에서 단계와 확보 여부를 확인하세요."
@@ -317,9 +330,19 @@ export function LiveBookingWorkspace({
           {tr("Copilot target: linked popup #{id}",{id:selectedWindow.id})} · {selectedWindow.site}. {tx("Only supported ticket-provider pages are eligible.")}
         </p>}
         {primary && selectedWindow?.popup && <button className="button button-outline" onClick={() => setSelectedWindowId(primary.id)}>{tx("Use main browser in Copilot")}</button>}
-        {advance && advance.status!=="off" && <div className="live-automation-card" role="status">
+        {advance && advance.status!=="off" && <div className="live-automation-card live-advance-card" role="status">
           <div className="live-card-head"><ShieldAlert size={18}/>
-            <h3>{language==="ko"?"사전 승인 코파일럿":"Advance-approved Copilot"}</h3></div>
+            <h3>{language==="ko"?"예매 도우미 진행 상태":"Booking assistant status"}</h3></div>
+          <p>{language==="ko"
+            ?advance.status==="hold_unverified"?"공식 예매창에서 좌석 확보 여부를 확인해야 해요."
+              :advance.status==="awaiting_user"?"필요한 조작을 마쳤다면 위의 '계속' 버튼을 누르세요."
+                :"공식 예매창의 진행을 도와드리고 있어요."
+            :advance.status==="hold_unverified"?"Verify the seat hold in the official window."
+              :advance.status==="awaiting_user"?"Finish the action in the provider window, then resume."
+                :"Assistance follows the official booking window."}</p>
+          <details className="live-diagnostics" data-testid="live-diagnostics">
+            <summary>{language==="ko"?"고급 진단 · 엔진 상태 확인":"Advanced diagnostics · engine status"}</summary>
+            <div className="live-card-head"><h4>{language==="ko"?"사전 승인 코파일럿":"Advance-approved Copilot"}</h4></div>
           <p><strong>{advance.status==="progress"
             ? (language==="ko"?"자동 예매 단계 진행 중":"Continuing approved steps")
             : advance.status==="observing"
@@ -422,17 +445,28 @@ export function LiveBookingWorkspace({
                 await window.tixbam?.copilotAdvanceStop(advance.windowId);
                 setAdvance(null);
               })}>{language==="ko"?"자동화 중지":"Stop automation"}</button>}
+          </details>
         </div>}
+        <details className="live-tools-disclosure" id="live-copilot-tools"
+          data-testid="live-copilot-tools">
+          <summary>{language==="ko"?"화면 분석 · 클릭 위치 도우미":"Screen analysis · click guide"}</summary>
+          <p className="live-tools-description">{language==="ko"
+            ?"공식 창에서 티켓 선택 화면까지 진행한 다음, 여기서 화면을 가져오고 필요한 버튼의 위치를 확인하세요."
+            :"After reaching ticket selection in the provider window, capture the screen here and inspect suggested buttons."}</p>
         <LiveCopilotPanel
           key={String(selectedWindow?.id ?? plan.id)+":"+String(selectedWindow?.phase)+":"+String(selectedWindow?.url)+":"+String(selectedWindow?.loading)}
           bookingWindow={selectedWindow} plan={plan}
           onSelectTicketStep={() => onPhase(selectedWindow!.id, "selecting")}/>
+        </details>
         {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" && (
+          <details className="live-tools-disclosure">
+            <summary>{language==="ko"?"예매처별 실전 도움말":"Provider-specific instructions"}</summary>
           <ProviderLiveGuide key={selectedWindow?.id ?? plan.id}
             addon={addons.find(addon => addon.id === plan.providerId)!}
             phase={selectedWindow?.phase || "preparing"}/>
+          </details>
         )}
-        <div className="live-automation-card">
+        {relatedRuns.length>0 && <div className="live-automation-card">
           <div className="live-card-head"><ShieldAlert size={19}/><h3>Booking assistance</h3></div>
           <p>Automation is not guaranteed for this provider. It must not bypass CAPTCHA, the queue or bank verification.</p>
           {relatedRuns.length ? relatedRuns.map(run => {
@@ -470,8 +504,8 @@ export function LiveBookingWorkspace({
                   disabled={Boolean(busy)} onClick={() => void runControl(run, "stop")}>Stop assistance</button>}
               </div>
             </div>;
-          }) : <p className="live-manual-label"><CircleHelp size={15}/> Guided/manual booking. No automation run is active for this window.</p>}
-        </div>
+          }) : null}
+        </div>}
       </div>
       <aside className="live-assistant">
         <div className="live-assistant-card">
