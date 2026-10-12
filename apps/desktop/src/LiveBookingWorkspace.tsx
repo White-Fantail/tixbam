@@ -509,11 +509,12 @@ export function LiveBookingWorkspace({
       </div>
       <aside className="live-assistant">
         <div className="live-assistant-card">
-          <h3><Clock3 size={18}/> Your booking conditions</h3>
+          <h3><Clock3 size={18}/>{language==="ko"?"나의 예매 목표":"Your booking target"}</h3>
           <p><b>{tr("{count} ticket(s)", { count: plan.quantity })}</b> · {money(plan)} {tx("including fees")}</p>
           <p>{plan.requireTogether ? "Adjacent seats required" : "Separate seats allowed"}
             · {plan.allowFallback ? "Ranked alternatives allowed" : "No unranked alternatives"}</p>
-          <div className="live-seat-summary" role="note">
+          <details className="live-seat-summary live-target-details" role="note">
+            <summary>{language==="ko"?"구역·등급·제한 조건 자세히 보기":"Seat and restrictions details"}</summary>
             <strong>{tx("Mode: manual / reviewed assistance only")}</strong>
             <p>{tx("Unattended checkout is disabled unless the ticket agent explicitly authorizes it and the implementation is verified.")}</p>
             {plan.seatPreferences&&<p>{tx("Seat allocation type")}: {tx(plan.seatPreferences.seatMode||"No seat mode preference")}
@@ -526,11 +527,12 @@ export function LiveBookingWorkspace({
               plan.terms?.allowAgeRestricted&&tx("Age restriction"),
               plan.terms?.allowAccessibilityRestricted&&tx("Accessibility restriction")
             ].filter(Boolean).join(", ")||tx("None approved")}</p>
-          </div>
+          </details>
           {!plan.preferencesReady && <p className="live-warning">Preferences have not been marked ready in the Booking Plan.</p>}
         </div>
-        <div className="live-assistant-card">
-          <h3>Current step <small>Selected by you</small></h3>
+        <details className="live-assistant-card live-stage-disclosure">
+          <summary>{language==="ko"?"실제 화면과 다르면 단계 수정":"Correct the stage if it differs from the site"}</summary>
+          <h3>{language==="ko"?"현재 안내 단계 · 직접 선택":"Current step · chosen by you"}</h3>
           <p className="live-stage-disclaimer">TIXBAM cannot reliably detect the ticket site's queue, seats or payment status. Choose the stage yourself only to see relevant guidance.</p>
           {selectedWindow ? <>
             <label htmlFor="live-step">My current stage</label>
@@ -541,10 +543,11 @@ export function LiveBookingWorkspace({
             <p className="live-next-action">{tx(steps.find(s => s.id === (selectedWindow.phase || "preparing"))?.help || "")}</p>
             {riskStages.has(selectedWindow.phase || "preparing") && <p className="live-warning"><AlertTriangle size={15}/> Never retry an uncertain payment automatically.</p>}
           </> : <p>Open the official browser first. Its exact stage will not be inferred by TIXBAM.</p>}
-        </div>
-        <div className="live-assistant-card"><h3><LockKeyhole size={18}/> Safety</h3>
+        </details>
+        <details className="live-assistant-card live-safety-disclosure">
+          <summary><LockKeyhole size={17}/>{language==="ko"?"안전하게 예매하기":"Booking safety"}</summary>
           <p>No verified provider receipt means no confirmed purchase. Avoid extra windows and refreshes during a queue. Keep your bank authentication available.</p>
-        </div>
+        </details>
       </aside>
     </div> : <div className="empty-state"><Layers3 size={35}/>
       <h3>No Booking Plan selected</h3><p>Prepare your target ticket sale in My Bookings, then open its official browser here.</p>
