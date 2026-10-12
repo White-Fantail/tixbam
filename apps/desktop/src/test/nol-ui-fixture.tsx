@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect,useState} from "react";
 import {createRoot} from "react-dom/client";
 import {LiveBookingWorkspace} from "../LiveBookingWorkspace";
 import {type BookingPlan} from "../booking-plans";
@@ -34,10 +34,22 @@ const addon = {...(addonCatalog.find(x=>x.id==="nol")||{}),
 
 function OfflineNolFixture(){
   const [phase,setPhase]=useState<LivePhase>("selecting");
+  const [url,setUrl]=useState("https://nol.yanolja.com/product/offline-fixture");
+  // Synthetic route changes, never a provider browser or real network call.
+  useEffect(()=>{
+    const change=(event:Event)=>{
+      const next=(event as CustomEvent<string>).detail;
+      if(typeof next==="string" &&
+        ["nol.yanolja.com","accounts.yanolja.com"].includes(new URL(next).hostname))
+        setUrl(next);
+    };
+    window.addEventListener("nol-ui-test:navigate",change);
+    return()=>window.removeEventListener("nol-ui-test:navigate",change);
+  },[]);
   const win:TicketWindow={
     id:42,providerId:"nol",planId:plan.id,
-    phase,site:"nol.yanolja.com",title:"NOL offline fixture",
-    url:"https://nol.yanolja.com/product/offline-fixture",
+    phase,site:new URL(url).hostname,title:"NOL offline fixture",
+    url,
     loading:false,popup:false,parentId:null,loadError:null,openedAt:Date.now(),
   };
   return <main data-testid="nol-ui-fixture">
