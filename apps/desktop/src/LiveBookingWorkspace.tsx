@@ -8,6 +8,7 @@ import { tx, tr, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
 import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
 import { ProviderLiveGuide } from "./booking/ProviderLiveGuide";
+import { bookingGuide, looksLikeSignIn } from "./booking/live-guidance";
 import { formatSaleLocalTime } from "./ticket-sales";
 import type { CopilotAdvanceInfo, LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
 import { useLanguage } from "./i18n";
@@ -111,6 +112,7 @@ export function LiveBookingWorkspace({
   const unknownLinked = windows.filter(item => item.planId && !plans.some(p => p.id === item.planId) && !item.popup);
   const planHistory = history.filter(item => plans.some(p => p.id === item.planId));
   const advancedWindowId=selectedWindow?.id ?? primary?.id ?? null;
+  const guide=bookingGuide(selectedWindow,advance,language==="ko");
   useEffect(()=>{
     let active=true;
     setAdvance(null);
@@ -135,6 +137,22 @@ export function LiveBookingWorkspace({
     finally { setBusy(""); }
   }
 
+  function openCopilotTools(){
+    const element=document.getElementById("live-copilot-tools") as HTMLDetailsElement|null;
+    if(element){element.open=true;element.scrollIntoView({behavior:"smooth",block:"start"});}
+  }
+  async function guideAction(){
+    if(guide.action==="tools"){openCopilotTools();return;}
+    if(guide.action==="open" && plan){await invoke("start",()=>onStart(plan));return;}
+    if(selectedWindow)await invoke("focus",()=>onFocus(selectedWindow.id));
+  }
+  async function resumeAdvance(){
+    if(!advance||!window.tixbam)return;
+    await invoke("resume-advance",async()=>{
+      const next=await window.tixbam!.copilotAdvanceResume(advance.windowId);
+      setAdvance(next);
+    });
+  }
   async function runControl(run: BookingRun, action: "resume" | "stop") {
     if (!window.tixbam) return;
     if (action === "stop" && !window.confirm("Stop TIXBAM automation? This does not cancel any order already submitted to the ticket provider.")) return;
@@ -194,6 +212,54 @@ export function LiveBookingWorkspace({
         </button>;
       }) : <p>No live Booking Plan window is open. Choose a plan below to launch its official website.</p>}
     </div>
+    {plan && <section className="live-guide" data-testid="live-booking-guide"
+      aria-label={language==="ko"?"지금 해야 할 예매 단계":"Your next booking step"}>
+      <div className="live-guide-top">
+        <span className="eyebrow">{language==="ko"?"지금 해야 할 일":"YOUR NEXT STEP"}</span>
+        <span className="live-guide-limit">{tr("{count} ticket(s)",{count:plan.quantity})} · {money(plan)} {tx("including fees")}</span>
+      </div>
+      <div className="live-guide-steps" role="list"
+        aria-label={language==="ko"?"예매 진행 안내":"Booking progress guide"}>
+        {(language==="ko"
+          ? ["접속 · 로그인","대기 · 입장","좌석 · 선택","주문 · 확인"]
+          : ["Open · Sign in","Wait · Enter","Choose a seat","Review · Verify"])
+          .map((item,i)=><span key={item} role="listitem"
+            className={"live-guide-step"+(i===guide.step?" active":i<guide.step?" passed":"")}>
+            <span>{i+1}</span>{item}</span>)}
+      </div>
+      <h2 data-testid="live-guide-heading">{guide.title}</h2>
+      <p className="live-guide-description">{guide.instruction}</p>
+      <div className="live-guide-actions">
+        <button className="button button-primary" data-testid="live-guide-primary"
+          disabled={!!busy} onClick={()=>void guideAction()}>{guide.action==="open"
+            ? (language==="ko"?"공식 예매창 열기":"Open official window")
+            :guide.action==="tools"
+              ? (language==="ko"?"화면 분석 · 좌석 도움":"Open seat-selection guide")
+              : (language==="ko"?"공식 예매창 확인":"View official window")}
+          <ArrowRight size={16}/></button>
+        {selectedWindow && guide.action==="tools" &&
+          <button className="button button-outline" disabled={!!busy}
+            onClick={()=>void invoke("focus",()=>onFocus(selectedWindow.id))}>
+            <ExternalLink size={15}/>{language==="ko"?"공식 창으로 이동":"Go to provider window"}</button>}
+        {selectedWindow && guide.kind==="signin" && !looksLikeSignIn(selectedWindow.url) &&
+          advance?.providerStep?.step!=="human_gate" && !selectedWindow.loadError &&
+          <button className="button button-outline" data-testid="live-guide-mark-selecting"
+            disabled={!!busy} onClick={()=>{
+              if(!window.confirm(language==="ko"
+                ?"공식 예매창에서 실제 티켓·좌석 선택 화면이 열렸나요? 로그인·대기열·결제 중이라면 취소하세요."
+                :"Are you actually on the ticket-selection page? Cancel during login, queue or checkout."))return;
+              void invoke("stage",()=>onPhase(selectedWindow.id,"selecting"));
+            }}>{language==="ko"?"좌석 선택 화면에 들어왔어요":"I'm selecting tickets"}</button>}
+        {selectedWindow && ["awaiting_user","paused"].includes(advance?.status||"") &&
+          <button className="button button-outline" disabled={!!busy}
+            onClick={()=>void resumeAdvance()}>
+            {language==="ko"?"직접 조작을 마쳤어요 · 계속":"I finished · Resume assistance"}</button>}
+      </div>
+      <p className="live-guide-note"><ShieldAlert size={14}/>{guide.caution}</p>
+      <p className="live-guide-confidence">{language==="ko"
+        ?"안내는 참고용입니다. 공식 사이트에서 단계와 확보 여부를 확인하세요."
+        :"Guidance is advisory. Verify the stage and any hold in the official site."}</p>
+    </section>}
     {plan ? <div className="live-workspace-grid">
       <div className="live-main">
         <div className="live-site-card">
@@ -222,7 +288,7 @@ export function LiveBookingWorkspace({
           <div className="live-actions">
             {addons.find(addon => addon.id === plan.providerId)?.bookingAssistance?.mode === "manual" &&
               <button className="button button-outline" onClick={() => onBackToPlan(plan.id)}>{tx("Edit booking conditions")}</button>}
-            {selectedWindow ? <button className="button button-primary" disabled={busy !== ""}
+            {selectedWindow ? <button className="button button-outline" disabled={busy !== ""}
                 onClick={() => void invoke("focus", () => onFocus(selectedWindow.id))}><ExternalLink size={16}/> Focus official site</button> :
               remainingPopup ? <button className="button button-primary" disabled={busy !== ""}
                 onClick={() => void invoke("focus-popup", () => onFocus(remainingPopup.id))}>
