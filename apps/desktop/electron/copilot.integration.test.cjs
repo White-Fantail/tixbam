@@ -425,6 +425,12 @@ const nolStrategyFixture={
   performanceId:'perf-42',allowFallback:true,
   seatPreferences:{priceTier:['R','S'],section:['A','B'],floor:['1F'],seatMode:'assigned'}
 };
+const nolApprovedConditions={
+  ...developerConditions,
+  // In these tests the approved booking budget must match the NOL strategy.
+  // Keep the production host's mismatch rejection fully enabled.
+  budgetMinor:nolStrategyFixture.budgetMinor
+};
 
 test('NOL-03 passes bounded plan preferences and ranks 1-seat candidates without selecting',async()=>{
   const {host,entry,state,requests}=setup({developerMode:true,seatConfidence:.99});
@@ -444,7 +450,7 @@ test('NOL-03 passes bounded plan preferences and ranks 1-seat candidates without
           allInTotalMinor:120000,feesIncluded:true}}
       ]};
   });
-  host.arm(42,{...developerConditions,nolStrategy:nolStrategyFixture},developerConsent);
+  host.arm(42,{...nolApprovedConditions,nolStrategy:nolStrategyFixture},developerConsent);
   await host.observe(42);
   const info=host.autoStatus(42);
   assert.equal(info.status,'awaiting_user');
@@ -465,7 +471,7 @@ test('NOL-03 rejects forged or mismatched approved price/quantity fields',()=>{
     {...nolStrategyFixture,quantity:2},
     {...nolStrategyFixture,currency:'USD'},
     {...nolStrategyFixture,budgetMinor:140001}
-  ])assert.throws(()=>host.arm(42,{...developerConditions,nolStrategy:wrong},
+  ])assert.throws(()=>host.arm(42,{...nolApprovedConditions,nolStrategy:wrong},
     developerConsent),/NOL plan constraints/);
   host.clearAll();
 });
@@ -478,7 +484,7 @@ test('NOL-03 seat conflict recovery requires manual action without blind retries
     screenStage:'selecting',stageConfidence:.99,
     nolScreenStep:'seat_conflict',nolStepConfidence:.99,targets:[]
   }));
-  host.arm(42,{...developerConditions,nolStrategy:nolStrategyFixture},developerConsent);
+  host.arm(42,{...nolApprovedConditions,nolStrategy:nolStrategyFixture},developerConsent);
   await host.observe(42);
   const info=host.autoStatus(42);
   assert.equal(info.status,'awaiting_user');
