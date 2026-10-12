@@ -181,7 +181,9 @@ async function run(){
 
     // When fallback is disabled, an out-of-section or over-budget item must
     // disappear from the rendered recommendation list, not merely be dimmed.
-    const strict=normalizePlan({...preferences,allowFallback:false});
+    const strict=normalizePlan({...preferences,allowFallback:false,
+      seatPreferences:{priceTier:['R'],section:['Main'],
+        floor:['1F'],seatMode:'assigned'}});
     const strictChoices=planChoices(strict,[...candidates,{
       kind:'seat',label:'Offline Over Budget',confidence:.99,offer:{
         ...offer,priceTier:'R',section:'Main',floor:'1F',
