@@ -3,6 +3,7 @@ import { Crosshair, Eye, MousePointerClick, ShieldAlert } from "lucide-react";
 import type { BookingPlan } from "../booking-plans";
 import type { CopilotSnapshot, CopilotSuggestion, TicketWindow } from "../types";
 import { useLanguage } from "../i18n";
+import { looksLikeSignIn } from "../booking/live-guidance";
 
 function readableCopilotError(error: unknown, ko: boolean): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -44,7 +45,10 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
   useEffect(() => { setSnapshot(null); setPoint(null); setTargets([]);setError("");setNotice(""); },
     [bookingWindow?.id, bookingWindow?.phase, bookingWindow?.url, bookingWindow?.loading, plan.id]);
   const previewOnly = bookingWindow?.phase === "preparing";
-  const eligible = bookingWindow &&
+  // The provider may navigate to a separate login origin without updating the
+  // manually selected booking phase. Never invite capture on sign-in pages.
+  const signInScreen=!!bookingWindow && looksLikeSignIn(bookingWindow.url);
+  const eligible = bookingWindow && !signInScreen &&
     (bookingWindow.phase === "selecting" || previewOnly) &&
     !bookingWindow.loading && !bookingWindow.loadError;
   async function capture() {
@@ -153,9 +157,11 @@ export function LiveCopilotPanel({ bookingWindow, plan, onSelectTicketStep }: {
             .finally(() => setBusy(""));
         }}>{ko?"티켓 선택 단계로 전환":"I'm selecting tickets now"}</button>
     </div>}
-    {!eligible && <p className="live-warning">{ko
-      ?"공식 예매 창을 열고 실제 좌석 선택 단계에 들어가면 '현재 단계'에서 '티켓 선택 중'을 선택해. 대기열·로그인·결제 단계에서는 캡처와 클릭을 막아."
-      :"Open a plan-linked browser and select 'Selecting tickets' at the actual seat step. Queue, login and payment steps are excluded."}</p>}
+    {!eligible && <p className="live-warning">{signInScreen
+      ? (ko?"로그인·인증 화면으로 보입니다. 주소를 확인하고 공식 창에서 직접 완료하세요. 이 화면은 캡처하거나 클릭하지 않습니다."
+        :"This appears to be a sign-in or verification screen. Finish it in the official window; capture and clicking are disabled.")
+      : (ko?"실제 좌석 선택 화면에서만 화면 분석을 사용할 수 있어요. 대기열·인증·결제에서는 캡처와 클릭을 막습니다."
+        :"Screen guidance is available at ticket selection. Queue, identity checks and payment are excluded.")}</p>}
     {snapshot && <div className="copilot-preview">
       <p className="copilot-preview-note">{snapshot.mode === "diagnostic_preview"
         ? (ko?"예매 시작 화면 · AI 분석은 동의 시 1회 전송 · 위치 표시는 클릭하지 않음":
