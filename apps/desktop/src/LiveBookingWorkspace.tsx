@@ -112,7 +112,7 @@ export function LiveBookingWorkspace({
   const unknownLinked = windows.filter(item => item.planId && !plans.some(p => p.id === item.planId) && !item.popup);
   const planHistory = history.filter(item => plans.some(p => p.id === item.planId));
   const advancedWindowId=selectedWindow?.id ?? primary?.id ?? null;
-  const guide=bookingGuide(selectedWindow,advance,language==="ko");
+  const guide=bookingGuide(selectedWindow,advance,language==="ko",plan?.quantity);
   useEffect(()=>{
     let active=true;
     setAdvance(null);
