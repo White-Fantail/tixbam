@@ -24,6 +24,24 @@ app.commandLine.appendSwitch('disable-dev-shm-usage');
 let win, resumes=0, stops=0, networkAttempts=0;
 const planId='nol-offline-ui-plan';
 const out=[],errors=[];
+async function diagnostics(){
+  if(!win||win.isDestroyed())return {window:'unavailable'};
+  try{
+    return await dom(`(()=>{
+      const root=document.getElementById('root');
+      return {
+        readyState:document.readyState,
+        href:location.protocol+'//'+location.host+location.pathname,
+        rootFound:!!root,
+        reactFixtureFound:!!document.querySelector('[data-testid="nol-ui-fixture"]'),
+        rootText:(root?.textContent||'').slice(0,450),
+        scripts:[...document.scripts].map(x=>({src:x.getAttribute('src'),type:x.type})),
+        hasBridge:typeof window.tixbam==='object',
+        bootError:document.querySelector('[data-testid="nol-ui-boot-error"]')?.textContent||null
+      };
+    })()`);
+  }catch(e){return {diagnosticsError:String(e)};}
+}
 const base=(status,patch={})=>({
   windowId:42,planId,providerId:'nol',requestedMode:'observe',
   mode:'observe',status,reason:'Offline NOL validation fixture',
@@ -44,7 +62,7 @@ async function waitFor(label,predicate,{timeout=7500}={}){
 }
 async function waitText(expected,{absent=false}={}){
   return waitFor((absent?'hidden ':'visible ')+expected,
-    ()=>dom(`(()=>{const t=document.querySelector('[data-testid="nol-ui-fixture"]')?.innerText||'';return ${absent?'!t.includes('+JSON.stringify(expected)+')':'t.includes('+JSON.stringify(expected)+')'};})()`));
+    ()=>dom(`(()=>{const t=document.querySelector('[data-testid="nol-ui-fixture"]')?.textContent||'';return ${absent?'!t.includes('+JSON.stringify(expected)+')':'t.includes('+JSON.stringify(expected)+')'};})()`));
 }
 async function send(info){
   win.webContents.send('tixbam:copilot-advance-update',info);
@@ -104,10 +122,22 @@ async function run(){
   win.webContents.on('did-fail-load',(_e,code,reason,url)=>{
     errors.push('Renderer load failed '+code+' '+reason+' '+url);
   });
-  win.webContents.on('console-message',(_e,level,message)=>{
-    if(level>=3)errors.push('Renderer console error: '+message);
+  // Electron 37+ passes console details as ONE object. The old positional
+  // listener silently swallowed renderer exceptions and hid why React failed.
+  win.webContents.on('console-message',(_event,details)=>{
+    const level=typeof details==='object'?details.level:null;
+    const message=typeof details==='object'?details.message:'';
+    if(level==='error'||level===3)
+      errors.push('Renderer console error: '+String(message).slice(0,600));
+  });
+  win.webContents.on('preload-error',(_event,_preload,error)=>{
+    errors.push('Renderer preload error: '+String(error?.stack||error).slice(0,1200));
+  });
+  win.webContents.on('render-process-gone',(_event,details)=>{
+    errors.push('Renderer process gone: '+details.reason);
   });
   await win.loadFile(fixture);
+  await waitFor('React fixture mounted',()=>dom(`!!document.querySelector('[data-testid="nol-ui-fixture"]')`));
   await waitText('AI Booking Copilot');
   await waitText('TixBam Live Copilot');
   // The initial async Copilot status proves the production hook subscribed.
@@ -158,12 +188,15 @@ async function run(){
     {kind:'seat',label:'Offline S Balcony',confidence:.99,offer:{
       ...offer,priceTier:'S',section:'Balcony',floor:'2F'}},
     {kind:'seat',label:'Offline R Main',confidence:.99,offer:{
-      ...offer,priceTier:'R',section:'Main',floor:'1F'}}
+      ...offer,priceTier:'R',section:'Main',floor:'1F'}},
+    {kind:'seat',label:'Offline Fallback Upper',confidence:.99,offer:{
+      ...offer,priceTier:'A',section:'Upper',floor:'3F'}}
   ];
   await scenario('NOL-03 rank one-ticket candidates and fallback without click',async()=>{
     const strategyInfo=planChoices(preferences,candidates);
     assert.deepEqual(strategyInfo.recommended.map(x=>x.label),
-      ['Offline R Main','Offline S Balcony']);
+      ['Offline R Main','Offline S Balcony','Offline Fallback Upper']);
+    assert.equal(strategyInfo.recommended[2].usedFallback,true);
     assert.equal(strategyInfo.actionAuthorized,false);
     await send(base('awaiting_user',{
       providerStep:observed('selecting','selecting','seat_map'),strategyInfo
@@ -171,6 +204,7 @@ async function run(){
     await needsText('NOL · 1장 우선 후보 검토');
     await needsText('Offline R Main');
     await needsText('Offline S Balcony');
+    await needsText('Offline Fallback Upper');
     await needsText('대안');
     const top=await dom(`(()=>{const area=[...document.querySelectorAll('.copilot-candidates')]
       .find(x=>x.textContent.includes('NOL · 1장 우선 후보 검토'));
@@ -196,6 +230,7 @@ async function run(){
       strategyInfo:strictChoices
     }));
     await waitText('Offline S Balcony',{absent:true});
+    await waitText('Offline Fallback Upper',{absent:true});
     await waitText('Offline Over Budget',{absent:true});
     const disabled=await dom(`[...document.querySelectorAll('button')]
       .some(x=>x.disabled && x.textContent.includes('AI 자동 진행'))`);
@@ -273,9 +308,11 @@ const hardTimeout=setTimeout(()=>{
 },90000);
 app.whenReady().then(run).then(()=>{
   clearTimeout(hardTimeout);win?.destroy();app.exit(0);
-}).catch(error=>{
+}).catch(async error=>{
   clearTimeout(hardTimeout);
   process.stderr.write('NOL Desktop UI E2E FAILED: '+String(error?.stack||error)+'\n');
-  process.stderr.write(JSON.stringify({passedSoFar:out,rendererErrors:errors})+'\n');
+  const page=await diagnostics();
+  process.stderr.write(JSON.stringify({passedSoFar:out,rendererErrors:errors,
+    page,networkAttempts})+'\n');
   win?.destroy();app.exit(1);
 });
