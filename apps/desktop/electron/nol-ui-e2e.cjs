@@ -176,6 +176,28 @@ async function run(){
   // The initial async Copilot status proves the production hook subscribed.
   await waitText('사전 승인 코파일럿');
 
+  await scenario('Live booking beginner guide: visible action and hidden diagnostics',async()=>{
+    const initial=await dom(`(()=>{
+      const guide=document.querySelector('[data-testid="live-booking-guide"]');
+      const steps=[...guide.querySelectorAll('.live-guide-step')];
+      return {
+        steps:steps.length,
+        active:steps.findIndex(x=>x.classList.contains('active')),
+        heading:guide.querySelector('[data-testid="live-guide-heading"]')?.textContent,
+        diagnosticsOpen:document.querySelector('[data-testid="live-diagnostics"]')?.open,
+        toolsOpen:document.querySelector('[data-testid="live-copilot-tools"]')?.open
+      };
+    })()`);
+    assert.equal(initial.steps,4);
+    assert.equal(initial.active,2);
+    assert.ok(initial.heading.includes('1장'));
+    assert.equal(initial.diagnosticsOpen,false);
+    assert.equal(initial.toolsOpen,false);
+    await clickButton('화면 분석 · 좌석 도움');
+    await waitFor('guide tools revealed by primary action',()=>dom(
+      `document.querySelector('[data-testid="live-copilot-tools"]')?.open===true`));
+  });
+
   await scenario('NOL-01 event/detail + fail-closed human gate',async()=>{
     await send(base('awaiting_user',{
       providerStep:observed('preparing','event','event_detail')
@@ -239,6 +261,9 @@ async function run(){
     await needsText('Offline S Balcony');
     await needsText('Offline Fallback Upper');
     await needsText('대안');
+    const shown=await dom(`document.querySelector('[data-testid="live-guide-candidates"]')?.textContent||''`);
+    assert.ok(shown.includes('Offline R Main'));
+    assert.ok(shown.includes('Offline Fallback Upper'));
     const top=await dom(`(()=>{const area=[...document.querySelectorAll('.copilot-candidates')]
       .find(x=>x.textContent.includes('NOL · 1장 우선 후보 검토'));
       const labels=[...area.querySelectorAll('p')].map(p=>p.textContent);
@@ -265,6 +290,9 @@ async function run(){
     await waitText('Offline S Balcony',{absent:true});
     await waitText('Offline Fallback Upper',{absent:true});
     await waitText('Offline Over Budget',{absent:true});
+    const shortlist=await dom(`document.querySelector('[data-testid="live-guide-candidates"]')?.textContent||''`);
+    assert.ok(shortlist.includes('Offline R Main'));
+    assert.equal(shortlist.includes('Offline Fallback Upper'),false);
     const disabled=await dom(`[...document.querySelectorAll('button')]
       .some(x=>x.disabled && x.textContent.includes('AI 자동 진행'))`);
     assert.equal(disabled,true,'Real CopilotPanel must block unattended booking');
@@ -278,6 +306,8 @@ async function run(){
         reason:'Offline UI fixture no official hold'}
     }));
     await needsText('NOL 공식 좌석 보류 검증: 미연결');
+    const guidance=await dom(`document.querySelector('[data-testid="live-guide-heading"]')?.textContent||''`);
+    assert.ok(guidance.includes('좌석과 결제 조건'));
     const capture=await dom(`[...document.querySelectorAll('.copilot-panel button')]
       .find(x=>x.textContent.includes('실제 예매 화면 가져오기'))?.disabled`);
     assert.equal(capture,true,'Capture must be disabled at protected checkout');
@@ -306,11 +336,13 @@ async function run(){
 
   await scenario('Real UI stage control, manual resume and stop buttons',async()=>{
     await setStage('queue');
+    await waitText('대기 중이에요');
     await waitFor('queue capture disabled',()=>dom(`(()=>{
       const b=[...document.querySelectorAll('.copilot-panel button')]
         .find(x=>x.textContent.includes('실제 예매 화면 가져오기'));
       return !!b && b.disabled;})()`));
     await setStage('selecting');
+    await waitText('1장 확보를 목표로');
     await waitFor('capture enabled for selecting stage',()=>dom(`(()=>{
       const b=[...document.querySelectorAll('.copilot-panel button')]
         .find(x=>x.textContent.includes('실제 예매 화면 가져오기'));
