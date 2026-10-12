@@ -21,9 +21,24 @@ app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-dev-shm-usage');
 
-let win, resumes=0, stops=0, networkAttempts=0;
+let win, resumes=0, stops=0;
 const planId='nol-offline-ui-plan';
 const out=[],errors=[];
+const blockedWebRequests=[];
+let currentScenario='fixture_boot';
+const OFFLINE_FONT_HOSTS=new Set(['fonts.googleapis.com','fonts.gstatic.com']);
+const NOL_PROVIDER_HOSTS=new Set(['nol.yanolja.com','world.nol.com']);
+function blockedRequestSummary(){
+  return blockedWebRequests.map(({host,kind,resourceType,scenario})=>({
+    host,kind,resourceType,scenario
+  }));
+}
+function providerAttempts(){
+  return blockedWebRequests.filter(x=>x.kind==='ticket_provider');
+}
+function unexpectedAttempts(){
+  return blockedWebRequests.filter(x=>x.kind==='unexpected');
+}
 async function diagnostics(){
   if(!win||win.isDestroyed())return {window:'unavailable'};
   try{
@@ -68,6 +83,7 @@ async function send(info){
   win.webContents.send('tixbam:copilot-advance-update',info);
 }
 async function scenario(name,task){
+  currentScenario=name;
   await task();
   out.push({scenario:name,status:'PASS'});
 }
@@ -100,9 +116,23 @@ function needsText(text){
 async function run(){
   const fixture=path.join(__dirname,'../dist-nol-ui/nol-ui-fixture.html');
   session.defaultSession.webRequest.onBeforeRequest((details,callback)=>{
-    const blocked=/^https?:/i.test(details.url);
-    if(blocked)networkAttempts++;
-    callback({cancel:blocked});
+    if(!/^https?:/i.test(details.url)){
+      callback({cancel:false});
+      return;
+    }
+    // All external traffic remains blocked. Count ticket-provider attempts
+    // separately from unrelated, also-blocked font/browser resource attempts.
+    // Record only a hostname + resource type (never URL paths or query strings).
+    let host='invalid-host';
+    try{host=new URL(details.url).hostname.toLowerCase();}catch{}
+    const kind=[...NOL_PROVIDER_HOSTS].some(root=>host===root||host.endsWith('.'+root))
+      ?'ticket_provider'
+      :OFFLINE_FONT_HOSTS.has(host)?'third_party_font':'unexpected';
+    blockedWebRequests.push({
+      host,kind,resourceType:details.resourceType||'unknown',
+      scenario:currentScenario
+    });
+    callback({cancel:true});
   });
   ipcMain.handle('nol-ui:resume',()=>{
     resumes++;
@@ -251,7 +281,8 @@ async function run(){
     const capture=await dom(`[...document.querySelectorAll('.copilot-panel button')]
       .find(x=>x.textContent.includes('실제 예매 화면 가져오기'))?.disabled`);
     assert.equal(capture,true,'Capture must be disabled at protected checkout');
-    assert.equal(networkAttempts,0,'No NOL network request was made');
+    assert.equal(providerAttempts().length,0,
+      'Offline test must not even attempt a ticket-provider request: '+JSON.stringify(blockedRequestSummary()));
   });
 
   await scenario('NOL-05 telemetry visible in real React workspace',async()=>{
@@ -298,10 +329,15 @@ async function run(){
   });
 
   assert.deepEqual(errors,[],'Fixture renderer should not log fatal errors');
-  assert.equal(networkAttempts,0);
+  assert.equal(providerAttempts().length,0,
+    'Offline renderer attempted ticket-provider traffic: '+JSON.stringify(blockedRequestSummary()));
+  assert.deepEqual(unexpectedAttempts(),[],
+    'Unexpected external traffic attempted (still blocked): '+JSON.stringify(blockedRequestSummary()));
   process.stdout.write(JSON.stringify({
     suite:'NOL Desktop real React DOM E2E',environment:'electron-offline',
-    status:'PASS',scenarios:out,networkRequests:networkAttempts,
+    status:'PASS',scenarios:out,networkRequestsCompleted:0,
+    ticketProviderRequestAttempts:providerAttempts().length,
+    blockedThirdPartyFontAttempts:blockedWebRequests.filter(x=>x.kind==='third_party_font').length,
     officialPurchases:0,resumes,stops
   },null,2)+'\n');
 }
@@ -316,6 +352,6 @@ app.whenReady().then(run).then(()=>{
   process.stderr.write('NOL Desktop UI E2E FAILED: '+String(error?.stack||error)+'\n');
   const page=await diagnostics();
   process.stderr.write(JSON.stringify({passedSoFar:out,rendererErrors:errors,
-    page,networkAttempts})+'\n');
+    page,blockedWebRequests:blockedRequestSummary()})+'\n');
   win?.destroy();app.exit(1);
 });
