@@ -138,8 +138,11 @@ async function run(){
   });
   await win.loadFile(fixture);
   await waitFor('React fixture mounted',()=>dom(`!!document.querySelector('[data-testid="nol-ui-fixture"]')`));
-  await waitText('AI Booking Copilot');
-  await waitText('TixBam Live Copilot');
+  // The production JSX i18n plugin translates these titles in the default
+  // Korean locale. English literals here caused a guaranteed boot timeout
+  // even while the actual React UI had rendered correctly.
+  await waitText('AI 예매 코파일럿');
+  await waitText('TixBam 실시간 코파일럿');
   // The initial async Copilot status proves the production hook subscribed.
   await waitText('사전 승인 코파일럿');
 
