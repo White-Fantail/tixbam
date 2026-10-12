@@ -198,6 +198,33 @@ async function run(){
       `document.querySelector('[data-testid="live-copilot-tools"]')?.open===true`));
   });
 
+  await scenario('Sign-in origin: human first, no premature capture or stage promotion',async()=>{
+    await setStage('preparing');
+    await dom(`window.dispatchEvent(new CustomEvent('nol-ui-test:navigate',{
+      detail:'https://accounts.yanolja.com/login'}))`);
+    await waitText('로그인 또는 인증을 완료하세요');
+    const state=await dom(`(()=>{
+      const guide=document.querySelector('[data-testid="live-booking-guide"]');
+      const capture=[...document.querySelectorAll('.copilot-panel button')].find(
+        b=>b.textContent.includes('예매 페이지 연결 확인'));
+      return {
+        action:guide.querySelector('[data-testid="live-guide-primary"]')?.textContent,
+        stageOffer:!!guide.querySelector('[data-testid="live-guide-mark-selecting"]'),
+        captureDisabled:capture?.disabled,
+        actualPhase:document.querySelector('#live-step')?.value
+      };
+    })()`);
+    assert.ok(state.action.includes('공식 예매창 확인'));
+    assert.equal(state.stageOffer,false,'Do not suggest seat stage on login origin');
+    assert.equal(state.captureDisabled,true,'Never capture the sign-in screen');
+    assert.equal(state.actualPhase,'preparing','Visual navigation never grants seat-stage permission');
+    await dom(`window.dispatchEvent(new CustomEvent('nol-ui-test:navigate',{
+      detail:'https://nol.yanolja.com/product/offline-fixture'}))`);
+    await waitFor('safe fixture route restored',()=>dom(
+      `document.querySelector('.live-browser-meta strong')?.textContent==='nol.yanolja.com'`));
+    await setStage('selecting');
+  });
+
   await scenario('NOL-01 event/detail + fail-closed human gate',async()=>{
     await send(base('awaiting_user',{
       providerStep:observed('preparing','event','event_detail')
