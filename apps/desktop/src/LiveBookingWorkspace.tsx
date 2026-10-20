@@ -333,7 +333,8 @@ export function LiveBookingWorkspace({
           key={plan.id}
           plan={plan}
           bookingWindow={selectedWindow}
-          metrics={advance?.providerId === "nol" ? advance.validationMetrics : undefined}/>}
+          metrics={advance?.providerId === "nol" ? advance.validationMetrics : undefined}
+          onOpenCopilot={openCopilotTools}/>}
         {selectedWindow?.popup && <p className="live-manual-label">
           {tr("Copilot target: linked popup #{id}",{id:selectedWindow.id})} · {selectedWindow.site}. {tx("Only supported ticket-provider pages are eligible.")}
         </p>}
