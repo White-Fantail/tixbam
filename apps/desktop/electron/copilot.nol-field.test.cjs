@@ -41,7 +41,9 @@ test('NOL live session is human-reported and never attests to a hold or purchase
   const serialized=JSON.stringify(report);
   assert.equal(serialized.includes('sensitive-plan-identifier'),false);
   assert.equal(serialized.includes('never export'),false);
-  assert.equal(serialized.includes('22'),false);
+  assert.equal(Object.hasOwn(report,'windowId'),false);
+  assert.equal(Object.hasOwn(report,'planId'),false);
+  assert.equal(Object.hasOwn(report,'url'),false);
   assert.equal(report.humanReportedStage,'cart_review');
   assert.equal(report.elapsedMs,4000);
 });
