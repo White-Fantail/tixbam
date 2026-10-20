@@ -39,10 +39,11 @@ function trustedNolWindow(win?: TicketWindow): boolean {
  * Human-directed field evidence collection. Never drives provider navigation,
  * Electron mouse input, screenshots, queue or checkout. No "hold verified" button.
  */
-export function NolFieldValidation({ plan, bookingWindow, metrics }: {
+export function NolFieldValidation({ plan, bookingWindow, metrics, onOpenCopilot }: {
   plan: BookingPlan;
   bookingWindow?: TicketWindow;
   metrics?: CopilotAdvanceInfo["validationMetrics"];
+  onOpenCopilot: () => void;
 }) {
   const { language } = useLanguage();
   const ko = language === "ko";
@@ -130,6 +131,11 @@ export function NolFieldValidation({ plan, bookingWindow, metrics }: {
         {" · "}{l("문제", "Issues")}: {events.filter(e => e.kind === "issue").length}
       </p>
       {session.status === "running" && <>
+        <div className="booking-actions">
+          <button type="button" className="button button-primary"
+            disabled={!canRecord || bookingWindow?.phase !== "selecting"}
+            onClick={onOpenCopilot}>{l("화면 분석 · 클릭 위치 도우미 열기", "Open screen analysis and click guide")}</button>
+        </div>
         <div className="nol-field-steps" role="group" aria-label={l("관찰된 실제 단계", "Observed stages")}>
           {FIELD_STEPS.slice(1).map(step => {
             const index = FIELD_STEPS.indexOf(step);
