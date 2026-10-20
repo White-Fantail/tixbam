@@ -8,6 +8,7 @@ import { tx, tr, localDate } from "./i18n";
 import { SaleCountdown } from "./BookingWorkspace";
 import { LiveCopilotPanel } from "./copilot/LiveCopilotPanel";
 import { ProviderLiveGuide } from "./booking/ProviderLiveGuide";
+import { NolFieldValidation } from "./booking/NolFieldValidation";
 import { bookingGuide, looksLikeSignIn } from "./booking/live-guidance";
 import { formatSaleLocalTime } from "./ticket-sales";
 import type { CopilotAdvanceInfo, LiveHistory, LivePhase, TicketAddon, TicketWindow } from "./types";
@@ -328,6 +329,11 @@ export function LiveBookingWorkspace({
             </div>)}
           </div>}
         </div>
+        {plan.providerId === "nol" && <NolFieldValidation
+          key={plan.id}
+          plan={plan}
+          bookingWindow={selectedWindow}
+          metrics={advance?.providerId === "nol" ? advance.validationMetrics : undefined}/>}
         {selectedWindow?.popup && <p className="live-manual-label">
           {tr("Copilot target: linked popup #{id}",{id:selectedWindow.id})} · {selectedWindow.site}. {tx("Only supported ticket-provider pages are eligible.")}
         </p>}
