@@ -573,3 +573,16 @@ html:lang(ko) .cl-drill-stage h4,html:lang(ko) .section-heading h2{
   .live-guide-actions .button{width:100%;justify-content:center}
   .live-guide-limit{font-size:11px}
 }
+
+
+/* NOL live field verification — compact, non-payment human observation */
+.nol-field-validation{display:grid;gap:12px;margin:15px 0}
+.nol-field-validation .live-card-head h3{margin:0;font-size:15px}
+.nol-field-validation p{font-size:12px;line-height:1.6;margin:0}
+.nol-field-validation .booking-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nol-field-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.nol-field-steps .button{white-space:normal;text-align:left;line-height:1.4;min-height:42px}
+.nol-field-validation details{border-top:1px solid #494956;padding-top:9px}
+.nol-field-validation details summary{cursor:pointer;color:#c6f5a8;font-size:12px;font-weight:700}
+.nol-field-validation details .booking-actions{margin-top:10px}
+@media(max-width:720px){.nol-field-steps{grid-template-columns:1fr}}
