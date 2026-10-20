@@ -112,6 +112,10 @@ python -m crawler.run
 pytest tests -q
 ```
 
+## NOL live field validation (dev)
+
+In the Desktop's **Live booking assistant**, select a NOL Booking Plan, open its official browser and choose **NOL 실전 검증 → 이 창에서 실전 검증 시작**. Record the stages actually observed, capture optional Copilot diagnostics and export the anonymous local JSON report. The new workflow reuses read-only screenshots, optional AI proposals and one explicitly approved click; it does not automate sign-in, queue, checkout, payment or cancellation. The report is always **HOLD / unverified**; human-reported steps cannot be interpreted as real seat holds. For the step-by-step procedure see [NOL real-screen validation](docs/NOL_05_REAL_SCREEN_VALIDATION.md).
+
 ## Live Copilot (development)
 
 The first working Copilot bridge is now in the dev branch: opt-in local screen capture for a plan-linked browser at the ticket-selection stage; user-selected target overlays; one explicit, freshness-checked native click per screenshot; and optional AI candidate recognition with separate per-frame external-image consent (admin-controlled `copilot_vision` model policy; default OFF). Predictions are read-only; the user chooses and approves each click. No automatic retry, queue bypass, CAPTCHA handling, verified seats, autonomous cart holds or payments are enabled. Official checkout is the source of truth. [Architecture, limitations and QA](docs/LIVE_COPILOT.md).
