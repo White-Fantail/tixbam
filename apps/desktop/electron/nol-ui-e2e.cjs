@@ -360,6 +360,33 @@ async function run(){
     assert.equal(metrics.officialHoldVerified,false);
   });
 
+  await scenario('NOL live field checklist, pause on authentication and fail-closed report',async()=>{
+    await setStage('selecting');
+    await waitFor('field start enabled',()=>dom(
+      'document.querySelector("[data-testid=nol-field-start]")?.disabled===false'));
+    await clickButton('이 창에서 실전 검증 시작');
+    await waitText('기록 중 · 공식 구매 여부 미확인');
+    await clickButton('좌석/매수 화면 확인');
+    await waitText('마지막 수동 확인: 좌석/매수 화면 확인');
+    await dom('document.querySelector(".nol-field-validation details").open=true');
+    await clickButton('화면 인식 오류');
+    await waitText('문제: 1');
+    await dom('window.dispatchEvent(new CustomEvent("nol-ui-test:navigate",{detail:"https://accounts.yanolja.com/login"}))');
+    await waitFor('authentication pauses recording',()=>dom(
+      'document.querySelector("[data-testid=nol-field-step-cart_review]")?.disabled===true'));
+    await waitText('인증·외부 페이지 또는 로딩 중에는 기록을 진행하지 않습니다.');
+    await dom('window.dispatchEvent(new CustomEvent("nol-ui-test:navigate",{detail:"https://nol.yanolja.com/product/offline-fixture"}))');
+    await waitFor('official site restored',()=>dom(
+      'document.querySelector("[data-testid=nol-field-step-cart_review]")?.disabled===false'));
+    await clickButton('검증 중지');
+    await waitText('검증 종료 · 공식 구매 여부 미확인');
+    const results=await dom('(()=>({report:!!document.querySelector("[data-testid=nol-field-export]"),hold:document.querySelector("[data-testid=nol-field-validation]").textContent.includes("좌석 보류 미확인"),disabled:document.querySelector("[data-testid=nol-field-step-cart_review]")===null}))()');
+    assert.deepEqual(results,{report:true,hold:true,disabled:true});
+    await clickButton('새 검증');
+    await waitFor('field report cleared',()=>dom('!!document.querySelector("[data-testid=nol-field-start]")'));
+    assert.equal(providerAttempts().length,0);
+  });
+
   await scenario('Real UI stage control, manual resume and stop buttons',async()=>{
     await setStage('queue');
     await waitText('대기 중이에요');
